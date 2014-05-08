@@ -48,6 +48,8 @@ flipped = (t) ->
   t
 
 class Postgres
+  @NULL: {"NULL"}
+
   TYPE = flipped {
     status: "S"
     auth_ok: "R"
@@ -112,11 +114,14 @@ class Postgres
           error "error: #{msg}"
         when TYPE.ready_for_query
           break
-        else
-          print t, _debug_msg(msg)
 
     if row_desc
-      @parse_row_desc row_desc
+      fields = @parse_row_desc row_desc
+      num_rows = #data_rows
+      for i=1,num_rows
+        data_rows[i] = @parse_data_row data_rows[i], fields
+
+      data_rows
 
   parse_row_desc: (row_desc) =>
     num_fields = @decode_int row_desc\sub(1,2)
@@ -143,6 +148,38 @@ class Postgres
       {name, data_type}
 
     fields
+
+  parse_data_row: (data_row, fields) =>
+    -- 2: number of values
+    num_fields = @decode_int data_row\sub(1,2)
+    out = {}
+
+    offset = 3
+    for i=1,num_fields
+      field = fields[i]
+      continue unless field
+      {field_name, field_type} = field
+
+      -- 4: length of value
+      len = @decode_int data_row\sub offset, offset + 3
+      offset += 4
+
+      if len < 0
+        out[field_name] = @@NULL
+        continue
+
+      value = data_row\sub offset, offset + len - 1
+      offset += len
+
+      switch field_type
+        when "number"
+          value = tonumber value
+        when "boolean"
+          value = value == "t"
+
+      out[field_name] = value
+
+    out
 
   wait_until_ready: =>
     while true
@@ -211,7 +248,8 @@ class Postgres
 unless ...
   p = Postgres "127.0.0.1", "5432", "postgres", "moonrocks"
   p\connect!
-  p\send_query "select 13247 hello, 'yeah' yeah"
+  -- require("moon").p p\send_query "select 13247 hello, 'yeah' yeah, true boo, false wah, NULL"
+  require("moon").p p\send_query "select * from user_data"
 
 { :Postgres }
 
