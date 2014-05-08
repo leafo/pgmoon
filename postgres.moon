@@ -1,4 +1,6 @@
 
+import insert from table
+
 socket = if _G.ngx
   _G.ngx.socket
 else
@@ -54,10 +56,21 @@ class Postgres
     query: "Q"
 
     row_description: "T"
-    data_row: "B"
+    data_row: "D"
     close: "C"
 
     error: "E"
+  }
+
+  PG_TYPES = {
+    [16]: "boolean"
+
+    [20]: "number" -- int8
+    [21]: "number" -- int2
+    [23]: "number" -- int4
+    [700]: "number" -- float4
+    [201]: "number" -- float8
+    [1700]: "number" -- numeric
   }
 
   NULL = "\0"
@@ -85,14 +98,51 @@ class Postgres
 
   send_query: (q) =>
     @send_message TYPE.query, {q, NULL}
-    local row_desc
+    local row_desc, data_rows
 
     while true
       t, msg = @receive_message!
-      print t, _debug_msg(msg)
+      switch t
+        when TYPE.data_row
+          data_rows or= {}
+          insert data_rows, msg
+        when TYPE.row_description
+          row_desc = msg
+        when TYPE.error
+          error "error: #{msg}"
+        when TYPE.ready_for_query
+          break
+        else
+          print t, _debug_msg(msg)
 
-      error "error: #{msg}" if TYPE.error == t
-      break if t == TYPE.ready_for_query
+    if row_desc
+      @parse_row_desc row_desc
+
+  parse_row_desc: (row_desc) =>
+    num_fields = @decode_int row_desc\sub(1,2)
+    offset = 3
+    fields = for i=1,num_fields
+      name = row_desc\match "[^%z]+", offset
+      offset += #name + 1
+      -- 4: object id of table
+      -- 2: attribute number of column (4)
+
+      -- 4: object id of data type (6)
+      data_type = @decode_int row_desc\sub offset + 6, offset + 6 + 3
+      data_type = PG_TYPES[data_type] or "string"
+
+      -- 2: data type size (10)
+      -- 4: type modifier (12)
+
+      -- 2: format code (16)
+      -- we only know how to handle text
+      format = @decode_int row_desc\sub offset + 16, offset + 16 + 1
+      assert 0 == format, "don't know how to handle format"
+
+      offset += 18
+      {name, data_type}
+
+    fields
 
   wait_until_ready: =>
     while true
@@ -135,11 +185,14 @@ class Postgres
       data
     }
 
-  decode_int: (str, bytes=4) =>
+  decode_int: (str, bytes=#str) =>
     switch bytes
       when 4
         d, c, b, a = str\byte 1, 4
         a + lshift(b, 8) + lshift(c, 16) + lshift(d, 24)
+      when 2
+        b, a = str\byte 1, 2
+        a + lshift(b, 8)
       else
         error "don't know how to decode #{bytes} byte(s)"
 
@@ -158,7 +211,7 @@ class Postgres
 unless ...
   p = Postgres "127.0.0.1", "5432", "postgres", "moonrocks"
   p\connect!
-  p\send_query "select 13247 hello"
+  p\send_query "select 13247 hello, 'yeah' yeah"
 
 { :Postgres }
 
