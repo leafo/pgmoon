@@ -18,6 +18,27 @@ _flatten = (t, buffer="") ->
 
   buffer
 
+
+_len = (thing, t=type(thing)) ->
+  switch t
+    when "string"
+      #thing
+    when "table"
+      l = 0
+      for inner in *thing
+        inner_t = type inner
+        if inner_t == "string"
+          l += #inner
+        else
+          l += _len inner, inner_t
+      l
+    else
+      error "don't know how to calculate length of #{t}"
+
+
+_debug_msg = (str) ->
+  require("moon").dump [p for p in str\gmatch "[^%z]+"]
+
 flipped = (t) ->
   keys = [k for k in pairs t]
   for key in *keys
@@ -30,27 +51,18 @@ class Postgres
     auth_ok: "R"
     backend_key: "K"
     ready_for_query: "Z"
+    query: "Q"
+
+    row_description: "T"
+    data_row: "B"
+    close: "C"
+
+    error: "E"
   }
 
   NULL = "\0"
 
   import rshift, lshift, band from require "bit"
-
-  _len = (thing, t=type(thing)) ->
-    switch t
-      when "string"
-        #thing
-      when "table"
-        l = 0
-        for inner in *thing
-          inner_t = type inner
-          if inner_t == "string"
-            l += #inner
-          else
-            l += _len inner, inner_t
-        l
-      else
-        error "don't know how to calculate length of #{t}"
 
   new: (@host, @port, @user, @db) =>
 
@@ -64,12 +76,6 @@ class Postgres
     @auth!
     @wait_until_ready!
 
-    print "Looping"
-    while true
-      t, msg = @receive_message!
-      msg = msg\gsub "%z", " ** "
-      print t, "`#{msg}`"
-
   auth: =>
     t, msg = @receive_message!
     if TYPE.auth_ok == t
@@ -77,9 +83,21 @@ class Postgres
 
     error "don't know how to auth #{t}"
 
+  send_query: (q) =>
+    @send_message TYPE.query, {q, NULL}
+    local row_desc
+
+    while true
+      t, msg = @receive_message!
+      print t, _debug_msg(msg)
+
+      error "error: #{msg}" if TYPE.error == t
+      break if t == TYPE.ready_for_query
+
   wait_until_ready: =>
     while true
-      t = @receive_message!
+      t, msg = @receive_message!
+      error "error: #{msg}" if TYPE.error == t
       break if TYPE.ready_for_query == t
 
   receive_message: =>
@@ -108,7 +126,7 @@ class Postgres
     }
 
   send_message: (t, data, len=nil) =>
-    len = _len len if len == nil
+    len = _len data if len == nil
     len += 4 -- includes the length of the length integer
 
     @sock\send _flatten {
@@ -140,9 +158,7 @@ class Postgres
 unless ...
   p = Postgres "127.0.0.1", "5432", "postgres", "moonrocks"
   p\connect!
-
-
-
+  p\send_query "select 13247 hello"
 
 { :Postgres }
 
