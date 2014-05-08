@@ -18,9 +18,20 @@ _flatten = (t, buffer="") ->
 
   buffer
 
+flipped = (t) ->
+  keys = [k for k in pairs t]
+  for key in *keys
+    t[t[key]] = key
+  t
 
 class Postgres
-  AUTH_REQ_OK = 0
+  TYPE = flipped {
+    status: "S"
+    auth_ok: "R"
+    backend_key: "K"
+    ready_for_query: "Z"
+  }
+
   NULL = "\0"
 
   import rshift, lshift, band from require "bit"
@@ -47,11 +58,29 @@ class Postgres
     @sock = socket.tcp!
     ok, err = @sock\connect @host, tonumber @port
     return nil, err unless ok
-    print "startup:", @send_startup_message!
+    success, err = @send_startup_message!
+    return nil, err unless success
 
+    @auth!
+    @wait_until_ready!
+
+    print "Looping"
     while true
       t, msg = @receive_message!
-      print t, msg
+      msg = msg\gsub "%z", " ** "
+      print t, "`#{msg}`"
+
+  auth: =>
+    t, msg = @receive_message!
+    if TYPE.auth_ok == t
+      return true
+
+    error "don't know how to auth #{t}"
+
+  wait_until_ready: =>
+    while true
+      t = @receive_message!
+      break if TYPE.ready_for_query == t
 
   receive_message: =>
     t, err = @sock\receive 1
@@ -61,7 +90,7 @@ class Postgres
     len = @decode_int len
     len -= 4
     msg = @sock\receive len
-    t\byte!, msg
+    t, msg
 
   send_startup_message: =>
     data = {
@@ -111,6 +140,9 @@ class Postgres
 unless ...
   p = Postgres "127.0.0.1", "5432", "postgres", "moonrocks"
   p\connect!
+
+
+
 
 { :Postgres }
 
