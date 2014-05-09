@@ -56,12 +56,19 @@ class Postgres
     backend_key: "K"
     ready_for_query: "Z"
     query: "Q"
+    notice: "N"
 
     row_description: "T"
     data_row: "D"
     close: "C"
 
     error: "E"
+  }
+
+  ERROR_TYPES = flipped {
+    serverity: "S"
+    code: "C"
+    message: "M"
   }
 
   PG_TYPES = {
@@ -111,7 +118,10 @@ class Postgres
         when TYPE.row_description
           row_desc = msg
         when TYPE.error
-          error "error: #{msg}"
+          error @parse_error msg
+        when TYPE.notice
+          -- TODO: do something with notices
+          nil
         when TYPE.ready_for_query
           break
 
@@ -122,6 +132,23 @@ class Postgres
         data_rows[i] = @parse_data_row data_rows[i], fields
 
       data_rows
+
+  parse_error: (err_msg) =>
+    local message
+
+    offset = 1
+    while offset <= #err_msg
+      t = err_msg\sub offset, offset
+      str = err_msg\match "[^%z]+", offset + 1
+      break unless str
+
+      offset += 2 + #str
+
+      switch t
+        when ERROR_TYPES.message
+          message = str
+
+    message
 
   parse_row_desc: (row_desc) =>
     num_fields = @decode_int row_desc\sub(1,2)
@@ -246,10 +273,20 @@ class Postgres
         error "don't know how to encode #{bytes} byte(s)"
 
 unless ...
-  p = Postgres "127.0.0.1", "5432", "postgres", "moonrocks"
+  p = Postgres "127.0.0.1", "5432", "postgres", "pgmoon"
   p\connect!
   -- require("moon").p p\send_query "select 13247 hello, 'yeah' yeah, true boo, false wah, NULL"
-  require("moon").p p\send_query "select * from user_data"
+  -- require("moon").p p\send_query "select * from user_data"
+
+  db = require "lapis.db"
+  import create_table, types from require "lapis.db.schema"
+
+  local query_string
+  db.query = (...) ->
+    query_string = ...
+
+  require("moon").p p\send_query "this is an error"
+
 
 { :Postgres }
 
