@@ -1,3 +1,4 @@
+-- TODO: check out hstore
 
 import insert from table
 
@@ -88,17 +89,23 @@ class Postgres
 
   import rshift, lshift, band from require "bit"
 
-  new: (@host, @port, @user, @db) =>
+  new: (@user, @db, @host="127.0.0.1", @port="5432") =>
 
   connect: =>
     @sock = socket.tcp!
     ok, err = @sock\connect @host, tonumber @port
+
     return nil, err unless ok
     success, err = @send_startup_message!
     return nil, err unless success
 
     @auth!
     @wait_until_ready!
+    true
+
+  disconnect: =>
+    @sock\close!
+    @sock = nil
 
   auth: =>
     t, msg = @receive_message!
@@ -107,7 +114,7 @@ class Postgres
 
     error "don't know how to auth #{t}"
 
-  send_query: (q) =>
+  query: (q) =>
     @send_message TYPE.query, {q, NULL}
     local row_desc, data_rows, command_complete
 
@@ -305,18 +312,17 @@ class Postgres
       else
         error "don't know how to encode #{bytes} byte(s)"
 
-unless ...
-  pg = Postgres "127.0.0.1", "5432", "postgres", "pgmoon"
+if ... == "test"
+  pg = Postgres "postgres", "pgmoon"
   pg\connect!
-  -- require("moon").p p\send_query "select 13247 hello, 'yeah' yeah, true boo, false wah, NULL"
-  -- require("moon").p p\send_query "select * from user_data"
 
   db = require "lapis.db"
   import create_table, types from require "lapis.db.schema"
 
   local query_string
   db.set_backend "raw", (...) ->
-    pg\send_query ...
+    print ...
+    pg\query ...
 
   import p from require "moon"
 
