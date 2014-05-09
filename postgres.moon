@@ -60,7 +60,7 @@ class Postgres
 
     row_description: "T"
     data_row: "D"
-    close: "C"
+    command_complete: "C"
 
     error: "E"
   }
@@ -109,7 +109,7 @@ class Postgres
 
   send_query: (q) =>
     @send_message TYPE.query, {q, NULL}
-    local row_desc, data_rows
+    local row_desc, data_rows, command_complete
 
     while true
       t, msg = @receive_message!
@@ -121,19 +121,36 @@ class Postgres
           row_desc = msg
         when TYPE.error
           error @parse_error msg
-        when TYPE.notice
-          -- TODO: do something with notices
-          nil
+        when TYPE.command_complete
+          command_complete = msg
+        -- when TYPE.notice
+        --   -- TODO: do something with notices
         when TYPE.ready_for_query
           break
 
+    local command, affected_rows
+
+    if command_complete
+      command = command_complete\match "^%w+"
+      affected_rows = tonumber command_complete\match "%d+%z$"
+
     if row_desc
+      return {} unless data_rows
+
       fields = @parse_row_desc row_desc
       num_rows = #data_rows
       for i=1,num_rows
         data_rows[i] = @parse_data_row data_rows[i], fields
 
-      data_rows
+      if affected_rows and command != "SELECT"
+        data_rows.affected_rows = affected_rows
+
+      return data_rows
+
+    if affected_rows
+      { :affected_rows }
+    else
+      true
 
   parse_error: (err_msg) =>
     local severity, message, detail, position
@@ -151,7 +168,7 @@ class Postgres
           severity = str
         when ERROR_TYPES.message
           message = str
-        when ERROR_TYPES.postgres
+        when ERROR_TYPES.position
           position = str
         when ERROR_TYPES.detail
           detail = str
@@ -289,8 +306,8 @@ class Postgres
         error "don't know how to encode #{bytes} byte(s)"
 
 unless ...
-  p = Postgres "127.0.0.1", "5432", "postgres", "pgmoon"
-  p\connect!
+  pg = Postgres "127.0.0.1", "5432", "postgres", "pgmoon"
+  pg\connect!
   -- require("moon").p p\send_query "select 13247 hello, 'yeah' yeah, true boo, false wah, NULL"
   -- require("moon").p p\send_query "select * from user_data"
 
@@ -298,11 +315,47 @@ unless ...
   import create_table, types from require "lapis.db.schema"
 
   local query_string
-  db.query = (...) ->
-    query_string = ...
+  db.set_backend "raw", (...) ->
+    pg\send_query ...
 
-  require("moon").p p\send_query "this is an error"
+  import p from require "moon"
 
+  print "Insert"
+  _insert = db.insert "hello_world", {
+    name: "hi"
+    count: 100
+  }, "id"
+
+  p _insert
+
+  print "Select"
+  p db.select "* from hello_world limit 2"
+
+  print "Update none"
+  p db.update "hello_world", {
+    name: "wedfefefw"
+  }, {
+    name: "YEAH"
+  }
+
+  if type(_insert) == "table"
+    print "Update some"
+    p db.update "hello_world", {
+      name: "wedfefefw"
+    }, {
+      id: _insert[1].id
+    }
+
+  print "Delete none"
+  p db.delete "hello_world", {
+    name: "wedfefefw"
+  }
+
+  if type(_insert) == "table"
+    print "Delete one"
+    p db.delete "hello_world", {
+      id: _insert[1].id
+    }
 
 { :Postgres }
 
