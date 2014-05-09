@@ -312,56 +312,5 @@ class Postgres
       else
         error "don't know how to encode #{bytes} byte(s)"
 
-if ... == "test"
-  pg = Postgres "postgres", "pgmoon"
-  pg\connect!
-
-  db = require "lapis.db"
-  import create_table, types from require "lapis.db.schema"
-
-  local query_string
-  db.set_backend "raw", (...) ->
-    print ...
-    pg\query ...
-
-  import p from require "moon"
-
-  print "Insert"
-  _insert = db.insert "hello_world", {
-    name: "hi"
-    count: 100
-  }, "id"
-
-  p _insert
-
-  print "Select"
-  p db.select "* from hello_world limit 2"
-
-  print "Update none"
-  p db.update "hello_world", {
-    name: "wedfefefw"
-  }, {
-    name: "YEAH"
-  }
-
-  if type(_insert) == "table"
-    print "Update some"
-    p db.update "hello_world", {
-      name: "wedfefefw"
-    }, {
-      id: _insert[1].id
-    }
-
-  print "Delete none"
-  p db.delete "hello_world", {
-    name: "wedfefefw"
-  }
-
-  if type(_insert) == "table"
-    print "Delete one"
-    p db.delete "hello_world", {
-      id: _insert[1].id
-    }
-
 { :Postgres }
 
