@@ -66,9 +66,11 @@ class Postgres
   }
 
   ERROR_TYPES = flipped {
-    serverity: "S"
+    severity: "S"
     code: "C"
     message: "M"
+    position: "P"
+    detail: "D"
   }
 
   PG_TYPES = {
@@ -134,7 +136,7 @@ class Postgres
       data_rows
 
   parse_error: (err_msg) =>
-    local message
+    local severity, message, detail, position
 
     offset = 1
     while offset <= #err_msg
@@ -145,10 +147,24 @@ class Postgres
       offset += 2 + #str
 
       switch t
+        when ERROR_TYPES.severity
+          severity = str
         when ERROR_TYPES.message
           message = str
+        when ERROR_TYPES.postgres
+          position = str
+        when ERROR_TYPES.detail
+          detail = str
 
-    message
+    msg = "#{severity}: #{message}"
+
+    if position
+      msg = "#{msg} (#{position})"
+
+    if detail
+      msg = "#{msg}\n#{detail}"
+
+    msg
 
   parse_row_desc: (row_desc) =>
     num_fields = @decode_int row_desc\sub(1,2)
@@ -211,7 +227,7 @@ class Postgres
   wait_until_ready: =>
     while true
       t, msg = @receive_message!
-      error "error: #{msg}" if TYPE.error == t
+      error @parse_error(msg) if TYPE.error == t
       break if TYPE.ready_for_query == t
 
   receive_message: =>
