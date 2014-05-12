@@ -74,19 +74,26 @@ class Postgres
 
   connect: =>
     @sock = tcp!
-    ok, err = @sock\connect @host, tonumber @port
-
+    ok, err = @sock\connect @host, @port
     return nil, err unless ok
-    success, err = @send_startup_message!
-    return nil, err unless success
+
+    if @sock\getreusedtimes! == 0
+      success, err = @send_startup_message!
+      return nil, err unless success
 
     @auth!
     @wait_until_ready!
     true
 
   disconnect: =>
-    @sock\close!
+    sock = @sock
     @sock = nil
+    sock\close!
+
+  keepalive: (...) =>
+    sock = @sock
+    @sock = nil
+    sock\setkeepalive ...
 
   auth: =>
     t, msg = @receive_message!
@@ -233,9 +240,11 @@ class Postgres
   wait_until_ready: =>
     while true
       t, msg = @receive_message!
+
       if TYPE.error == t
         @disconnect!
         error @parse_error(msg)
+
       break if TYPE.ready_for_query == t
 
   receive_message: =>
