@@ -71,7 +71,7 @@ class Postgres
 
   import rshift, lshift, band from require "bit"
 
-  new: (@user, @db, @host="127.0.0.1", @port="5432") =>
+  new: (@user="postgres", @db, @host="127.0.0.1", @port="5432") =>
 
   connect: =>
     @sock = tcp!
@@ -259,6 +259,9 @@ class Postgres
     t, msg
 
   send_startup_message: =>
+    assert @user, "missing user for connect"
+    assert @db, "missing database for connect"
+
     data = {
       @encode_int 196608
       "user", NULL
@@ -320,6 +323,9 @@ class Postgres
         return val and "TRUE" or "FALSE"
 
     error "don't know how to escape value: #{val}"
+
+  __tostring: =>
+    "<Postgres socket: #{@sock}>"
 
 { :Postgres }
 
