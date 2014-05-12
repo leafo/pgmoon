@@ -30,7 +30,8 @@ flipped = (t) ->
   t
 
 class Postgres
-  @NULL: {"NULL"}
+  NULL: {"NULL"}
+  convert_null: false
 
   TYPE = flipped {
     status: "S"
@@ -221,7 +222,7 @@ class Postgres
       offset += 4
 
       if len < 0
-        out[field_name] = @@NULL
+        out[field_name] = @NULL if @convert_null
         continue
 
       value = data_row\sub offset, offset + len - 1
