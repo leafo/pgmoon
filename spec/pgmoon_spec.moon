@@ -5,7 +5,7 @@ HOST = "127.0.0.1"
 USER = "postgres"
 DB = "pgmoon_test"
 
-describe "pgmoon", ->
+describe "pgmoon with server", ->
   local pg
 
   setup ->
@@ -133,4 +133,28 @@ describe "pgmoon", ->
     pg\disconnect!
     os.execute "dropdb -U postgres '#{DB}'"
 
+describe "pgmoon without server", ->
+  escape_ident = {
+    { "dad", '"dad"' }
+    { "select", '"select"' }
+    { 'love"fish', '"love""fish"' }
+  }
 
+  escape_literal = {
+    { 3434, "3434" }
+    { 34.342, "34.342" }
+    { "cat's soft fur", "'cat''s soft fur'" }
+    { true, "TRUE" }
+  }
+
+  local pg
+  before_each ->
+    pg = Postgres!
+
+  for {ident, expected} in *escape_ident
+    it "should escape identifier '#{ident}'", ->
+      assert.same expected, pg\escape_identifier ident
+
+  for {lit, expected} in *escape_literal
+    it "should escape literal '#{lit}'", ->
+      assert.same expected, pg\escape_literal lit

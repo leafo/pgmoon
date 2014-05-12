@@ -312,5 +312,20 @@ class Postgres
       else
         error "don't know how to encode #{bytes} byte(s)"
 
+
+  escape_identifier: (ident) =>
+    '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
+
+  escape_literal: (val) =>
+    switch type val
+      when "number"
+        return tostring val
+      when "string"
+        return "'#{(val\gsub "'", "''")}'"
+      when "boolean"
+        return val and "TRUE" or "FALSE"
+
+    error "don't know how to escape value: #{val}"
+
 { :Postgres }
 
