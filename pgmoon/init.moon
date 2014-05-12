@@ -1,26 +1,7 @@
 -- TODO: check out hstore
 
 import insert from table
-
-socket = if _G.ngx
-  _G.ngx.socket
-else
-  require "socket"
-
-_flatten = (t, buffer="") ->
-  if _G.ngx
-    _flatten = (...) -> ...
-    return t
-
-  switch type(t)
-    when "string"
-      buffer ..= t
-    when "table"
-      for thing in *t
-        buffer = _flatten thing, buffer
-
-  buffer
-
+import tcp from require "pgmoon.socket"
 
 _len = (thing, t=type(thing)) ->
   switch t
@@ -92,7 +73,7 @@ class Postgres
   new: (@user, @db, @host="127.0.0.1", @port="5432") =>
 
   connect: =>
-    @sock = socket.tcp!
+    @sock = tcp!
     ok, err = @sock\connect @host, tonumber @port
 
     return nil, err unless ok
@@ -112,6 +93,7 @@ class Postgres
     if TYPE.auth_ok == t
       return true
 
+    @disconnect!
     error "don't know how to auth #{t}"
 
   query: (q) =>
@@ -251,7 +233,9 @@ class Postgres
   wait_until_ready: =>
     while true
       t, msg = @receive_message!
-      error @parse_error(msg) if TYPE.error == t
+      if TYPE.error == t
+        @disconnect!
+        error @parse_error(msg)
       break if TYPE.ready_for_query == t
 
   receive_message: =>
@@ -274,7 +258,7 @@ class Postgres
       NULL
     }
 
-    @sock\send _flatten {
+    @sock\send {
       @encode_int _len(data) + 4
       data
     }
@@ -283,7 +267,7 @@ class Postgres
     len = _len data if len == nil
     len += 4 -- includes the length of the length integer
 
-    @sock\send _flatten {
+    @sock\send {
       t
       @encode_int len
       data
