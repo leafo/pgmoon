@@ -82,9 +82,9 @@ do
         if not (success) then
           return nil, err
         end
+        self:auth()
+        self:wait_until_ready()
       end
-      self:auth()
-      self:wait_until_ready()
       return true
     end,
     disconnect = function(self)

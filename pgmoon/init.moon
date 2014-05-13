@@ -81,9 +81,9 @@ class Postgres
     if @sock\getreusedtimes! == 0
       success, err = @send_startup_message!
       return nil, err unless success
+      @auth!
+      @wait_until_ready!
 
-    @auth!
-    @wait_until_ready!
     true
 
   disconnect: =>
