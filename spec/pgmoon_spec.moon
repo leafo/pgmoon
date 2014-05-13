@@ -93,19 +93,6 @@ describe "pgmoon with server", ->
         assert.same "table", type(res)
         assert.same 10, #res
 
-      it "should deserialize types correctly", ->
-        res = assert pg\query [[
-          select * from hello_world order by id asc limit 1
-        ]]
-
-        assert.same {
-          {
-            flag: true
-            count: 1
-            name: "thing_1"
-            id: 1
-          }
-        }, res
 
       it "should update rows", ->
         res = assert pg\query [[
@@ -128,6 +115,44 @@ describe "pgmoon with server", ->
       it "should truncate table", ->
         res = assert pg\query "truncate hello_world"
         assert.same true, res
+
+  it "should deserialize types correctly", ->
+    assert pg\query [[
+      create table types_test (
+        id serial not null,
+        name text default 'hello',
+        subname varchar default 'world',
+        count integer default 100,
+        flag boolean default false,
+        count2 double precision default 1.2,
+
+        primary key (id)
+      )
+    ]]
+
+    assert pg\query [[
+      insert into types_test (name) values ('hello')
+    ]]
+
+
+    res = assert pg\query [[
+      select * from types_test order by id asc limit 1
+    ]]
+
+    assert.same {
+      {
+        id: 1
+        name: "hello"
+        subname: "world"
+        count: 100
+        flag: false
+        count2: 1.2
+      }
+    }, res
+
+    assert pg\query [[
+      drop table types_test
+    ]]
 
   teardown ->
     pg\disconnect!

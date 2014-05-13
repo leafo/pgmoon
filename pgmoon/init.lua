@@ -410,7 +410,7 @@ do
     [21] = "number",
     [23] = "number",
     [700] = "number",
-    [201] = "number",
+    [701] = "number",
     [1700] = "number"
   }
   NULL = "\0"

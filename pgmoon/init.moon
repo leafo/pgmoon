@@ -63,7 +63,7 @@ class Postgres
     [21]: "number" -- int2
     [23]: "number" -- int4
     [700]: "number" -- float4
-    [201]: "number" -- float8
+    [701]: "number" -- float8
     [1700]: "number" -- numeric
   }
 
