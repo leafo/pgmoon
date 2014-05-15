@@ -3,21 +3,23 @@ if ngx then
     tcp = ngx.socket.tcp
   }
 end
-local _flatten
-_flatten = function(t, buffer)
-  if buffer == nil then
-    buffer = ""
-  end
+local __flatten
+__flatten = function(t, buffer)
   local _exp_0 = type(t)
   if "string" == _exp_0 then
-    buffer = buffer .. t
+    buffer[#buffer + 1] = t
   elseif "table" == _exp_0 then
     for _index_0 = 1, #t do
       local thing = t[_index_0]
-      buffer = _flatten(thing, buffer)
+      __flatten(thing, buffer)
     end
   end
-  return buffer
+end
+local _flatten
+_flatten = function(t)
+  local buffer = { }
+  __flatten(t, buffer)
+  return table.concat(buffer)
 end
 local socket = require("socket")
 local proxy_mt = {
