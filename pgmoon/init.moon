@@ -65,11 +65,20 @@ class Postgres
     [700]: "number" -- float4
     [701]: "number" -- float8
     [1700]: "number" -- numeric
+
+    [114]: "json"
   }
 
   NULL = "\0"
 
   import rshift, lshift, band from require "bit"
+
+  -- custom types supplementing PG_TYPES
+  type_deserializers: {
+    json: (val, name) =>
+      json = require "cjson"
+      json.decode val
+  }
 
   new: (@user="postgres", @db, @host="127.0.0.1", @port="5432") =>
 
@@ -233,6 +242,11 @@ class Postgres
           value = tonumber value
         when "boolean"
           value = value == "t"
+        when "string"
+          nil
+        else
+          if fn = @type_deserializers[field_type]
+            value = fn @, value, field_type
 
       out[field_name] = value
 
