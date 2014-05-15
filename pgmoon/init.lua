@@ -70,6 +70,12 @@ do
       "NULL"
     },
     convert_null = false,
+    type_deserializers = {
+      json = function(self, val, name)
+        local json = require("cjson")
+        return json.decode(val)
+      end
+    },
     connect = function(self)
       self.sock = tcp()
       local ok, err = self.sock:connect(self.host, self.port)
@@ -82,7 +88,10 @@ do
         if not (success) then
           return nil, err
         end
-        self:auth()
+        success, err = self:auth()
+        if not (success) then
+          return nil, err
+        end
         self:wait_until_ready()
       end
       return true
@@ -99,11 +108,45 @@ do
     end,
     auth = function(self)
       local t, msg = self:receive_message()
-      if TYPE.auth_ok == t then
-        return true
+      if not (TYPE.auth == t) then
+        self:disconnect()
+        if TYPE.error == t then
+          return nil, self:parse_error(msg)
+        end
+        error("unexpected message during auth: " .. tostring(t))
       end
-      self:disconnect()
-      return error("don't know how to auth " .. tostring(t))
+      local auth_type = self:decode_int(msg, 4)
+      local _exp_0 = auth_type
+      if 0 == _exp_0 then
+        return true
+      elseif 5 == _exp_0 then
+        return self:md5_auth(msg)
+      else
+        return error("don't know how to auth: " .. tostring(auth_type))
+      end
+    end,
+    md5_auth = function(self, msg)
+      local md5
+      do
+        local _obj_0 = require("pgmoon.crypto")
+        md5 = _obj_0.md5
+      end
+      local salt = msg:sub(5, 8)
+      local password = "tester"
+      self:send_message(TYPE.password, {
+        "md5",
+        md5(md5(self.user .. password) .. salt)
+      })
+      local t
+      t, msg = self:receive_message()
+      local _exp_0 = t
+      if TYPE.error == _exp_0 then
+        return nil, self:parse_error(msg)
+      elseif TYPE.auth == _exp_0 then
+        return true
+      else
+        return error("unknown response from md5 auth: " .. tostring(auth_type))
+      end
     end,
     query = function(self, q)
       self:send_message(TYPE.query, {
@@ -240,6 +283,15 @@ do
             value = tonumber(value)
           elseif "boolean" == _exp_0 then
             value = value == "t"
+          elseif "string" == _exp_0 then
+            local _ = nil
+          else
+            do
+              local fn = self.type_deserializers[field_type]
+              if fn then
+                value = fn(self, value, field_type)
+              end
+            end
           end
           out[field_name] = value
           _continue_0 = true
@@ -387,11 +439,12 @@ do
   local self = _class_0
   TYPE = flipped({
     status = "S",
-    auth_ok = "R",
+    auth = "R",
     backend_key = "K",
     ready_for_query = "Z",
     query = "Q",
     notice = "N",
+    password = "p",
     row_description = "T",
     data_row = "D",
     command_complete = "C",
@@ -411,7 +464,8 @@ do
     [23] = "number",
     [700] = "number",
     [701] = "number",
-    [1700] = "number"
+    [1700] = "number",
+    [114] = "json"
   }
   NULL = "\0"
   do
