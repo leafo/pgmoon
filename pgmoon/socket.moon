@@ -9,7 +9,7 @@ __flatten = (t, buffer) ->
       buffer[#buffer + 1] = t
     when "table"
       for thing in *t
-         __flatten thing, buffer
+        __flatten thing, buffer
 
 
 _flatten = (t) ->
