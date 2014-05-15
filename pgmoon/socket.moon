@@ -3,15 +3,19 @@ if ngx
   return { tcp: ngx.socket.tcp }
 
 -- make luasockets send behave like openresty's
-_flatten = (t, buffer="") ->
+__flatten = (t, buffer) ->
   switch type(t)
     when "string"
-      buffer ..= t
+      buffer[#buffer + 1] = t
     when "table"
       for thing in *t
-        buffer = _flatten thing, buffer
+         __flatten thing, buffer
 
-  buffer
+
+_flatten = (t) ->
+  buffer = {}
+  __flatten t, buffer
+  table.concat buffer
 
 socket = require "socket"
 
