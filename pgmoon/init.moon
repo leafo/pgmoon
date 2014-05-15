@@ -35,11 +35,13 @@ class Postgres
 
   TYPE = flipped {
     status: "S"
-    auth_ok: "R"
+    auth: "R"
     backend_key: "K"
     ready_for_query: "Z"
     query: "Q"
     notice: "N"
+
+    password: "p"
 
     row_description: "T"
     data_row: "D"
@@ -90,7 +92,9 @@ class Postgres
     if @sock\getreusedtimes! == 0
       success, err = @send_startup_message!
       return nil, err unless success
-      @auth!
+      success, err = @auth!
+      return nil, err unless success
+
       @wait_until_ready!
 
     true
@@ -107,11 +111,42 @@ class Postgres
 
   auth: =>
     t, msg = @receive_message!
-    if TYPE.auth_ok == t
-      return true
 
-    @disconnect!
-    error "don't know how to auth #{t}"
+    unless TYPE.auth == t
+      @disconnect!
+
+      if TYPE.error == t
+        return nil, @parse_error msg
+
+      error "unexpected message during auth: #{t}"
+
+    auth_type = @decode_int msg, 4
+    switch auth_type
+      when 0 -- trust
+        true
+      when 5 -- md5 auth
+        @md5_auth msg
+      else
+        error "don't know how to auth: #{auth_type}"
+
+  md5_auth: (msg) =>
+    import md5 from require "pgmoon.crypto"
+    salt = msg\sub 5, 8
+    password = "tester"
+
+    @send_message TYPE.password, {
+      "md5"
+      md5 md5(@user .. password) .. salt
+    }
+
+    t, msg = @receive_message!
+    switch t
+      when TYPE.error
+        nil, @parse_error msg
+      when TYPE.auth
+        true
+      else
+        error "unknown response from md5 auth: #{auth_type}"
 
   query: (q) =>
     @send_message TYPE.query, {q, NULL}
