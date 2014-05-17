@@ -1,0 +1,194 @@
+# pgmoon
+
+pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
+
+pgmoon was originally designed for use in [OpenResty][5] to take advantage of the
+[cosocket api][4] to provide asynchronous queries but it also works in the regular
+Lua environment as well using [LuaSocket][1] (and optionally [LuaCrypto][2] for
+MD5 authentication)
+
+It's a perfect candidate for running your queries both inside OpenResty's
+environment and on the command line (eg. tests) in web frameworks like [Lapis][3].
+
+## Install
+
+```bash
+$ luarocks install https://raw.githubusercontent.com/leafo/pgmoon/master/pgmoon-dev-1.rockspec
+```
+
+## Example
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new()
+
+assert pg:connect({
+  host = "127.0.0.1",
+  port = "5432",
+  database = "mydb",
+  user = "postgres"
+})
+
+local res = assert pg:query("select * from users where username = " .. pg:escape_literal("leafo"))
+```
+
+If you are using OpenResty you should relinquish the socket after you are done
+with it so it can be reused in future requests:
+
+```lua
+pg:keepalive()
+```
+
+## Reference
+
+Functions in table returned by `require("pgmoon")`:
+
+### `new(options={})`
+
+Creates a new `Postgres` object. Does not connect automatically. Takes a table
+of options. The table can have the following keys:
+
+* `"host"`: the host to connect to (default: `"127.0.0.1"`)
+* `"port"`: the port to connect to (default: `"5432"`)
+* `"user"`: the database username to authenticate (default: `"postgres"`)
+* `"database"`: the database name to connect to **required**
+* `"password"`: password for authentication, optional depending on server configuration
+
+Methods on the `Postgres` object returned by `new`:
+
+### success, err = postgres:connect()
+
+Connects to the Postgres server using the credentials specified in the call to
+`new`. On success returns `true`, on failure returns `nil` and the error
+message.
+
+
+### success, err = postgres:disconnect()
+
+Closes the socket to the server if one is open. No other methods should be
+called on the object after this other than another call to connect.
+
+
+### success, err = postgres:keepalive(...)
+
+Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
+arguments passed here are also passed to `setkeepalive`.
+
+### result, err = postgres:query(query_string)
+
+Sends a query to the server. On failure returns `nil` and the error message.
+
+On success returns a result depending on the kind of query sent.
+
+`SELECT` queries, `INSERT` with `returning`, or anything else that returns a
+result set will return an array table of results. Each result is a hash table
+where the key is the name of the column and the value is the result for that
+row of the result.
+
+```lua
+res = pg:query("select id, name from users;")
+```
+
+Might return:
+
+```lua
+{
+  {
+    id = 123,
+    name = "Leafo"
+  },
+  {
+    id = 234,
+    name = "Lee"
+  }
+}
+```
+
+Any queries that affect rows like `UPDATE`, `DELETE`, or `INSERT` return a
+table result with the `affected_rows` field set to the number of rows affected.
+
+
+```lua
+res = pg:query("delete from users")
+```
+
+Might return:
+
+```lua
+{
+  affected_rows = 2
+}
+```
+
+Any queries with no result set or updated rows will return `true`.
+
+
+### escaped = postgres:escape_literal(val)
+
+Escapes a Lua value for use as a Postgres value interpolated into a query
+string. When sending user provided data into a query you should use this method
+to prevent SQL injection attacks.
+
+### escaped = postgres:escape_identifier(val)
+
+Escapes a Lua value for use as a Postgres identifier. This includes things like
+table or column names. This does not include regular values, you should use
+`escape_literal` for that. Identifier escaping is required when names collide
+with built in language keywords.
+
+### str = tostring(postgres)
+
+Returns string representation of current state of `Postgres` object.
+
+## Auth types
+
+Postgres supports a handful of authentication types. pgmoon currently supports
+Trust and MD5 authentication.
+
+## Type conversion
+
+Postgres has a very rich set of types built in. pgmoon will do its best to
+convert any Postgres types into the appropriate Lua type.
+
+All integer, floating point, and numeric types are converted into Lua's number
+type. The boolean type is converted into a Lua boolean. The JSON type is
+decoded into a Lua table using Lua CJSON.
+
+Any other types are returned as Lua strings.
+
+
+# Contact
+
+Author: Leaf Corcoran (leafo) ([@moonscript](http://twitter.com/moonscript))  
+Email: leafot@gmail.com  
+Homepage: <http://leafo.net>  
+
+
+## License (MIT)
+
+Copyright (C) 2014 by Leaf Corcoran
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+
+
+  [1]: http://w3.impa.br/~diego/software/luasocket/
+  [2]: http://mkottman.github.io/luacrypto/
+  [3]: http://leafo.net/lapis
+  [4]: http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp
+  [5]: http://openresty.org/
