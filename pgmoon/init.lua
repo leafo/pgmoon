@@ -130,7 +130,10 @@ do
         if not (success) then
           return nil, err
         end
-        self:wait_until_ready()
+        success, err = self:wait_until_ready()
+        if not (success) then
+          return nil, err
+        end
       end
       return true
     end,
@@ -146,6 +149,9 @@ do
     end,
     auth = function(self)
       local t, msg = self:receive_message()
+      if not (t) then
+        return nil, msg
+      end
       if not (MSG_TYPE.auth == t) then
         self:disconnect()
         if MSG_TYPE.error == t then
@@ -177,6 +183,9 @@ do
       })
       local t
       t, msg = self:receive_message()
+      if not (t) then
+        return nil, msg
+      end
       local _exp_0 = t
       if MSG_TYPE.error == _exp_0 then
         return nil, self:parse_error(msg)
@@ -191,9 +200,12 @@ do
         q,
         NULL
       })
-      local row_desc, data_rows, command_complete
+      local row_desc, data_rows, command_complete, err_msg
       while true do
         local t, msg = self:receive_message()
+        if not (t) then
+          return nil, msg
+        end
         local _exp_0 = t
         if MSG_TYPE.data_row == _exp_0 then
           data_rows = data_rows or { }
@@ -201,12 +213,15 @@ do
         elseif MSG_TYPE.row_description == _exp_0 then
           row_desc = msg
         elseif MSG_TYPE.error == _exp_0 then
-          error(self:parse_error(msg))
+          err_msg = msg
         elseif MSG_TYPE.command_complete == _exp_0 then
           command_complete = msg
         elseif MSG_TYPE.ready_for_query == _exp_0 then
           break
         end
+      end
+      if err_msg then
+        return nil, self:parse_error(err_msg)
       end
       local command, affected_rows
       if command_complete then
@@ -343,24 +358,30 @@ do
     wait_until_ready = function(self)
       while true do
         local t, msg = self:receive_message()
+        if not (t) then
+          return nil, msg
+        end
         if MSG_TYPE.error == t then
           self:disconnect()
-          error(self:parse_error(msg))
+          return nil, self:parse_error(msg)
         end
         if MSG_TYPE.ready_for_query == t then
           break
         end
       end
+      return true
     end,
     receive_message = function(self)
       local t, err = self.sock:receive(1)
       if not (t) then
-        return nil, "failed to get type: " .. tostring(err)
+        self:disconnect()
+        return nil, "receive_message: failed to get type: " .. tostring(err)
       end
       local len
       len, err = self.sock:receive(4)
       if not (len) then
-        return nil, "failed to get len: " .. tostring(err)
+        self:disconnect()
+        return nil, "receive_message: failed to get len: " .. tostring(err)
       end
       len = self:decode_int(len)
       len = len - 4

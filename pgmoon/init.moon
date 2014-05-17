@@ -103,7 +103,8 @@ class Postgres
       success, err = @auth!
       return nil, err unless success
 
-      @wait_until_ready!
+      success, err = @wait_until_ready!
+      return nil, err unless success
 
     true
 
@@ -119,6 +120,7 @@ class Postgres
 
   auth: =>
     t, msg = @receive_message!
+    return nil, msg unless t
 
     unless MSG_TYPE.auth == t
       @disconnect!
@@ -148,6 +150,8 @@ class Postgres
     }
 
     t, msg = @receive_message!
+    return nil, msg unless t
+
     switch t
       when MSG_TYPE.error
         nil, @parse_error msg
@@ -158,10 +162,11 @@ class Postgres
 
   query: (q) =>
     @send_message MSG_TYPE.query, {q, NULL}
-    local row_desc, data_rows, command_complete
+    local row_desc, data_rows, command_complete, err_msg
 
     while true
       t, msg = @receive_message!
+      return nil, msg unless t
       switch t
         when MSG_TYPE.data_row
           data_rows or= {}
@@ -169,13 +174,16 @@ class Postgres
         when MSG_TYPE.row_description
           row_desc = msg
         when MSG_TYPE.error
-          error @parse_error msg
+          err_msg = msg
         when MSG_TYPE.command_complete
           command_complete = msg
         -- when MSG_TYPE.notice
         --   -- TODO: do something with notices
         when MSG_TYPE.ready_for_query
           break
+
+    if err_msg
+      return nil, @parse_error err_msg
 
     local command, affected_rows
 
@@ -298,18 +306,28 @@ class Postgres
   wait_until_ready: =>
     while true
       t, msg = @receive_message!
+      return nil, msg unless t
 
       if MSG_TYPE.error == t
         @disconnect!
-        error @parse_error(msg)
+        return nil, @parse_error(msg)
 
       break if MSG_TYPE.ready_for_query == t
 
+    true
+
   receive_message: =>
     t, err = @sock\receive 1
-    return nil, "failed to get type: #{err}" unless t
+    unless t
+      @disconnect!
+      return nil, "receive_message: failed to get type: #{err}"
+
     len, err = @sock\receive 4
-    return nil, "failed to get len: #{err}" unless len
+
+    unless len
+      @disconnect!
+      return nil, "receive_message: failed to get len: #{err}"
+
     len = @decode_int len
     len -= 4
     msg = @sock\receive len
