@@ -158,6 +158,17 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
+  it "should return error message", ->
+    status, err = pg\query "select * from blahlbhabhabh"
+    assert.falsy status
+    assert.same [[ERROR: relation "blahlbhabhabh" does not exist (15)]], err
+
+  it "should allow a query after getting an error", ->
+    status, err = pg\query "select * from blahlbhabhabh"
+    assert.falsy status
+    res = pg\query "select 1"
+    assert.truthy res
+
   teardown ->
     pg\disconnect!
     os.execute "dropdb -U postgres '#{DB}'"
