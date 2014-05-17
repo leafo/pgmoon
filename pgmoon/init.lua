@@ -67,7 +67,7 @@ flipped = function(t)
   end
   return t
 end
-local TYPE = flipped({
+local MSG_TYPE = flipped({
   status = "S",
   auth = "R",
   backend_key = "K",
@@ -105,6 +105,9 @@ do
     NULL = {
       "NULL"
     },
+    user = "postgres",
+    host = "127.0.0.1",
+    port = "5432",
     type_deserializers = {
       json = function(self, val, name)
         local json = require("cjson")
@@ -143,9 +146,9 @@ do
     end,
     auth = function(self)
       local t, msg = self:receive_message()
-      if not (TYPE.auth == t) then
+      if not (MSG_TYPE.auth == t) then
         self:disconnect()
-        if TYPE.error == t then
+        if MSG_TYPE.error == t then
           return nil, self:parse_error(msg)
         end
         error("unexpected message during auth: " .. tostring(t))
@@ -167,24 +170,24 @@ do
         md5 = _obj_0.md5
       end
       local salt = msg:sub(5, 8)
-      local password = "tester"
-      self:send_message(TYPE.password, {
+      assert(self.password, "missing password, required for connect")
+      self:send_message(MSG_TYPE.password, {
         "md5",
-        md5(md5(self.user .. password) .. salt)
+        md5(md5(self.user .. self.password) .. salt)
       })
       local t
       t, msg = self:receive_message()
       local _exp_0 = t
-      if TYPE.error == _exp_0 then
+      if MSG_TYPE.error == _exp_0 then
         return nil, self:parse_error(msg)
-      elseif TYPE.auth == _exp_0 then
+      elseif MSG_TYPE.auth == _exp_0 then
         return true
       else
         return error("unknown response from md5 auth: " .. tostring(auth_type))
       end
     end,
     query = function(self, q)
-      self:send_message(TYPE.query, {
+      self:send_message(MSG_TYPE.query, {
         q,
         NULL
       })
@@ -192,16 +195,16 @@ do
       while true do
         local t, msg = self:receive_message()
         local _exp_0 = t
-        if TYPE.data_row == _exp_0 then
+        if MSG_TYPE.data_row == _exp_0 then
           data_rows = data_rows or { }
           insert(data_rows, msg)
-        elseif TYPE.row_description == _exp_0 then
+        elseif MSG_TYPE.row_description == _exp_0 then
           row_desc = msg
-        elseif TYPE.error == _exp_0 then
+        elseif MSG_TYPE.error == _exp_0 then
           error(self:parse_error(msg))
-        elseif TYPE.command_complete == _exp_0 then
+        elseif MSG_TYPE.command_complete == _exp_0 then
           command_complete = msg
-        elseif TYPE.ready_for_query == _exp_0 then
+        elseif MSG_TYPE.ready_for_query == _exp_0 then
           break
         end
       end
@@ -340,11 +343,11 @@ do
     wait_until_ready = function(self)
       while true do
         local t, msg = self:receive_message()
-        if TYPE.error == t then
+        if MSG_TYPE.error == t then
           self:disconnect()
           error(self:parse_error(msg))
         end
-        if TYPE.ready_for_query == t then
+        if MSG_TYPE.ready_for_query == t then
           break
         end
       end
@@ -366,7 +369,7 @@ do
     end,
     send_startup_message = function(self)
       assert(self.user, "missing user for connect")
-      assert(self.db, "missing database for connect")
+      assert(self.database, "missing database for connect")
       local data = {
         self:encode_int(196608),
         "user",
@@ -375,7 +378,7 @@ do
         NULL,
         "database",
         NULL,
-        self.db,
+        self.database,
         NULL,
         NULL
       }
@@ -448,17 +451,14 @@ do
   }
   _base_0.__index = _base_0
   local _class_0 = setmetatable({
-    __init = function(self, user, db, host, port)
-      if user == nil then
-        user = "postgres"
+    __init = function(self, opts)
+      if opts then
+        self.user = opts.user
+        self.host = opts.host
+        self.database = opts.database
+        self.port = opts.port
+        self.password = opts.password
       end
-      if host == nil then
-        host = "127.0.0.1"
-      end
-      if port == nil then
-        port = "5432"
-      end
-      self.user, self.db, self.host, self.port = user, db, host, port
     end,
     __base = _base_0,
     __name = "Postgres"

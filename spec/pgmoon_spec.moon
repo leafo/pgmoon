@@ -12,7 +12,11 @@ describe "pgmoon with server", ->
     os.execute "dropdb --if-exists -U '#{USER}' '#{DB}'"
     os.execute "createdb -U postgres '#{DB}'"
 
-    pg = Postgres USER, DB, HOST
+    pg = Postgres {
+      database: DB
+      user: USER
+      host: HOST
+    }
     assert pg\connect!
 
   it "should create and drop table", ->

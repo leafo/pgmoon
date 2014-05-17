@@ -1,5 +1,3 @@
--- TODO: check out hstore
-
 import insert from table
 import tcp from require "pgmoon.socket"
 
@@ -75,6 +73,10 @@ class Postgres
   convert_null: false
   NULL: {"NULL"}
 
+  user: "postgres"
+  host: "127.0.0.1"
+  port: "5432"
+
   -- custom types supplementing PG_TYPES
   type_deserializers: {
     json: (val, name) =>
@@ -82,7 +84,13 @@ class Postgres
       json.decode val
   }
 
-  new: (@user="postgres", @db, @host="127.0.0.1", @port="5432") =>
+  new: (opts) =>
+    if opts
+      @user = opts.user
+      @host = opts.host
+      @database = opts.database
+      @port = opts.port
+      @password = opts.password
 
   connect: =>
     @sock = tcp!
@@ -132,11 +140,11 @@ class Postgres
   md5_auth: (msg) =>
     import md5 from require "pgmoon.crypto"
     salt = msg\sub 5, 8
-    password = "tester"
+    assert @password, "missing password, required for connect"
 
     @send_message MSG_TYPE.password, {
       "md5"
-      md5 md5(@user .. password) .. salt
+      md5 md5(@user .. @password) .. salt
     }
 
     t, msg = @receive_message!
@@ -309,14 +317,14 @@ class Postgres
 
   send_startup_message: =>
     assert @user, "missing user for connect"
-    assert @db, "missing database for connect"
+    assert @database, "missing database for connect"
 
     data = {
       @encode_int 196608
       "user", NULL
       @user, NULL
       "database", NULL
-      @db, NULL
+      @database, NULL
       NULL
     }
 
