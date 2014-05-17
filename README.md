@@ -22,14 +22,14 @@ $ luarocks install https://raw.githubusercontent.com/leafo/pgmoon/master/pgmoon-
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new()
 
-assert pg:connect({
+assert(pg:connect({
   host = "127.0.0.1",
   port = "5432",
   database = "mydb",
   user = "postgres"
-})
+}))
 
-local res = assert pg:query("select * from users where username = " .. pg:escape_literal("leafo"))
+local res = assert(pg:query("select * from users where username = " .. pg:escape_literal("leafo")))
 ```
 
 If you are using OpenResty you should relinquish the socket after you are done
