@@ -495,5 +495,6 @@ do
   Postgres = _class_0
 end
 return {
-  Postgres = Postgres
+  Postgres = Postgres,
+  new = Postgres
 }

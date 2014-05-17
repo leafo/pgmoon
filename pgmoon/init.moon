@@ -402,5 +402,5 @@ class Postgres
   __tostring: =>
     "<Postgres socket: #{@sock}>"
 
-{ :Postgres }
+{ :Postgres, new: Postgres }
 

@@ -20,8 +20,9 @@ dependencies = {
 build = {
   type = "builtin",
   modules = {
-    ["pgmoon.socket"] = "pgmoon/socket.lua",
     ["pgmoon"] = "pgmoon/init.lua",
+    ["pgmoon.crypto"] = "pgmoon/crypto.lua",
+    ["pgmoon.socket"] = "pgmoon/socket.lua",
   },
 }
 
