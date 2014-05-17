@@ -3,6 +3,8 @@
 import insert from table
 import tcp from require "pgmoon.socket"
 
+import rshift, lshift, band from require "bit"
+
 _len = (thing, t=type(thing)) ->
   switch t
     when "string"
@@ -29,51 +31,49 @@ flipped = (t) ->
     t[t[key]] = key
   t
 
+MSG_TYPE = flipped {
+  status: "S"
+  auth: "R"
+  backend_key: "K"
+  ready_for_query: "Z"
+  query: "Q"
+  notice: "N"
+
+  password: "p"
+
+  row_description: "T"
+  data_row: "D"
+  command_complete: "C"
+
+  error: "E"
+}
+
+ERROR_TYPES = flipped {
+  severity: "S"
+  code: "C"
+  message: "M"
+  position: "P"
+  detail: "D"
+}
+
+PG_TYPES = {
+  [16]: "boolean"
+
+  [20]: "number" -- int8
+  [21]: "number" -- int2
+  [23]: "number" -- int4
+  [700]: "number" -- float4
+  [701]: "number" -- float8
+  [1700]: "number" -- numeric
+
+  [114]: "json"
+}
+
+NULL = "\0"
+
 class Postgres
-  NULL: {"NULL"}
   convert_null: false
-
-  TYPE = flipped {
-    status: "S"
-    auth: "R"
-    backend_key: "K"
-    ready_for_query: "Z"
-    query: "Q"
-    notice: "N"
-
-    password: "p"
-
-    row_description: "T"
-    data_row: "D"
-    command_complete: "C"
-
-    error: "E"
-  }
-
-  ERROR_TYPES = flipped {
-    severity: "S"
-    code: "C"
-    message: "M"
-    position: "P"
-    detail: "D"
-  }
-
-  PG_TYPES = {
-    [16]: "boolean"
-
-    [20]: "number" -- int8
-    [21]: "number" -- int2
-    [23]: "number" -- int4
-    [700]: "number" -- float4
-    [701]: "number" -- float8
-    [1700]: "number" -- numeric
-
-    [114]: "json"
-  }
-
-  NULL = "\0"
-
-  import rshift, lshift, band from require "bit"
+  NULL: {"NULL"}
 
   -- custom types supplementing PG_TYPES
   type_deserializers: {
@@ -112,10 +112,10 @@ class Postgres
   auth: =>
     t, msg = @receive_message!
 
-    unless TYPE.auth == t
+    unless MSG_TYPE.auth == t
       @disconnect!
 
-      if TYPE.error == t
+      if MSG_TYPE.error == t
         return nil, @parse_error msg
 
       error "unexpected message during auth: #{t}"
@@ -134,39 +134,39 @@ class Postgres
     salt = msg\sub 5, 8
     password = "tester"
 
-    @send_message TYPE.password, {
+    @send_message MSG_TYPE.password, {
       "md5"
       md5 md5(@user .. password) .. salt
     }
 
     t, msg = @receive_message!
     switch t
-      when TYPE.error
+      when MSG_TYPE.error
         nil, @parse_error msg
-      when TYPE.auth
+      when MSG_TYPE.auth
         true
       else
         error "unknown response from md5 auth: #{auth_type}"
 
   query: (q) =>
-    @send_message TYPE.query, {q, NULL}
+    @send_message MSG_TYPE.query, {q, NULL}
     local row_desc, data_rows, command_complete
 
     while true
       t, msg = @receive_message!
       switch t
-        when TYPE.data_row
+        when MSG_TYPE.data_row
           data_rows or= {}
           insert data_rows, msg
-        when TYPE.row_description
+        when MSG_TYPE.row_description
           row_desc = msg
-        when TYPE.error
+        when MSG_TYPE.error
           error @parse_error msg
-        when TYPE.command_complete
+        when MSG_TYPE.command_complete
           command_complete = msg
-        -- when TYPE.notice
+        -- when MSG_TYPE.notice
         --   -- TODO: do something with notices
-        when TYPE.ready_for_query
+        when MSG_TYPE.ready_for_query
           break
 
     local command, affected_rows
@@ -291,11 +291,11 @@ class Postgres
     while true
       t, msg = @receive_message!
 
-      if TYPE.error == t
+      if MSG_TYPE.error == t
         @disconnect!
         error @parse_error(msg)
 
-      break if TYPE.ready_for_query == t
+      break if MSG_TYPE.ready_for_query == t
 
   receive_message: =>
     t, err = @sock\receive 1

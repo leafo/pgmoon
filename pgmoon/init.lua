@@ -8,6 +8,11 @@ do
   local _obj_0 = require("pgmoon.socket")
   tcp = _obj_0.tcp
 end
+local rshift, lshift, band
+do
+  local _obj_0 = require("bit")
+  rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
+end
 local _len
 _len = function(thing, t)
   if t == nil then
@@ -62,14 +67,44 @@ flipped = function(t)
   end
   return t
 end
+local TYPE = flipped({
+  status = "S",
+  auth = "R",
+  backend_key = "K",
+  ready_for_query = "Z",
+  query = "Q",
+  notice = "N",
+  password = "p",
+  row_description = "T",
+  data_row = "D",
+  command_complete = "C",
+  error = "E"
+})
+local ERROR_TYPES = flipped({
+  severity = "S",
+  code = "C",
+  message = "M",
+  position = "P",
+  detail = "D"
+})
+local PG_TYPES = {
+  [16] = "boolean",
+  [20] = "number",
+  [21] = "number",
+  [23] = "number",
+  [700] = "number",
+  [701] = "number",
+  [1700] = "number",
+  [114] = "json"
+}
+local NULL = "\0"
 local Postgres
 do
-  local TYPE, ERROR_TYPES, PG_TYPES, NULL, rshift, lshift, band
   local _base_0 = {
+    convert_null = false,
     NULL = {
       "NULL"
     },
-    convert_null = false,
     type_deserializers = {
       json = function(self, val, name)
         local json = require("cjson")
@@ -436,42 +471,6 @@ do
     end
   })
   _base_0.__class = _class_0
-  local self = _class_0
-  TYPE = flipped({
-    status = "S",
-    auth = "R",
-    backend_key = "K",
-    ready_for_query = "Z",
-    query = "Q",
-    notice = "N",
-    password = "p",
-    row_description = "T",
-    data_row = "D",
-    command_complete = "C",
-    error = "E"
-  })
-  ERROR_TYPES = flipped({
-    severity = "S",
-    code = "C",
-    message = "M",
-    position = "P",
-    detail = "D"
-  })
-  PG_TYPES = {
-    [16] = "boolean",
-    [20] = "number",
-    [21] = "number",
-    [23] = "number",
-    [700] = "number",
-    [701] = "number",
-    [1700] = "number",
-    [114] = "json"
-  }
-  NULL = "\0"
-  do
-    local _obj_0 = require("bit")
-    rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
-  end
   Postgres = _class_0
 end
 return {
