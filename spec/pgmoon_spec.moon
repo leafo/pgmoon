@@ -169,6 +169,15 @@ describe "pgmoon with server", ->
     res = pg\query "select 1"
     assert.truthy res
 
+  it "should error when connecting with invalid server", ->
+    pg2 = Postgres {
+      database: "doesnotexist"
+    }
+
+    status, err = pg2\connect!
+    assert.falsy status
+    assert.same [[FATAL: database "doesnotexist" does not exist]], err
+
   teardown ->
     pg\disconnect!
     os.execute "dropdb -U postgres '#{DB}'"
