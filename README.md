@@ -86,7 +86,7 @@ where the key is the name of the column and the value is the result for that
 row of the result.
 
 ```lua
-res = pg:query("select id, name from users;")
+res = pg:query("select id, name from users")
 ```
 
 Might return:
@@ -156,6 +156,27 @@ decoded into a Lua table using Lua CJSON.
 
 Any other types are returned as Lua strings.
 
+
+## Converting `NULL`s
+
+By default `NULL`s in Postgres are converted to `nil`, meaning they aren't
+visible in the resulting tables. If you want to convert `NULL`s to some visible
+value set `convert_null` to `true` on the `Postgres` object:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+
+pg.convert_null = true
+local res = pg:query("select NULL the_null")
+
+assert(pg.NULL == res[1].the_null)
+```
+
+As shown above, the `NULL` value is set to `pg.NULL`. You can change this value
+to make pgmoon use something else as `NULL`. For example if you're using
+OpenResty you might want to reuse `ngx.null`.
 
 # Contact
 

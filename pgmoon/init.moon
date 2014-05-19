@@ -3,6 +3,8 @@ import tcp from require "pgmoon.socket"
 
 import rshift, lshift, band from require "bit"
 
+VERSION = "1.0.0"
+
 _len = (thing, t=type(thing)) ->
   switch t
     when "string"
@@ -402,5 +404,5 @@ class Postgres
   __tostring: =>
     "<Postgres socket: #{@sock}>"
 
-{ :Postgres, new: Postgres }
+{ :Postgres, new: Postgres, :VERSION }
 

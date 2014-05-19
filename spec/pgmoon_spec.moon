@@ -158,6 +158,18 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
+  it "should convert null", ->
+    pg.convert_null = true
+    res = assert pg\query "select null the_null"
+    assert pg.NULL == res[1].the_null
+
+  it "should convert to custom null", ->
+    pg.convert_null = true
+    n = {"hello"}
+    pg.NULL = n
+    res = assert pg\query "select null the_null"
+    assert n == res[1].the_null
+
   it "should return error message", ->
     status, err = pg\query "select * from blahlbhabhabh"
     assert.falsy status
