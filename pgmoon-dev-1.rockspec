@@ -7,7 +7,7 @@ source = {
 
 description = {
   summary = "Postgres driver for OpenResty and Lua",
-  detailed = [[PostgreSQL driver written in pure Lua for use with OpenResty's cosocket API. Can also be used in regular Lua with LuaSocket and LuaCrypto.]]],
+  detailed = [[PostgreSQL driver written in pure Lua for use with OpenResty's cosocket API. Can also be used in regular Lua with LuaSocket and LuaCrypto.]],
   homepage = "https://github.com/leafo/pgmoon",
   maintainer = "Leaf Corcoran <leafot@gmail.com>",
   license = "MIT"
