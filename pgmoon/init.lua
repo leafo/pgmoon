@@ -202,6 +202,8 @@ do
         NULL
       })
       local row_desc, data_rows, command_complete, err_msg
+      local result
+      local num_queries = 0
       while true do
         local t, msg = self:receive_message()
         if not (t) then
@@ -217,16 +219,29 @@ do
           err_msg = msg
         elseif MSG_TYPE.command_complete == _exp_0 then
           command_complete = msg
+          local next_result = self:format_query_result(row_desc, data_rows, command_complete)
+          num_queries = num_queries + 1
+          if num_queries == 1 then
+            result = next_result
+          elseif num_queries == 2 then
+            result = {
+              result,
+              next_result
+            }
+          else
+            insert(result, next_result)
+          end
+          row_desc, data_rows, command_complete = nil
         elseif MSG_TYPE.ready_for_query == _exp_0 then
           break
         end
       end
       if err_msg then
-        return nil, self:parse_error(err_msg)
+        return nil, self:parse_error(err_msg), result, num_queries
       end
-      return self:format_result(row_desc, data_rows, command_complete)
+      return result, num_queries
     end,
-    format_result = function(self, row_desc, data_rows, command_complete)
+    format_query_result = function(self, row_desc, data_rows, command_complete)
       local command, affected_rows
       if command_complete then
         command = command_complete:match("^%w+")

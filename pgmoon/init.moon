@@ -166,6 +166,9 @@ class Postgres
     @send_message MSG_TYPE.query, {q, NULL}
     local row_desc, data_rows, command_complete, err_msg
 
+    local result
+    num_queries = 0
+
     while true
       t, msg = @receive_message!
       return nil, msg unless t
@@ -179,17 +182,28 @@ class Postgres
           err_msg = msg
         when MSG_TYPE.command_complete
           command_complete = msg
-        -- when MSG_TYPE.notice
-        --   -- TODO: do something with notices
+          next_result = @format_query_result row_desc, data_rows, command_complete
+          num_queries += 1
+
+          if num_queries == 1
+            result = next_result
+          elseif num_queries == 2
+            result = { result, next_result }
+          else
+            insert result, next_result
+
+          row_desc, data_rows, command_complete = nil
         when MSG_TYPE.ready_for_query
           break
+        -- when MSG_TYPE.notice
+        --   -- TODO: do something with notices
 
     if err_msg
-      return nil, @parse_error err_msg
+      return nil, @parse_error(err_msg), result, num_queries
 
-    @format_result row_desc, data_rows, command_complete
+    result, num_queries
 
-  format_result: (row_desc, data_rows, command_complete) =>
+  format_query_result: (row_desc, data_rows, command_complete) =>
     local command, affected_rows
 
     if command_complete
