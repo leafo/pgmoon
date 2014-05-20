@@ -29,7 +29,8 @@ assert(pg:connect({
   user = "postgres"
 }))
 
-local res = assert(pg:query("select * from users where username = " .. pg:escape_literal("leafo")))
+local res = assert(pg:query("select * from users where username = " ..
+  pg:escape_literal("leafo")))
 ```
 
 If you are using OpenResty you should relinquish the socket after you are done
@@ -140,7 +141,7 @@ local res, num_queries = pg:query([[
 Might return:
 
 ```lua
-num_queries 2
+num_queries = 2
 
 res = {
   {
@@ -152,13 +153,12 @@ res = {
       id = 234,
       name = "Lee"
     }
-
   },
   {
     {
       id = 546,
       title = "My first post"
-    },
+    }
   }
 }
 ```
