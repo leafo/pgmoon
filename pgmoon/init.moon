@@ -187,6 +187,9 @@ class Postgres
     if err_msg
       return nil, @parse_error err_msg
 
+    @format_result row_desc, data_rows, command_complete
+
+  format_result: (row_desc, data_rows, command_complete) =>
     local command, affected_rows
 
     if command_complete

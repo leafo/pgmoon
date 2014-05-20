@@ -224,6 +224,9 @@ do
       if err_msg then
         return nil, self:parse_error(err_msg)
       end
+      return self:format_result(row_desc, data_rows, command_complete)
+    end,
+    format_result = function(self, row_desc, data_rows, command_complete)
       local command, affected_rows
       if command_complete then
         command = command_complete:match("^%w+")
