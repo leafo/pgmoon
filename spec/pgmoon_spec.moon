@@ -125,6 +125,97 @@ describe "pgmoon with server", ->
           assert pg\query [[update "hello_world" SET "name" = 'blahblah' where id = ]] .. i
           assert pg\query [[ select * from hello_world ]]
 
+
+      -- single call, multiple queries
+      describe "multi-queries #multi", ->
+        it "it should get two results", ->
+          res, num_queries = assert pg\query [[
+            select id, flag from hello_world order by id asc limit 2;
+            select id, flag from hello_world order by id asc limit 2 offset 2;
+          ]]
+
+          assert.same 2, num_queries
+          assert.same {
+            {
+              { id: 1, flag: true }
+              { id: 2, flag: true }
+            }
+
+            {
+              { id: 3, flag: true }
+              { id: 4, flag: true }
+            }
+          }, res
+
+        it "it should get three results", ->
+          res, num_queries = assert pg\query [[
+            select id, flag from hello_world order by id asc limit 2;
+            select id, flag from hello_world order by id asc limit 2 offset 2;
+            select id, flag from hello_world order by id asc limit 2 offset 4;
+          ]]
+
+          assert.same 3, num_queries
+          assert.same {
+            {
+              { id: 1, flag: true }
+              { id: 2, flag: true }
+            }
+
+            {
+              { id: 3, flag: true }
+              { id: 4, flag: true }
+            }
+
+            {
+              { id: 5, flag: true }
+              { id: 6, flag: true }
+            }
+          }, res
+
+
+        it "it should do multiple updates", ->
+          res, num_queries = assert pg\query [[
+            update hello_world set flag = false where id = 3;
+            update hello_world set flag = true;
+          ]]
+
+          assert.same 2, num_queries
+          assert.same {
+            { affected_rows: 1 }
+            { affected_rows: 10 }
+          }, res
+
+
+        it "it should do mix update and select", ->
+          res, num_queries = assert pg\query [[
+            update hello_world set flag = false where id = 3;
+            select id, flag from hello_world where id = 3
+          ]]
+
+          assert.same 2, num_queries
+          assert.same {
+            { affected_rows: 1 }
+            {
+              { id: 3, flag: false }
+            }
+          }, res
+
+
+        it "it should return partial result on error", ->
+          res, err, partial, num_queries = pg\query [[
+            select id, flag from hello_world order by id asc limit 1;
+            select id, flag from jello_world limit 1;
+          ]]
+
+          assert.same {
+            err: [[ERROR: relation "jello_world" does not exist (104)]]
+            num_queries: 1
+            partial: {
+              { id: 1, flag: true }
+            }
+          }, { :res, :err, :partial, :num_queries }
+
+
   it "should deserialize types correctly", ->
     assert pg\query [[
       create table types_test (
