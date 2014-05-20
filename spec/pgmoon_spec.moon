@@ -120,6 +120,11 @@ describe "pgmoon with server", ->
         res = assert pg\query "truncate hello_world"
         assert.same true, res
 
+      it "should make many select queries", ->
+        for i=1,20
+          assert pg\query [[update "hello_world" SET "name" = 'blahblah' where id = ]] .. i
+          assert pg\query [[ select * from hello_world ]]
+
   it "should deserialize types correctly", ->
     assert pg\query [[
       create table types_test (
