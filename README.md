@@ -74,7 +74,8 @@ called on the object after this other than another call to connect.
 Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
 arguments passed here are also passed to `setkeepalive`.
 
-### result, err = postgres:query(query_string)
+### result, num_queries = postgres:query(query_string)
+### result, err, partial, num_queries = postgres:query(query_string)
 
 Sends a query to the server. On failure returns `nil` and the error message.
 
@@ -86,7 +87,7 @@ where the key is the name of the column and the value is the result for that
 row of the result.
 
 ```lua
-res = pg:query("select id, name from users")
+local res = pg:query("select id, name from users")
 ```
 
 Might return:
@@ -109,7 +110,7 @@ table result with the `affected_rows` field set to the number of rows affected.
 
 
 ```lua
-res = pg:query("delete from users")
+local res = pg:query("delete from users")
 ```
 
 Might return:
@@ -121,6 +122,55 @@ Might return:
 ```
 
 Any queries with no result set or updated rows will return `true`.
+
+
+This method also supports sending multiple queries at once by separating them
+with a `;`. The number of queries executed is returned as a second return value
+after the result object. When more than one query is executed then the result
+object changes slightly. It becomes a array table holding all the individual
+results:
+
+```lua
+local res, num_queries = pg:query([[
+  select id, name from users;
+  select id, title from posts
+]])
+```
+
+Might return:
+
+```lua
+num_queries 2
+
+res = {
+  {
+    {
+      id = 123,
+      name = "Leafo"
+    },
+    {
+      id = 234,
+      name = "Lee"
+    }
+
+  },
+  {
+    {
+      id = 546,
+      title = "My first post"
+    },
+  }
+}
+```
+
+Similarly for queries that return affected rows or just `true`, they will be
+wrapped up in an addition array table when there are multiple of them. You can
+also mix the different query types as you see fit.
+
+Because Postgres executes each query at a time, earlier ones may succeed and
+further ones may fail. If there is a failure with multiple queries then the
+partial result and partial number of queries executed is returned after the
+error message.
 
 
 ### escaped = postgres:escape_literal(val)
@@ -140,9 +190,9 @@ with built in language keywords.
 
 Returns string representation of current state of `Postgres` object.
 
-## Auth types
+## Authentication types
 
-Postgres supports a handful of authentication types. pgmoon currently supports
+Postgres has a handful of authentication types. pgmoon currently supports
 Trust and MD5 authentication.
 
 ## Type conversion
