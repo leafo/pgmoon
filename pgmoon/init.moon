@@ -3,7 +3,7 @@ import tcp from require "pgmoon.socket"
 
 import rshift, lshift, band from require "bit"
 
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 _len = (thing, t=type(thing)) ->
   switch t
