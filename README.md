@@ -13,7 +13,7 @@ environment and on the command line (eg. tests) in web frameworks like [Lapis][3
 ## Install
 
 ```bash
-$ luarocks install https://raw.githubusercontent.com/leafo/pgmoon/master/pgmoon-dev-1.rockspec
+$ luarocks install --server=http://rocks.moonscript.org pgmoon
 ```
 
 ## Example
