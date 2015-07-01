@@ -90,6 +90,7 @@ local ERROR_TYPES = flipped({
 })
 local PG_TYPES = {
   [16] = "boolean",
+  [17] = "bytea",
   [20] = "number",
   [21] = "number",
   [23] = "number",
@@ -113,6 +114,9 @@ do
       json = function(self, val, name)
         local json = require("cjson")
         return json.decode(val)
+      end,
+      bytea = function(self, val, name)
+        return self:decode_bytea(val)
       end
     },
     connect = function(self)
@@ -470,6 +474,22 @@ do
       else
         return error("don't know how to encode " .. tostring(bytes) .. " byte(s)")
       end
+    end,
+    decode_bytea = function(self, str)
+      if str:sub(1, 2) == '\\x' then
+        return str:sub(3):gsub('..', function(hex)
+          return string.char(tonumber(hex, 16))
+        end)
+      else
+        return str:gsub('\\(%d%d%d)', function(oct)
+          return string.char(tonumber(oct, 8))
+        end)
+      end
+    end,
+    encode_bytea = function(self, str)
+      return string.format("E'\\\\x%s'", str:gsub('.', function(byte)
+        return string.format('%02x', string.byte(byte))
+      end))
     end,
     escape_identifier = function(self, ident)
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'

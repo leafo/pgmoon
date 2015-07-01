@@ -225,6 +225,7 @@ describe "pgmoon with server", ->
         count integer default 100,
         flag boolean default false,
         count2 double precision default 1.2,
+        bytes bytea default E'\\x68656c6c6f5c20776f726c6427',
 
         primary key (id)
       )
@@ -247,6 +248,7 @@ describe "pgmoon with server", ->
         count: 100
         flag: false
         count2: 1.2
+        bytes: 'hello\\ world\''
       }
     }, res
 
@@ -265,6 +267,12 @@ describe "pgmoon with server", ->
     pg.NULL = n
     res = assert pg\query "select null the_null"
     assert n == res[1].the_null
+
+  it "should encode bytea type", ->
+    n = { { bytea: "encoded' string\\" } }
+    enc = pg\encode_bytea n[1].bytea
+    res = assert pg\query "select #{enc}::bytea"
+    assert.same n, res
 
   it "should return error message", ->
     status, err = pg\query "select * from blahlbhabhabh"
