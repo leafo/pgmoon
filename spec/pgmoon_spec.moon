@@ -268,6 +268,8 @@ describe "pgmoon with server", ->
 
     it "decodes empty array value", ->
       assert.same {}, decode_array pg, "{}"
+      import PostgresArray from require "pgmoon.arrays"
+      assert PostgresArray.__base == getmetatable decode_array pg, "{}"
 
     it "decodes numeric array", ->
       assert.same {1}, decode_array pg, "{1}", tonumber

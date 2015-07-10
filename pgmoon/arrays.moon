@@ -1,4 +1,6 @@
 
+class PostgresArray
+
 encode_array = do
   append_buffer = (pg, buffer, values) ->
     for item in *values
@@ -52,11 +54,14 @@ decode_array = do
 
   (pg, str, convert_fn) ->
     out = (assert g\match(str), "failed to parse postgresql array")
+    setmetatable out, PostgresArray.__base
+
     if convert_fn
       convert_values out, convert_fn
     else
       out
 
 
-{:encode_array, :decode_array}
+
+{ :encode_array, :decode_array, :PostgresArray }
 
