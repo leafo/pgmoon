@@ -256,6 +256,14 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
+
+  describe "arrays #ddd", ->
+    it "encodes array value", ->
+      import encode_array from require "pgmoon.arrays"
+      assert.same "ARRAY[1,2,3]", encode_array pg, {1,2,3}
+      assert.same "ARRAY['hello','world']", encode_array pg, {"hello", "world"}
+      assert.same "ARRAY[[4,5],[6,7]]", encode_array pg, {{4,5}, {6,7}}
+
   it "converts null", ->
     pg.convert_null = true
     res = assert pg\query "select null the_null"
