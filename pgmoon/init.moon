@@ -69,7 +69,14 @@ PG_TYPES = {
 
   -- arrays
   [1000]: "array_boolean" -- bool array
+
+  [1005]: "array_number" -- int2 array
   [1007]: "array_number" -- int4 array
+  [1016]: "array_number" -- int8 array
+  [1021]: "array_number" -- float4 array
+  [1022]: "array_number" -- float8 array
+  [1231]: "array_number" -- numeric array
+
   [1009]: "array_string" -- text array
 
   [114]: "json"

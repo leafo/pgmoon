@@ -92,7 +92,12 @@ local PG_TYPES = {
   [701] = "number",
   [1700] = "number",
   [1000] = "array_boolean",
+  [1005] = "array_number",
   [1007] = "array_number",
+  [1016] = "array_number",
+  [1021] = "array_number",
+  [1022] = "array_number",
+  [1231] = "array_number",
   [1009] = "array_string",
   [114] = "json"
 }

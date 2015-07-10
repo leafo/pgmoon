@@ -303,18 +303,44 @@ describe "pgmoon with server", ->
       assert.has_error ->
         decode_array pg, [[{1, 2, 3}]]
 
-    describe "with table #ddd", ->
+    describe "with table", ->
       before_each ->
         pg\query "drop table if exists arrays_test"
 
-      it "loads integer arrays from table", ->
-        assert pg\query "create table arrays_test (ids integer[])"
-        assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
-        assert pg\query "insert into arrays_test (ids) values ('{9,5,1}')"
+      it "loads integer arrays from table #ddd", ->
+        assert pg\query "create table arrays_test (
+          a integer[],
+          b int2[],
+          c int8[],
+          d numeric[],
+          e float4[],
+          f float8[]
+        )"
+
+        num_cols = 6
+        assert pg\query "insert into arrays_test
+          values (#{"'{1,2,3}',"\rep(num_cols)\sub 1, -2})"
+
+        assert pg\query "insert into arrays_test
+          values (#{"'{9,5,1}',"\rep(num_cols)\sub 1, -2})"
 
         assert.same {
-          {ids: {1,2,3}}
-          {ids: {9,5,1}}
+          {
+            a: {1,2,3}
+            b: {1,2,3}
+            c: {1,2,3}
+            d: {1,2,3}
+            e: {1,2,3}
+            f: {1,2,3}
+          }
+          {
+            a: {9,5,1}
+            b: {9,5,1}
+            c: {9,5,1}
+            d: {9,5,1}
+            e: {9,5,1}
+            f: {9,5,1}
+          }
         }, (pg\query "select * from arrays_test")
 
       it "loads string arrays from table", ->
