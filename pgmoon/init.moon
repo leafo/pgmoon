@@ -58,6 +58,7 @@ ERROR_TYPES = flipped {
 
 PG_TYPES = {
   [16]: "boolean"
+  [17]: "bytea"
 
   [20]: "number" -- int8
   [21]: "number" -- int2
@@ -84,6 +85,9 @@ class Postgres
     json: (val, name) =>
       json = require "cjson"
       json.decode val
+
+    bytea: (val, name) =>
+      @decode_bytea val
   }
 
   new: (opts) =>
@@ -403,6 +407,17 @@ class Postgres
       else
         error "don't know how to encode #{bytes} byte(s)"
 
+  decode_bytea: (str) =>
+    if str\sub(1, 2) == '\\x'
+      str\sub(3)\gsub '..', (hex) ->
+        string.char tonumber hex, 16
+    else
+      str\gsub '\\(%d%d%d)', (oct) ->
+        string.char tonumber oct, 8
+
+  encode_bytea: (str) =>
+    string.format "E'\\\\x%s'", str\gsub '.', (byte) ->
+        string.format '%02x', string.byte byte
 
   escape_identifier: (ident) =>
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
