@@ -16,12 +16,14 @@ description = {
 dependencies = {
   "lua >= 5.1",
   "luabitop",
+  "lpeg",
 }
 
 build = {
   type = "builtin",
   modules = {
     ["pgmoon"] = "pgmoon/init.lua",
+    ["pgmoon.arrays"] = "pgmoon/arrays.lua",
     ["pgmoon.crypto"] = "pgmoon/crypto.lua",
     ["pgmoon.socket"] = "pgmoon/socket.lua",
   },

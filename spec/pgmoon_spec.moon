@@ -258,11 +258,60 @@ describe "pgmoon with server", ->
 
 
   describe "arrays #ddd", ->
+    import decode_array, encode_array from require "pgmoon.arrays"
+
     it "encodes array value", ->
       import encode_array from require "pgmoon.arrays"
       assert.same "ARRAY[1,2,3]", encode_array pg, {1,2,3}
       assert.same "ARRAY['hello','world']", encode_array pg, {"hello", "world"}
       assert.same "ARRAY[[4,5],[6,7]]", encode_array pg, {{4,5}, {6,7}}
+
+    it "decodes empty array value", ->
+      assert.same {}, decode_array pg, "{}"
+
+    it "decodes numeric array", ->
+      assert.same {1}, decode_array pg, "{1}"
+      assert.same {1, 3}, decode_array pg, "{1,3}"
+
+      assert.same {5.3}, decode_array pg, "{5.3}"
+      assert.same {1.2, 1.4}, decode_array pg, "{1.2,1.4}"
+
+    it "decodes multi-dimensional numeric array", ->
+      assert.same {{1}}, decode_array pg, "{{1}}"
+      assert.same {{1,2,3},{4,5,6}}, decode_array pg, "{{1,2,3},{4,5,6}}"
+
+    it "decodes literal array", ->
+      assert.same {"hello"}, decode_array pg, "{hello}"
+      assert.same {"hello", "world"}, decode_array pg, "{hello,world}"
+
+    it "decodes multi-dimensional literal array", ->
+      assert.same {{"hello"}}, decode_array pg, "{{hello}}"
+      assert.same {{"hello", "world"}, {"foo", "bar"}},
+        decode_array pg, "{{hello,world},{foo,bar}}"
+
+    it "decodes string array", ->
+      assert.same {"hello world"}, decode_array pg, [[{"hello world"}]]
+
+    it "decodes multi-dimensional string array", ->
+      assert.same {{"hello world"}, {"yes"}},
+        decode_array pg, [[{{"hello world"},{"yes"}}]]
+
+    it "decodes string escape sequences", ->
+      assert.same {[[hello \ " yeah]]}, decode_array pg, [[{"hello \\ \" yeah"}]]
+
+    it "fails to decode invalid array syntax", ->
+      assert.has_error ->
+        decode_array pg, [[{1, 2, 3}]]
+
+    it "loads decodes arrays from table", ->
+      assert pg\query [[
+        create table arrays_test (
+          ids integer[]
+        )
+      ]]
+
+      assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
+      -- error pg\query "select * from arrays_test"
 
   it "converts null", ->
     pg.convert_null = true
