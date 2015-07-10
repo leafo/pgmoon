@@ -260,6 +260,13 @@ describe "pgmoon with server", ->
   describe "arrays", ->
     import decode_array, encode_array from require "pgmoon.arrays"
 
+    it "converts table to array", ->
+      import PostgresArray from require "pgmoon.arrays"
+
+      array = PostgresArray {1,2,3}
+      assert.same {1,2,3}, array
+      assert PostgresArray.__base == getmetatable array
+
     it "encodes array value", ->
       import encode_array from require "pgmoon.arrays"
       assert.same "ARRAY[1,2,3]", encode_array pg, {1,2,3}

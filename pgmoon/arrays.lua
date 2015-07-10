@@ -17,6 +17,9 @@ do
   _base_0.__class = _class_0
   PostgresArray = _class_0
 end
+getmetatable(PostgresArray).__call = function(self, t)
+  return setmetatable(t, self.__base)
+end
 local encode_array
 do
   local append_buffer

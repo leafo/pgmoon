@@ -1,6 +1,9 @@
 
 class PostgresArray
 
+getmetatable(PostgresArray).__call = (t) =>
+  setmetatable t, @__base
+
 encode_array = do
   append_buffer = (pg, buffer, values) ->
     for item in *values
