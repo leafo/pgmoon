@@ -78,6 +78,9 @@ PG_TYPES = {
   [1231]: "array_number" -- numeric array
 
   [1009]: "array_string" -- text array
+  [1015]: "array_string" -- varchar array
+  [1002]: "array_string" -- char array
+  [1014]: "array_string" -- bpchar array
 
   [114]: "json"
 }

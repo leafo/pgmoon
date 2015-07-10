@@ -307,7 +307,7 @@ describe "pgmoon with server", ->
       before_each ->
         pg\query "drop table if exists arrays_test"
 
-      it "loads integer arrays from table #ddd", ->
+      it "loads integer arrays from table", ->
         assert pg\query "create table arrays_test (
           a integer[],
           b int2[],
@@ -344,15 +344,30 @@ describe "pgmoon with server", ->
         }, (pg\query "select * from arrays_test")
 
       it "loads string arrays from table", ->
-        assert pg\query "create table arrays_test ( ids text[])"
-        assert pg\query "insert into arrays_test (ids) values ('{one,two}')"
-        assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
+        assert pg\query "create table arrays_test (
+          a text[],
+          b varchar[],
+          c char(3)[]
+        )"
+
+        num_cols = 3
+        assert pg\query "insert into arrays_test
+          values (#{"'{one,two}',"\rep(num_cols)\sub 1, -2})"
+        assert pg\query "insert into arrays_test
+          values (#{"'{1,2,3}',"\rep(num_cols)\sub 1, -2})"
 
         assert.same {
-          { ids: {"one", "two"} }
-          { ids: {"1", "2", "3"} }
+          {
+            a: {"one", "two"}
+            b: {"one", "two"}
+            c: {"one", "two"}
+          }
+          {
+            a: {"1", "2", "3"}
+            b: {"1", "2", "3"}
+            c: {"1  ", "2  ", "3  "}
+          }
         }, (pg\query "select * from arrays_test")
-
 
       it "loads string arrays from table", ->
         assert pg\query "create table arrays_test (ids boolean[])"

@@ -99,6 +99,9 @@ local PG_TYPES = {
   [1022] = "array_number",
   [1231] = "array_number",
   [1009] = "array_string",
+  [1015] = "array_string",
+  [1002] = "array_string",
+  [1014] = "array_string",
   [114] = "json"
 }
 local NULL = "\0"
