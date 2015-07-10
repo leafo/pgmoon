@@ -91,9 +91,16 @@ local PG_TYPES = {
   [700] = "number",
   [701] = "number",
   [1700] = "number",
+  [1000] = "array_boolean",
+  [1007] = "array_number",
+  [1009] = "array_string",
   [114] = "json"
 }
 local NULL = "\0"
+local tobool
+tobool = function(str)
+  return str == "t"
+end
 local Postgres
 do
   local _base_0 = {
@@ -111,6 +118,21 @@ do
       end,
       bytea = function(self, val, name)
         return self:decode_bytea(val)
+      end,
+      array_boolean = function(self, val, name)
+        local decode_array
+        decode_array = require("pgmoon.arrays").decode_array
+        return decode_array(self, val, tobool)
+      end,
+      array_number = function(self, val, name)
+        local decode_array
+        decode_array = require("pgmoon.arrays").decode_array
+        return decode_array(self, val, tonumber)
+      end,
+      array_string = function(self, val, name)
+        local decode_array
+        decode_array = require("pgmoon.arrays").decode_array
+        return decode_array(self, val)
       end
     },
     connect = function(self)

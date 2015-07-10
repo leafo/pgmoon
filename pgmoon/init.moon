@@ -67,10 +67,18 @@ PG_TYPES = {
   [701]: "number" -- float8
   [1700]: "number" -- numeric
 
+  -- arrays
+  [1000]: "array_boolean" -- bool array
+  [1007]: "array_number" -- int4 array
+  [1009]: "array_string" -- text array
+
   [114]: "json"
 }
 
 NULL = "\0"
+
+tobool = (str) ->
+  str == "t"
 
 class Postgres
   convert_null: false
@@ -88,6 +96,18 @@ class Postgres
 
     bytea: (val, name) =>
       @decode_bytea val
+
+    array_boolean: (val, name) =>
+      import decode_array from require "pgmoon.arrays"
+      decode_array @, val, tobool
+
+    array_number: (val, name) =>
+      import decode_array from require "pgmoon.arrays"
+      decode_array @, val, tonumber
+
+    array_string: (val, name) =>
+      import decode_array from require "pgmoon.arrays"
+      decode_array @, val
   }
 
   new: (opts) =>

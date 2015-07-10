@@ -257,7 +257,7 @@ describe "pgmoon with server", ->
     ]]
 
 
-  describe "arrays #ddd", ->
+  describe "arrays", ->
     import decode_array, encode_array from require "pgmoon.arrays"
 
     it "encodes array value", ->
@@ -270,15 +270,15 @@ describe "pgmoon with server", ->
       assert.same {}, decode_array pg, "{}"
 
     it "decodes numeric array", ->
-      assert.same {1}, decode_array pg, "{1}"
-      assert.same {1, 3}, decode_array pg, "{1,3}"
+      assert.same {1}, decode_array pg, "{1}", tonumber
+      assert.same {1, 3}, decode_array pg, "{1,3}", tonumber
 
-      assert.same {5.3}, decode_array pg, "{5.3}"
-      assert.same {1.2, 1.4}, decode_array pg, "{1.2,1.4}"
+      assert.same {5.3}, decode_array pg, "{5.3}", tonumber
+      assert.same {1.2, 1.4}, decode_array pg, "{1.2,1.4}", tonumber
 
     it "decodes multi-dimensional numeric array", ->
-      assert.same {{1}}, decode_array pg, "{{1}}"
-      assert.same {{1,2,3},{4,5,6}}, decode_array pg, "{{1,2,3},{4,5,6}}"
+      assert.same {{1}}, decode_array pg, "{{1}}", tonumber
+      assert.same {{1,2,3},{4,5,6}}, decode_array pg, "{{1,2,3},{4,5,6}}", tonumber
 
     it "decodes literal array", ->
       assert.same {"hello"}, decode_array pg, "{hello}"
@@ -303,15 +303,45 @@ describe "pgmoon with server", ->
       assert.has_error ->
         decode_array pg, [[{1, 2, 3}]]
 
-    it "loads decodes arrays from table", ->
-      assert pg\query [[
-        create table arrays_test (
-          ids integer[]
-        )
-      ]]
+    describe "with table #ddd", ->
+      before_each ->
+        pg\query "drop table if exists arrays_test"
 
-      assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
-      -- error pg\query "select * from arrays_test"
+      it "loads integer arrays from table", ->
+        assert pg\query "create table arrays_test (ids integer[])"
+        assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
+        assert pg\query "insert into arrays_test (ids) values ('{9,5,1}')"
+
+        assert.same {
+          {ids: {1,2,3}}
+          {ids: {9,5,1}}
+        }, (pg\query "select * from arrays_test")
+
+      it "loads string arrays from table", ->
+        assert pg\query "create table arrays_test ( ids text[])"
+        assert pg\query "insert into arrays_test (ids) values ('{one,two}')"
+        assert pg\query "insert into arrays_test (ids) values ('{1,2,3}')"
+
+        assert.same {
+          { ids: {"one", "two"} }
+          { ids: {"1", "2", "3"} }
+        }, (pg\query "select * from arrays_test")
+
+
+      it "loads string arrays from table", ->
+        assert pg\query "create table arrays_test (ids boolean[])"
+        assert pg\query "insert into arrays_test (ids) values ('{t,f}')"
+        assert pg\query "insert into arrays_test (ids) values ('{{t,t},{t,f},{f,f}}')"
+
+        assert.same {
+          { ids: {true, false} }
+          { ids: {
+            {true, true}
+            {true, false}
+            {false, false}
+          } }
+        }, (pg\query "select * from arrays_test")
+
 
   it "converts null", ->
     pg.convert_null = true

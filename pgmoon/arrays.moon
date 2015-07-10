@@ -19,6 +19,15 @@ encode_array = do
     buffer[#buffer] = "]" -- strips trailing comma
     table.concat buffer
 
+convert_values = (array, fn) ->
+  for idx, v in ipairs array
+    if type(v) == "table"
+      convert_values v, fn
+    else
+      array[idx] = fn v
+
+  array
+
 decode_array = do
   import P, R, S, V, Ct, C, Cs from require "lpeg"
   g = P {
@@ -27,7 +36,7 @@ decode_array = do
     array: Ct V"open" * (V"value" * (P"," * V"value")^0)^-1 * V"close"
     value: V"invalid_char" + V"number" + V"string" + V"array" + V"literal"
 
-    number: R"09"^1 * (P"." * R"09"^1)^-1 / tonumber
+    number: C R"09"^1 * (P"." * R"09"^1)^-1
     string: P'"' * Cs(
       (P([[\\]]) / [[\]] + P([[\"]]) / [["]] + (P(1) - P'"'))^0
     ) * P'"'
@@ -41,8 +50,13 @@ decode_array = do
     close: P"}"
   }
 
-  (pg, str) ->
-    (assert g\match(str), "failed to parse postgresql array")
+  (pg, str, convert_fn) ->
+    out = (assert g\match(str), "failed to parse postgresql array")
+    if convert_fn
+      convert_values out, convert_fn
+    else
+      out
+
 
 {:encode_array, :decode_array}
 
