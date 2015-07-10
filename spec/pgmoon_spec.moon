@@ -19,7 +19,7 @@ describe "pgmoon with server", ->
     }
     assert pg\connect!
 
-  it "should create and drop table", ->
+  it "creates and drop table", ->
     res = assert pg\query [[
       create table hello_world (
         id serial not null,
@@ -55,14 +55,14 @@ describe "pgmoon with server", ->
         drop table hello_world
       ]]
 
-    it "should insert a row", ->
+    it "inserts a row", ->
       res = assert pg\query [[
         insert into "hello_world" ("name", "count") values ('hi', 100)
       ]]
 
       assert.same { affected_rows: 1 }, res
 
-    it "should insert a row with return value", ->
+    it "inserts a row with return value", ->
       res = assert pg\query [[
         insert into "hello_world" ("name", "count") values ('hi', 100) returning "id"
       ]]
@@ -72,15 +72,15 @@ describe "pgmoon with server", ->
         { id: 1 }
       }, res
 
-    it "should select from empty table", ->
+    it "selects from empty table", ->
       res = assert pg\query [[select * from hello_world limit 2]]
       assert.same {}, res
 
-    it "should delete nothing", ->
+    it "deletes nothing", ->
       res = assert pg\query [[delete from hello_world]]
       assert.same { affected_rows: 0 }, res
 
-    it "should update no rows", ->
+    it "update no rows", ->
       res = assert pg\query [[update "hello_world" SET "name" = 'blahblah']]
       assert.same { affected_rows: 0 }, res
 
@@ -92,13 +92,13 @@ describe "pgmoon with server", ->
               values (']] .. "thing_#{i}" .. [[', ]] .. i .. [[)
           ]]
 
-      it "should select some rows", ->
+      it "select some rows", ->
         res = assert pg\query [[ select * from hello_world ]]
         assert.same "table", type(res)
         assert.same 10, #res
 
 
-      it "should update rows", ->
+      it "update rows", ->
         res = assert pg\query [[
           update "hello_world" SET "name" = 'blahblah'
         ]]
@@ -107,7 +107,7 @@ describe "pgmoon with server", ->
         assert.same "blahblah",
           unpack(pg\query "select name from hello_world limit 1").name
 
-      it "should delete a row", ->
+      it "delete a row", ->
         res = assert pg\query [[
           delete from "hello_world" where id = 1
         ]]
@@ -116,11 +116,11 @@ describe "pgmoon with server", ->
         assert.same nil,
           unpack(pg\query "select * from hello_world where id = 1") or nil
 
-      it "should truncate table", ->
+      it "truncate table", ->
         res = assert pg\query "truncate hello_world"
         assert.same true, res
 
-      it "should make many select queries", ->
+      it "make many select queries", ->
         for i=1,20
           assert pg\query [[update "hello_world" SET "name" = 'blahblah' where id = ]] .. i
           assert pg\query [[ select * from hello_world ]]
@@ -128,7 +128,7 @@ describe "pgmoon with server", ->
 
       -- single call, multiple queries
       describe "multi-queries #multi", ->
-        it "it should get two results", ->
+        it "gets two results", ->
           res, num_queries = assert pg\query [[
             select id, flag from hello_world order by id asc limit 2;
             select id, flag from hello_world order by id asc limit 2 offset 2;
@@ -147,7 +147,7 @@ describe "pgmoon with server", ->
             }
           }, res
 
-        it "it should get three results", ->
+        it "gets three results", ->
           res, num_queries = assert pg\query [[
             select id, flag from hello_world order by id asc limit 2;
             select id, flag from hello_world order by id asc limit 2 offset 2;
@@ -173,7 +173,7 @@ describe "pgmoon with server", ->
           }, res
 
 
-        it "it should do multiple updates", ->
+        it "does multiple updates", ->
           res, num_queries = assert pg\query [[
             update hello_world set flag = false where id = 3;
             update hello_world set flag = true;
@@ -186,7 +186,7 @@ describe "pgmoon with server", ->
           }, res
 
 
-        it "it should do mix update and select", ->
+        it "does mix update and select", ->
           res, num_queries = assert pg\query [[
             update hello_world set flag = false where id = 3;
             select id, flag from hello_world where id = 3
@@ -201,7 +201,7 @@ describe "pgmoon with server", ->
           }, res
 
 
-        it "it should return partial result on error", ->
+        it "returns partial result on error", ->
           res, err, partial, num_queries = pg\query [[
             select id, flag from hello_world order by id asc limit 1;
             select id, flag from jello_world limit 1;
@@ -216,7 +216,7 @@ describe "pgmoon with server", ->
           }, { :res, :err, :partial, :num_queries }
 
 
-  it "should deserialize types correctly", ->
+  it "deserializes types correctly", ->
     assert pg\query [[
       create table types_test (
         id serial not null,
@@ -256,36 +256,36 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
-  it "should convert null", ->
+  it "converts null", ->
     pg.convert_null = true
     res = assert pg\query "select null the_null"
     assert pg.NULL == res[1].the_null
 
-  it "should convert to custom null", ->
+  it "converts to custom null", ->
     pg.convert_null = true
     n = {"hello"}
     pg.NULL = n
     res = assert pg\query "select null the_null"
     assert n == res[1].the_null
 
-  it "should encode bytea type", ->
+  it "encodes bytea type", ->
     n = { { bytea: "encoded' string\\" } }
     enc = pg\encode_bytea n[1].bytea
     res = assert pg\query "select #{enc}::bytea"
     assert.same n, res
 
-  it "should return error message", ->
+  it "returns error message", ->
     status, err = pg\query "select * from blahlbhabhabh"
     assert.falsy status
     assert.same [[ERROR: relation "blahlbhabhabh" does not exist (15)]], err
 
-  it "should allow a query after getting an error", ->
+  it "allows a query after getting an error", ->
     status, err = pg\query "select * from blahlbhabhabh"
     assert.falsy status
     res = pg\query "select 1"
     assert.truthy res
 
-  it "should error when connecting with invalid server", ->
+  it "errors when connecting with invalid server", ->
     pg2 = Postgres {
       database: "doesnotexist"
     }
@@ -317,9 +317,9 @@ describe "pgmoon without server", ->
     pg = Postgres!
 
   for {ident, expected} in *escape_ident
-    it "should escape identifier '#{ident}'", ->
+    it "escapes identifier '#{ident}'", ->
       assert.same expected, pg\escape_identifier ident
 
   for {lit, expected} in *escape_literal
-    it "should escape literal '#{lit}'", ->
+    it "escapes literal '#{lit}'", ->
       assert.same expected, pg\escape_literal lit
