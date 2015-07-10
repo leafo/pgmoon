@@ -1,13 +1,7 @@
 local insert
-do
-  local _obj_0 = table
-  insert = _obj_0.insert
-end
+insert = table.insert
 local tcp
-do
-  local _obj_0 = require("pgmoon.socket")
-  tcp = _obj_0.tcp
-end
+tcp = require("pgmoon.socket").tcp
 local rshift, lshift, band
 do
   local _obj_0 = require("bit")
@@ -176,10 +170,7 @@ do
     end,
     md5_auth = function(self, msg)
       local md5
-      do
-        local _obj_0 = require("pgmoon.crypto")
-        md5 = _obj_0.md5
-      end
+      md5 = require("pgmoon.crypto").md5
       local salt = msg:sub(5, 8)
       assert(self.password, "missing password, required for connect")
       self:send_message(MSG_TYPE.password, {
