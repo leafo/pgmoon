@@ -26,7 +26,7 @@ do
   append_buffer = function(escape_literal, buffer, values)
     for _index_0 = 1, #values do
       local item = values[_index_0]
-      if type(item) == "table" then
+      if type(item) == "table" and not getmetatable(item) then
         table.insert(buffer, "[")
         append_buffer(escape_literal, buffer, item)
         buffer[#buffer] = "]"

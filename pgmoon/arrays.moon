@@ -7,7 +7,8 @@ getmetatable(PostgresArray).__call = (t) =>
 encode_array = do
   append_buffer = (escape_literal, buffer, values) ->
     for item in *values
-      if type(item) == "table"
+      -- plain array
+      if type(item) == "table" and not getmetatable(item)
         table.insert buffer, "["
         append_buffer escape_literal, buffer, item
         buffer[#buffer] = "]" -- strips trailing comma
