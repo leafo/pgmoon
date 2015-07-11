@@ -204,8 +204,29 @@ All integer, floating point, and numeric types are converted into Lua's number
 type. The boolean type is converted into a Lua boolean. The JSON type is
 decoded into a Lua table using Lua CJSON.
 
+Any array types are automatically converted to Lua arary tables. If you need to
+encode an array in Lua to Postgres' array syntax you can use the
+`pgmoon.arrays` module. See below.
+
 Any other types are returned as Lua strings.
 
+## Handling arrays
+
+Arrays are automatically decoded when they are returned from a query. Numeric,
+string, and boolean types are automatically loaded accordingly. Nested arrays
+are also supported.
+
+Use `encode_array` to encode a Lua table to array syntax for a query:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+
+local encode_array = require("pgmoon.arrays").encode_array
+local my_array = {1,2,3,4,5}
+db.query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
+```
 
 ## Converting `NULL`s
 
@@ -234,6 +255,13 @@ Author: Leaf Corcoran (leafo) ([@moonscript](http://twitter.com/moonscript))
 Email: leafot@gmail.com  
 Homepage: <http://leafo.net>  
 
+
+# Changelog
+
+* 1.2.0 — 2015-07-10 — Add support for PostgreSQL Arrays
+* 1.1.1 — 2014-08-12 — Fix a bug with md5 auth
+* 1.1.0 — 2014-05-21 — Add support for multiple queries in one call
+* 1.0.0 — 2014-05-19 — Initial release
 
 ## License (MIT)
 
