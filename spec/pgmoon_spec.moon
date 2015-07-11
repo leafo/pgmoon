@@ -268,49 +268,50 @@ describe "pgmoon with server", ->
       assert PostgresArray.__base == getmetatable array
 
     it "encodes array value", ->
-      import encode_array from require "pgmoon.arrays"
-      assert.same "ARRAY[1,2,3]", encode_array pg, {1,2,3}
-      assert.same "ARRAY['hello','world']", encode_array pg, {"hello", "world"}
-      assert.same "ARRAY[[4,5],[6,7]]", encode_array pg, {{4,5}, {6,7}}
+      escape_literal = pg\escape_literal
+
+      assert.same "ARRAY[1,2,3]", encode_array escape_literal, {1,2,3}
+      assert.same "ARRAY['hello','world']", encode_array escape_literal, {"hello", "world"}
+      assert.same "ARRAY[[4,5],[6,7]]", encode_array escape_literal, {{4,5}, {6,7}}
 
     it "decodes empty array value", ->
-      assert.same {}, decode_array pg, "{}"
+      assert.same {}, decode_array "{}"
       import PostgresArray from require "pgmoon.arrays"
-      assert PostgresArray.__base == getmetatable decode_array pg, "{}"
+      assert PostgresArray.__base == getmetatable decode_array "{}"
 
     it "decodes numeric array", ->
-      assert.same {1}, decode_array pg, "{1}", tonumber
-      assert.same {1, 3}, decode_array pg, "{1,3}", tonumber
+      assert.same {1}, decode_array "{1}", tonumber
+      assert.same {1, 3}, decode_array "{1,3}", tonumber
 
-      assert.same {5.3}, decode_array pg, "{5.3}", tonumber
-      assert.same {1.2, 1.4}, decode_array pg, "{1.2,1.4}", tonumber
+      assert.same {5.3}, decode_array "{5.3}", tonumber
+      assert.same {1.2, 1.4}, decode_array "{1.2,1.4}", tonumber
 
     it "decodes multi-dimensional numeric array", ->
-      assert.same {{1}}, decode_array pg, "{{1}}", tonumber
-      assert.same {{1,2,3},{4,5,6}}, decode_array pg, "{{1,2,3},{4,5,6}}", tonumber
+      assert.same {{1}}, decode_array "{{1}}", tonumber
+      assert.same {{1,2,3},{4,5,6}}, decode_array "{{1,2,3},{4,5,6}}", tonumber
 
     it "decodes literal array", ->
-      assert.same {"hello"}, decode_array pg, "{hello}"
-      assert.same {"hello", "world"}, decode_array pg, "{hello,world}"
+      assert.same {"hello"}, decode_array "{hello}"
+      assert.same {"hello", "world"}, decode_array "{hello,world}"
 
     it "decodes multi-dimensional literal array", ->
-      assert.same {{"hello"}}, decode_array pg, "{{hello}}"
+      assert.same {{"hello"}}, decode_array "{{hello}}"
       assert.same {{"hello", "world"}, {"foo", "bar"}},
-        decode_array pg, "{{hello,world},{foo,bar}}"
+        decode_array "{{hello,world},{foo,bar}}"
 
     it "decodes string array", ->
-      assert.same {"hello world"}, decode_array pg, [[{"hello world"}]]
+      assert.same {"hello world"}, decode_array [[{"hello world"}]]
 
     it "decodes multi-dimensional string array", ->
       assert.same {{"hello world"}, {"yes"}},
-        decode_array pg, [[{{"hello world"},{"yes"}}]]
+        decode_array [[{{"hello world"},{"yes"}}]]
 
     it "decodes string escape sequences", ->
-      assert.same {[[hello \ " yeah]]}, decode_array pg, [[{"hello \\ \" yeah"}]]
+      assert.same {[[hello \ " yeah]]}, decode_array [[{"hello \\ \" yeah"}]]
 
     it "fails to decode invalid array syntax", ->
       assert.has_error ->
-        decode_array pg, [[{1, 2, 3}]]
+        decode_array [[{1, 2, 3}]]
 
     describe "with table", ->
       before_each ->

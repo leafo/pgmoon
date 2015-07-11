@@ -23,23 +23,23 @@ end
 local encode_array
 do
   local append_buffer
-  append_buffer = function(pg, buffer, values)
+  append_buffer = function(escape_literal, buffer, values)
     for _index_0 = 1, #values do
       local item = values[_index_0]
       if type(item) == "table" then
         table.insert(buffer, "[")
-        append_buffer(pg, buffer, item)
+        append_buffer(escape_literal, buffer, item)
         buffer[#buffer] = "]"
         table.insert(buffer, ",")
       else
-        table.insert(buffer, pg:escape_literal(item))
+        table.insert(buffer, escape_literal(item))
         table.insert(buffer, ",")
       end
     end
     return buffer
   end
-  encode_array = function(pg, tbl)
-    local buffer = append_buffer(pg, {
+  encode_array = function(escape_literal, tbl)
+    local buffer = append_buffer(escape_literal, {
       "ARRAY["
     }, tbl)
     buffer[#buffer] = "]"
@@ -78,7 +78,7 @@ do
     delim = P(","),
     close = P("}")
   })
-  decode_array = function(pg, str, convert_fn)
+  decode_array = function(str, convert_fn)
     local out = (assert(g:match(str), "failed to parse postgresql array"))
     setmetatable(out, PostgresArray.__base)
     if convert_fn then

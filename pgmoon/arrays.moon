@@ -5,21 +5,21 @@ getmetatable(PostgresArray).__call = (t) =>
   setmetatable t, @__base
 
 encode_array = do
-  append_buffer = (pg, buffer, values) ->
+  append_buffer = (escape_literal, buffer, values) ->
     for item in *values
       if type(item) == "table"
         table.insert buffer, "["
-        append_buffer pg, buffer, item
+        append_buffer escape_literal, buffer, item
         buffer[#buffer] = "]" -- strips trailing comma
         table.insert buffer, ","
       else
-        table.insert buffer, pg\escape_literal item
+        table.insert buffer, escape_literal item
         table.insert buffer, ","
 
     buffer
 
-  (pg, tbl) ->
-    buffer = append_buffer pg, {"ARRAY["}, tbl
+  (escape_literal, tbl) ->
+    buffer = append_buffer escape_literal, {"ARRAY["}, tbl
 
     buffer[#buffer] = "]" -- strips trailing comma
     table.concat buffer
@@ -55,7 +55,7 @@ decode_array = do
     close: P"}"
   }
 
-  (pg, str, convert_fn) ->
+  (str, convert_fn) ->
     out = (assert g\match(str), "failed to parse postgresql array")
     setmetatable out, PostgresArray.__base
 

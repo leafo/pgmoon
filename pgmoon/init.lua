@@ -130,17 +130,17 @@ do
       array_boolean = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(self, val, tobool)
+        return decode_array(val, tobool)
       end,
       array_number = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(self, val, tonumber)
+        return decode_array(val, tonumber)
       end,
       array_string = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(self, val)
+        return decode_array(val)
       end
     },
     connect = function(self)
