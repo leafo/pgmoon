@@ -268,11 +268,9 @@ describe "pgmoon with server", ->
       assert PostgresArray.__base == getmetatable array
 
     it "encodes array value", ->
-      escape_literal = pg\escape_literal
-
-      assert.same "ARRAY[1,2,3]", encode_array escape_literal, {1,2,3}
-      assert.same "ARRAY['hello','world']", encode_array escape_literal, {"hello", "world"}
-      assert.same "ARRAY[[4,5],[6,7]]", encode_array escape_literal, {{4,5}, {6,7}}
+      assert.same "ARRAY[1,2,3]", encode_array {1,2,3}
+      assert.same "ARRAY['hello','world']", encode_array {"hello", "world"}
+      assert.same "ARRAY[[4,5],[6,7]]", encode_array {{4,5}, {6,7}}
 
     it "decodes empty array value", ->
       assert.same {}, decode_array "{}"

@@ -20,6 +20,7 @@ end
 getmetatable(PostgresArray).__call = function(self, t)
   return setmetatable(t, self.__base)
 end
+local default_escape_literal = nil
 local encode_array
 do
   local append_buffer
@@ -38,7 +39,16 @@ do
     end
     return buffer
   end
-  encode_array = function(escape_literal, tbl)
+  encode_array = function(tbl, escape_literal)
+    escape_literal = escape_literal or default_escape_literal
+    if not (escape_literal) then
+      local Postgres
+      Postgres = require("pgmoon").Postgres
+      default_escape_literal = function(v)
+        return Postgres.escape_literal(nil, v)
+      end
+      escape_literal = default_escape_literal
+    end
     local buffer = append_buffer(escape_literal, {
       "ARRAY["
     }, tbl)

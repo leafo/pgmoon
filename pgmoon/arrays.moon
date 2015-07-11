@@ -4,6 +4,8 @@ class PostgresArray
 getmetatable(PostgresArray).__call = (t) =>
   setmetatable t, @__base
 
+default_escape_literal = nil
+
 encode_array = do
   append_buffer = (escape_literal, buffer, values) ->
     for item in *values
@@ -19,7 +21,16 @@ encode_array = do
 
     buffer
 
-  (escape_literal, tbl) ->
+  (tbl, escape_literal) ->
+    escape_literal or= default_escape_literal
+
+    unless escape_literal
+      import Postgres from require "pgmoon"
+      default_escape_literal = (v) ->
+        Postgres.escape_literal nil, v
+
+      escape_literal = default_escape_literal
+
     buffer = append_buffer escape_literal, {"ARRAY["}, tbl
 
     buffer[#buffer] = "]" -- strips trailing comma
