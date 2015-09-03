@@ -77,8 +77,7 @@ do
   local g = P({
     "array",
     array = Ct(V("open") * (V("value") * (P(",") * V("value")) ^ 0) ^ -1 * V("close")),
-    value = V("invalid_char") + V("number") + V("string") + V("array") + V("literal"),
-    number = C(R("09") ^ 1 * (P(".") * R("09") ^ 1) ^ -1),
+    value = V("invalid_char") + V("string") + V("array") + V("literal"),
     string = P('"') * Cs((P([[\\]]) / [[\]] + P([[\"]]) / [["]] + (P(1) - P('"'))) ^ 0) * P('"'),
     literal = C((P(1) - S("},")) ^ 1),
     invalid_char = S(" \t\r\n") / function()

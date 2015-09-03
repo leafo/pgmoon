@@ -311,6 +311,10 @@ describe "pgmoon with server", ->
       assert.has_error ->
         decode_array [[{1, 2, 3}]]
 
+    it "decodes literal starting with numbers array", ->
+      assert.same {"1one"}, decode_array "{1one}"
+      assert.same {"1one", "2two"}, decode_array "{1one,2two}"
+
     describe "with table", ->
       before_each ->
         pg\query "drop table if exists arrays_test"

@@ -51,9 +51,8 @@ decode_array = do
     "array"
 
     array: Ct V"open" * (V"value" * (P"," * V"value")^0)^-1 * V"close"
-    value: V"invalid_char" + V"number" + V"string" + V"array" + V"literal"
+    value: V"invalid_char" + V"string" + V"array" + V"literal"
 
-    number: C R"09"^1 * (P"." * R"09"^1)^-1
     string: P'"' * Cs(
       (P([[\\]]) / [[\]] + P([[\"]]) / [["]] + (P(1) - P'"'))^0
     ) * P'"'
