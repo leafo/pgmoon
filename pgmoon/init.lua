@@ -215,14 +215,7 @@ do
       if not (t) then
         return nil, msg
       end
-      local _exp_0 = t
-      if MSG_TYPE.error == _exp_0 then
-        return nil, self:parse_error(msg)
-      elseif MSG_TYPE.auth == _exp_0 then
-        return true
-      else
-        return error("unknown response from md5 auth: " .. tostring(t))
-      end
+      return self:discover_auth(t, msg, "md5")
     end,
     cleartext_auth = function(self, _)
       assert(self.password, "missing password, required for connect")
@@ -233,13 +226,16 @@ do
       if not (t) then
         return nil, msg
       end
+      return self:discover_auth(t, msg, "cleartext")
+    end,
+    discover_auth = function(self, t, msg, auth_name)
       local _exp_0 = t
       if MSG_TYPE.error == _exp_0 then
         return nil, self:parse_error(msg)
       elseif MSG_TYPE.auth == _exp_0 then
         return true
       else
-        return error("unknown response from cleartext auth: " .. tostring(t))
+        return error("unknown response from " .. tostring(auth_name) .. " auth: " .. tostring(t))
       end
     end,
     query = function(self, q)
