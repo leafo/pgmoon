@@ -111,6 +111,7 @@ tobool = function(str)
 end
 local Postgres
 do
+  local _class_0
   local _base_0 = {
     convert_null = false,
     NULL = {
@@ -205,7 +206,8 @@ do
       assert(self.password, "missing password, required for connect")
       self:send_message(MSG_TYPE.password, {
         "md5",
-        md5(md5(self.password .. self.user) .. salt)
+        md5(md5(self.password .. self.user) .. salt),
+        "\0"
       })
       local t
       t, msg = self:receive_message()
@@ -531,7 +533,7 @@ do
     end
   }
   _base_0.__index = _base_0
-  local _class_0 = setmetatable({
+  _class_0 = setmetatable({
     __init = function(self, opts)
       if opts then
         self.user = opts.user
