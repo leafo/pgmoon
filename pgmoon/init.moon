@@ -172,6 +172,8 @@ class Postgres
         true
       when 5 -- md5 auth
         @md5_auth msg
+      when 3 -- cleartext
+        @cleartext_auth msg
       else
         error "don't know how to auth: #{auth_type}"
 
@@ -188,13 +190,26 @@ class Postgres
     t, msg = @receive_message!
     return nil, msg unless t
 
+    @discover_auth t, msg, "md5"
+
+  cleartext_auth: (_) =>
+    assert @password, "missing password, required for connect"
+
+    @send_message MSG_TYPE.password, {@password}
+
+    t, msg = @receive_message!
+    return nil, msg unless t
+
+    @discover_auth t, msg, "cleartext"
+
+  discover_auth: (t, msg, auth_name) =>
     switch t
       when MSG_TYPE.error
         nil, @parse_error msg
       when MSG_TYPE.auth
         true
       else
-        error "unknown response from md5 auth: #{auth_type}"
+        error "unknown response from #{auth_name} auth: #{t}"
 
   query: (q) =>
     @send_message MSG_TYPE.query, {q, NULL}

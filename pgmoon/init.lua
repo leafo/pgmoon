@@ -111,6 +111,7 @@ tobool = function(str)
 end
 local Postgres
 do
+  local _class_0
   local _base_0 = {
     convert_null = false,
     NULL = {
@@ -195,7 +196,7 @@ do
       elseif 5 == _exp_0 then
         return self:md5_auth(msg)
       elseif 3 == _exp_0 then
-          return self:cleartext_auth(msg)
+        return self:cleartext_auth(msg)
       else
         return error("don't know how to auth: " .. tostring(auth_type))
       end
@@ -214,30 +215,27 @@ do
       if not (t) then
         return nil, msg
       end
+      return self:discover_auth(t, msg, "md5")
+    end,
+    cleartext_auth = function(self, _)
+      assert(self.password, "missing password, required for connect")
+      self:send_message(MSG_TYPE.password, {
+        self.password
+      })
+      local t, msg = self:receive_message()
+      if not (t) then
+        return nil, msg
+      end
+      return self:discover_auth(t, msg, "cleartext")
+    end,
+    discover_auth = function(self, t, msg, auth_name)
       local _exp_0 = t
       if MSG_TYPE.error == _exp_0 then
         return nil, self:parse_error(msg)
       elseif MSG_TYPE.auth == _exp_0 then
         return true
       else
-        return error("unknown response from md5 auth: " .. tostring(t))
-      end
-    end,
-    cleartext_auth = function(self, msg)
-      assert(self.password, "missing password, required for connect")
-      self:send_message(MSG_TYPE.password, {self.password})
-      local t
-      t, msg = self:receive_message()
-      if not (t) then
-          return nil, msg
-      end
-      local _exp_0 = t
-      if MSG_TYPE.error == _exp_0 then
-          return nil, self:parse_error(msg)
-      elseif MSG_TYPE.auth == _exp_0 then
-          return true
-      else
-          return error("unknown response from cleartext auth: " .. tostring(t))
+        return error("unknown response from " .. tostring(auth_name) .. " auth: " .. tostring(t))
       end
     end,
     query = function(self, q)
@@ -550,7 +548,7 @@ do
     end
   }
   _base_0.__index = _base_0
-  local _class_0 = setmetatable({
+  _class_0 = setmetatable({
     __init = function(self, opts)
       if opts then
         self.user = opts.user
