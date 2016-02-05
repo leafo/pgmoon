@@ -1,7 +1,6 @@
+local socket = require("pgmoon.socket")
 local insert
 insert = table.insert
-local tcp
-tcp = require("pgmoon.socket").tcp
 local rshift, lshift, band
 do
   local _obj_0 = require("bit")
@@ -111,6 +110,7 @@ tobool = function(str)
 end
 local Postgres
 do
+  local _class_0
   local _base_0 = {
     convert_null = false,
     NULL = {
@@ -144,7 +144,7 @@ do
       end
     },
     connect = function(self)
-      self.sock = tcp()
+      self.sock = socket.new()
       local ok, err = self.sock:connect(self.host, self.port)
       if not (ok) then
         return nil, err
@@ -531,7 +531,7 @@ do
     end
   }
   _base_0.__index = _base_0
-  local _class_0 = setmetatable({
+  _class_0 = setmetatable({
     __init = function(self, opts)
       if opts then
         self.user = opts.user
