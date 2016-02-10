@@ -192,11 +192,21 @@ do
       local _exp_0 = auth_type
       if 0 == _exp_0 then
         return true
+      elseif 3 == _exp_0 then
+        return self:cleartext_auth(msg)
       elseif 5 == _exp_0 then
         return self:md5_auth(msg)
       else
         return error("don't know how to auth: " .. tostring(auth_type))
       end
+    end,
+    cleartext_auth = function(self, msg)
+      assert(self.password, "missing password, required for connect")
+      self:send_message(MSG_TYPE.password, {
+        self.password,
+        NULL
+      })
+      return self:check_auth()
     end,
     md5_auth = function(self, msg)
       local md5
@@ -208,8 +218,10 @@ do
         md5(md5(self.password .. self.user) .. salt),
         NULL
       })
-      local t
-      t, msg = self:receive_message()
+      return self:check_auth()
+    end,
+    check_auth = function(self)
+      local t, msg = self:receive_message()
       if not (t) then
         return nil, msg
       end
@@ -219,7 +231,7 @@ do
       elseif MSG_TYPE.auth == _exp_0 then
         return true
       else
-        return error("unknown response from md5 auth: " .. tostring(auth_type))
+        return error("unknown response from auth: " .. tostring(auth_type))
       end
     end,
     query = function(self, q)
