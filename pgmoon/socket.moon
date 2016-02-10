@@ -1,10 +1,5 @@
-local luasocket
 
--- Fallback to LuaSocket is only required when pgmoon
--- runs in plain Lua, or in the init_by_lua context.
-if not ngx or ngx and ngx.get_phase! == "init"
-  socket = require "socket"
-
+luasocket = do
   -- make luasockets send behave like openresty's
   __flatten = (t, buffer) ->
     switch type(t)
@@ -33,8 +28,9 @@ if not ngx or ngx and ngx.get_phase! == "init"
         original
   }
 
-  luasocket = {
+  {
     tcp: (...) ->
+      socket = require "socket"
       sock = socket.tcp ...
       proxy = setmetatable {
         :sock
@@ -47,6 +43,8 @@ if not ngx or ngx and ngx.get_phase! == "init"
 
 {
   new: ->
+    -- Fallback to LuaSocket is only required when pgmoon
+    -- runs in plain Lua, or in the init_by_lua context.
     if ngx and ngx.get_phase! != "init"
       ngx.socket.tcp!
     else

@@ -1,6 +1,5 @@
 local luasocket
-if not ngx then
-  local socket = require("socket")
+do
   local __flatten
   __flatten = function(t, buffer)
     local _exp_0 = type(t)
@@ -37,6 +36,7 @@ if not ngx then
   }
   luasocket = {
     tcp = function(...)
+      local socket = require("socket")
       local sock = socket.tcp(...)
       local proxy = setmetatable({
         sock = sock,
