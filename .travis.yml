@@ -1,0 +1,27 @@
+language: c
+
+sudo: false
+
+addons:
+  postgresql: "9.4"
+
+env:
+  global:
+    - LUAROCKS=2.3.0
+  matrix:
+    - LUA=lua5.1
+    - LUA=lua5.2
+    - LUA=lua5.3
+    - LUA=luajit2.1
+
+before_install:
+  - source .travis/setenv_lua.sh
+
+install:
+  - luarocks install https://luarocks.org/manifests/olivine-labs/busted-2.0.rc11-0.rockspec
+  - luarocks install moonscript
+  - luarocks make
+
+script: 
+  - busted
+
