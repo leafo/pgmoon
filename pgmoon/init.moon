@@ -182,6 +182,7 @@ class Postgres
     @send_message MSG_TYPE.password, {
       "md5"
       md5 md5(@password .. @user) .. salt
+      NULL
     }
 
     t, msg = @receive_message!
