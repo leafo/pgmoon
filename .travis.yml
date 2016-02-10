@@ -10,8 +10,8 @@ env:
     - LUAROCKS=2.3.0
   matrix:
     - LUA=lua5.1
-    - LUA=lua5.2
-    - LUA=lua5.3
+#     - LUA=lua5.2
+#     - LUA=lua5.3
     - LUA=luajit2.1
 
 before_install:
