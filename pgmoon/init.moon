@@ -1,6 +1,5 @@
+socket = require "pgmoon.socket"
 import insert from table
-import tcp from require "pgmoon.socket"
-
 import rshift, lshift, band from require "bit"
 
 VERSION = "1.2.0"
@@ -129,7 +128,7 @@ class Postgres
       @password = opts.password
 
   connect: =>
-    @sock = tcp!
+    @sock = socket.new!
     ok, err = @sock\connect @host, @port
     return nil, err unless ok
 
