@@ -205,7 +205,8 @@ do
       assert(self.password, "missing password, required for connect")
       self:send_message(MSG_TYPE.password, {
         "md5",
-        md5(md5(self.password .. self.user) .. salt)
+        md5(md5(self.password .. self.user) .. salt),
+        "\0"
       })
       local t
       t, msg = self:receive_message()
