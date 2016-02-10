@@ -1,5 +1,7 @@
 # pgmoon
 
+[![Build Status](https://travis-ci.org/leafo/pgmoon.svg?branch=master)](https://travis-ci.org/leafo/pgmoon)
+
 pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 
 pgmoon was originally designed for use in [OpenResty][5] to take advantage of the
