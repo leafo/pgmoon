@@ -1,5 +1,5 @@
 
-.PHONY: test local show_types
+.PHONY: test local show_types lint
 
 test:
 	busted
@@ -10,3 +10,6 @@ local:
 
 show_types:
 	psql -U postgres -c "select oid, typname, typcategory, typelem from pg_type where typcategory in ('A', 'B', 'N', 'D', 'S');"
+
+lint:
+	moonc -l pgmoon
