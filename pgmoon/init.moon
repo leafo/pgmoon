@@ -209,7 +209,7 @@ class Postgres
       when MSG_TYPE.auth
         true
       else
-        error "unknown response from auth: #{auth_type}"
+        error "unknown response from auth"
 
   query: (q) =>
     @send_message MSG_TYPE.query, {q, NULL}

@@ -231,7 +231,7 @@ do
       elseif MSG_TYPE.auth == _exp_0 then
         return true
       else
-        return error("unknown response from auth: " .. tostring(auth_type))
+        return error("unknown response from auth")
       end
     end,
     query = function(self, q)
