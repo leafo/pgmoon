@@ -206,7 +206,7 @@ All integer, floating point, and numeric types are converted into Lua's number
 type. The boolean type is converted into a Lua boolean. The JSON type is
 decoded into a Lua table using Lua CJSON.
 
-Any array types are automatically converted to Lua arary tables. If you need to
+Any array types are automatically converted to Lua array tables. If you need to
 encode an array in Lua to Postgres' array syntax you can use the
 `pgmoon.arrays` module. See below.
 
@@ -227,7 +227,7 @@ pg:connect()
 
 local encode_array = require("pgmoon.arrays").encode_array
 local my_array = {1,2,3,4,5}
-db.query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
+pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
 ```
 
 ## Converting `NULL`s
