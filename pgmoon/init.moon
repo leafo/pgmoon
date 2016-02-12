@@ -100,8 +100,8 @@ class Postgres
   -- custom types supplementing PG_TYPES
   type_deserializers: {
     json: (val, name) =>
-      json = require "cjson"
-      json.decode val
+      import decode_json from require "pgmoon.json"
+      decode_json val
 
     bytea: (val, name) =>
       @decode_bytea val

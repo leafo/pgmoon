@@ -226,6 +226,7 @@ describe "pgmoon with server", ->
         flag boolean default false,
         count2 double precision default 1.2,
         bytes bytea default E'\\x68656c6c6f5c20776f726c6427',
+        config json default '{"hello": "world", "arr": [1,2,3], "nested": {"foo": "bar"}}',
 
         primary key (id)
       )
@@ -249,6 +250,7 @@ describe "pgmoon with server", ->
         flag: false
         count2: 1.2
         bytes: 'hello\\ world\''
+        config: { hello: "world", arr: {1,2,3}, nested: {foo: "bar"} }
       }
     }, res
 
@@ -256,6 +258,46 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
+  describe "json", ->
+    import encode_json, decode_json from require "pgmoon.json"
+
+    it "encodes json type", ->
+      t = { hello: "world" }
+      enc = encode_json t
+      assert.same [['{"hello":"world"}']], enc
+
+      t = { foo: "some 'string'" }
+      enc = encode_json t
+      assert.same [['{"foo":"some ''string''"}']], enc
+
+    it "encodes json type with custom escaping", ->
+      escape = (v) ->
+        "`#{v}`"
+
+      t = { hello: "world" }
+      enc = encode_json t, escape
+      assert.same [[`{"hello":"world"}`]], enc
+
+    it "serialize correctly", ->
+      assert pg\query [[
+        create table json_test (
+          id serial not null,
+          config json,
+          primary key (id)
+        )
+      ]]
+
+      assert pg\query "insert into json_test (config) values (#{encode_json {foo: "some 'string'"}})"
+      res = assert pg\query [[select * from json_test where id = 1]]
+      assert.same { foo: "some 'string'" }, res[1].config
+
+      assert pg\query "insert into json_test (config) values (#{encode_json {foo: "some \"string\""}})"
+      res = assert pg\query [[select * from json_test where id = 2]]
+      assert.same { foo: "some \"string\"" }, res[1].config
+
+      assert pg\query [[
+        drop table json_test
+      ]]
 
   describe "arrays", ->
     import decode_array, encode_array from require "pgmoon.arrays"
