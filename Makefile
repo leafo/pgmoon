@@ -6,8 +6,7 @@ build:
 test: build
 	busted -v
 
-local:
-	tup upd
+local: build
 	luarocks make --local pgmoon-dev-1.rockspec
 
 show_types:
