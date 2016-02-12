@@ -1,8 +1,10 @@
+.PHONY: build test local show_types lint
 
-.PHONY: test local show_types lint
+build:
+	moonc pgmoon
 
-test:
-	busted
+test: build
+	busted -v
 
 local:
 	tup upd
