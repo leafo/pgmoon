@@ -81,7 +81,8 @@ PG_TYPES = {
   [1002]: "array_string" -- char array
   [1014]: "array_string" -- bpchar array
 
-  [114]: "json"
+  [114]: "json" -- json
+  [3802]: "json" -- jsonb
 }
 
 NULL = "\0"

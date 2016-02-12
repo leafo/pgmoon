@@ -227,6 +227,7 @@ describe "pgmoon with server", ->
         count2 double precision default 1.2,
         bytes bytea default E'\\x68656c6c6f5c20776f726c6427',
         config json default '{"hello": "world", "arr": [1,2,3], "nested": {"foo": "bar"}}',
+        bconfig jsonb default '{"hello": "world", "arr": [1,2,3], "nested": {"foo": "bar"}}',
 
         primary key (id)
       )
@@ -251,6 +252,7 @@ describe "pgmoon with server", ->
         count2: 1.2
         bytes: 'hello\\ world\''
         config: { hello: "world", arr: {1,2,3}, nested: {foo: "bar"} }
+        bconfig: { hello: "world", arr: {1,2,3}, nested: {foo: "bar"} }
       }
     }, res
 
