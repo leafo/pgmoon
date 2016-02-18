@@ -101,7 +101,8 @@ local PG_TYPES = {
   [1015] = "array_string",
   [1002] = "array_string",
   [1014] = "array_string",
-  [114] = "json"
+  [114] = "json",
+  [3802] = "json"
 }
 local NULL = "\0"
 local tobool
@@ -121,8 +122,9 @@ do
     port = "5432",
     type_deserializers = {
       json = function(self, val, name)
-        local json = require("cjson")
-        return json.decode(val)
+        local decode_json
+        decode_json = require("pgmoon.json").decode_json
+        return decode_json(val)
       end,
       bytea = function(self, val, name)
         return self:decode_bytea(val)

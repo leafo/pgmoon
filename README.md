@@ -204,7 +204,8 @@ convert any Postgres types into the appropriate Lua type.
 
 All integer, floating point, and numeric types are converted into Lua's number
 type. The boolean type is converted into a Lua boolean. The JSON type is
-decoded into a Lua table using Lua CJSON.
+decoded into a Lua table using Lua CJSON. Lua tables can be encoded to JSON as
+described below.
 
 Any array types are automatically converted to Lua array tables. If you need to
 encode an array in Lua to Postgres' array syntax you can use the
@@ -230,6 +231,23 @@ local my_array = {1,2,3,4,5}
 pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
 ```
 
+## Handling JSON
+
+`json` and `jsonb` types are automatically decoded when they are returned from
+a query.
+
+Use `encode_json` to encode a Lua table to the JSON syntax for a query:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+
+local encode_json = require("pgmoon.json").encode_json
+local my_tbl = {hello = "world"}
+pg:query("insert into some_table (some_json_col) values(" .. encode_json(my_tbl) .. ")")
+```
+
 ## Converting `NULL`s
 
 By default `NULL`s in Postgres are converted to `nil`, meaning they aren't
@@ -253,9 +271,9 @@ OpenResty you might want to reuse `ngx.null`.
 
 # Contact
 
-Author: Leaf Corcoran (leafo) ([@moonscript](http://twitter.com/moonscript))  
-Email: leafot@gmail.com  
-Homepage: <http://leafo.net>  
+Author: Leaf Corcoran (leafo) ([@moonscript](http://twitter.com/moonscript))
+Email: leafot@gmail.com
+Homepage: <http://leafo.net>
 
 
 # Changelog

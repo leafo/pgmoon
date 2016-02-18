@@ -20,8 +20,9 @@ before_install:
 install:
   - luarocks install https://luarocks.org/manifests/olivine-labs/busted-2.0.rc11-0.rockspec
   - luarocks install moonscript
+  - luarocks install lua-cjson
   - luarocks make
 
-script: 
+script:
   - busted
 
