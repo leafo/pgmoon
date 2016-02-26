@@ -37,6 +37,33 @@ describe "pgmoon with server", ->
 
     assert.same true, res
 
+  it "tries to connect with SSL", ->
+    -- we expect a server with ssl = off
+    ssl_pg = Postgres {
+      database: DB
+      user: USER
+      host: HOST
+      ssl: true
+    }
+
+    finally ->
+      ssl_pg\disconnect!
+
+    assert ssl_pg\connect!
+
+  it "requires SSL", ->
+    ssl_pg = Postgres {
+      database: DB
+      user: USER
+      host: HOST
+      ssl: true
+      ssl_required: true
+    }
+
+    status, err = ssl_pg\connect!
+    assert.falsy status
+    assert.same [[the server does not support SSL connections]], err
+
   describe "with table", ->
     before_each ->
       assert pg\query [[

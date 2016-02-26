@@ -34,6 +34,11 @@ do
       end
     end
   }
+  local overrides = {
+    send = true,
+    getreusedtimes = true,
+    sslhandshake = true
+  }
   luasocket = {
     tcp = function(...)
       local socket = require("socket")
@@ -45,6 +50,37 @@ do
         end,
         getreusedtimes = function(self)
           return 0
+        end,
+        sslhandshake = function(self, _, _, verify, _, opts)
+          if opts == nil then
+            opts = { }
+          end
+          local ssl = require("ssl")
+          local params = {
+            mode = "client",
+            protocol = "tlsv1",
+            key = opts.key,
+            certificate = opts.cert,
+            cafile = opts.cafile,
+            verify = verify and "peer" or "none",
+            options = "all"
+          }
+          local sec_sock, err = ssl.wrap(self.sock, params)
+          if not (sec_sock) then
+            return false, err
+          end
+          local success
+          success, err = sec_sock:dohandshake()
+          if not (success) then
+            return false, err
+          end
+          for k, v in pairs(self) do
+            if not (type(v) ~= "function" or overrides[k]) then
+              self[k] = nil
+            end
+          end
+          self.sock = sec_sock
+          return true
         end
       }, proxy_mt)
       return proxy

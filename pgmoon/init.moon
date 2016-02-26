@@ -102,6 +102,7 @@ class Postgres
   user: "postgres"
   host: "127.0.0.1"
   port: "5432"
+  ssl: false
 
   -- custom types supplementing PG_TYPES
   type_deserializers: {
@@ -132,6 +133,14 @@ class Postgres
       @database = opts.database
       @port = opts.port
       @password = opts.password
+      @ssl = opts.ssl
+      @ssl_verify = opts.ssl_verify
+      @ssl_required = opts.ssl_required
+      @luasec_opts = {
+        key: opts.key
+        cert: opts.cert
+        cafile: opts.cafile
+      }
 
   connect: =>
     @sock = socket.new!
@@ -139,8 +148,13 @@ class Postgres
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0
+      if @ssl
+        success, err = @send_ssl_message!
+        return nil, err unless success
+
       success, err = @send_startup_message!
       return nil, err unless success
+
       success, err = @auth!
       return nil, err unless success
 
@@ -459,6 +473,24 @@ class Postgres
       @encode_int _len(data) + 4
       data
     }
+
+  send_ssl_message: =>
+    success, err = @sock\send {
+      @encode_int 8,
+      @encode_int 80877103
+    }
+    return nil, err unless success
+
+    t, err = @sock\receive 1
+    return nil, err unless t
+
+    if t == MSG_TYPE.status
+      @sock\sslhandshake false, nil, @ssl_verify, nil, @luasec_opts
+    elseif t == MSG_TYPE.error or @ssl_required
+      @disconnect!
+      nil, "the server does not support SSL connections"
+    else
+      true -- no SSL support, but not required by client
 
   send_message: (t, data, len=nil) =>
     len = _len data if len == nil

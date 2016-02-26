@@ -125,6 +125,7 @@ do
     user = "postgres",
     host = "127.0.0.1",
     port = "5432",
+    ssl = false,
     type_deserializers = {
       json = function(self, val, name)
         local decode_json
@@ -157,6 +158,13 @@ do
         return nil, err
       end
       if self.sock:getreusedtimes() == 0 then
+        if self.ssl then
+          local success
+          success, err = self:send_ssl_message()
+          if not (success) then
+            return nil, err
+          end
+        end
         local success
         success, err = self:send_startup_message()
         if not (success) then
@@ -513,6 +521,28 @@ do
         data
       })
     end,
+    send_ssl_message = function(self)
+      local success, err = self.sock:send({
+        self:encode_int(8),
+        self:encode_int(80877103)
+      })
+      if not (success) then
+        return nil, err
+      end
+      local t
+      t, err = self.sock:receive(1)
+      if not (t) then
+        return nil, err
+      end
+      if t == MSG_TYPE.status then
+        return self.sock:sslhandshake(false, nil, self.ssl_verify, nil, self.luasec_opts)
+      elseif t == MSG_TYPE.error or self.ssl_required then
+        self:disconnect()
+        return nil, "the server does not support SSL connections"
+      else
+        return true
+      end
+    end,
     send_message = function(self, t, data, len)
       if len == nil then
         len = nil
@@ -600,6 +630,14 @@ do
         self.database = opts.database
         self.port = opts.port
         self.password = opts.password
+        self.ssl = opts.ssl
+        self.ssl_verify = opts.ssl_verify
+        self.ssl_required = opts.ssl_required
+        self.luasec_opts = {
+          key = opts.key,
+          cert = opts.cert,
+          cafile = opts.cafile
+        }
       end
     end,
     __base = _base_0,

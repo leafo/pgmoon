@@ -28,6 +28,12 @@ luasocket = do
         original
   }
 
+  overrides = {
+    send: true
+    getreusedtimes: true
+    sslhandshake: true
+  }
+
   {
     tcp: (...) ->
       socket = require "socket"
@@ -36,6 +42,31 @@ luasocket = do
         :sock
         send: (...) => @sock\send _flatten ...
         getreusedtimes: => 0
+        sslhandshake: (_, _, verify, _, opts={}) =>
+          ssl = require "ssl"
+          params = {
+            mode: "client"
+            protocol: "tlsv1"
+            key: opts.key
+            certificate: opts.cert
+            cafile: opts.cafile
+            verify: verify and "peer" or "none"
+            options: "all"
+          }
+
+          sec_sock, err = ssl.wrap @sock, params
+          return false, err unless sec_sock
+
+          success, err = sec_sock\dohandshake!
+          return false, err unless success
+
+          -- purge memoized socket closures
+          for k, v in pairs @
+            @[k] = nil unless type(v) ~= "function" or overrides[k]
+
+          @sock = sec_sock
+
+          true
       }, proxy_mt
 
       proxy
