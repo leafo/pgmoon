@@ -80,6 +80,7 @@ PG_TYPES = {
   [1015]: "array_string" -- varchar array
   [1002]: "array_string" -- char array
   [1014]: "array_string" -- bpchar array
+  [2951]: "array_string" -- uuid array
 
   [114]: "json" -- json
   [3802]: "json" -- jsonb

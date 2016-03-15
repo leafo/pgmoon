@@ -228,6 +228,7 @@ describe "pgmoon with server", ->
         bytes bytea default E'\\x68656c6c6f5c20776f726c6427',
         config json default '{"hello": "world", "arr": [1,2,3], "nested": {"foo": "bar"}}',
         bconfig jsonb default '{"hello": "world", "arr": [1,2,3], "nested": {"foo": "bar"}}',
+        uuids uuid[] default ARRAY['00000000-0000-0000-0000-000000000000']::uuid[],
 
         primary key (id)
       )
@@ -253,6 +254,7 @@ describe "pgmoon with server", ->
         bytes: 'hello\\ world\''
         config: { hello: "world", arr: {1,2,3}, nested: {foo: "bar"} }
         bconfig: { hello: "world", arr: {1,2,3}, nested: {foo: "bar"} }
+        uuids: {'00000000-0000-0000-0000-000000000000'}
       }
     }, res
 
