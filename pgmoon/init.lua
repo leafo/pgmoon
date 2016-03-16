@@ -101,6 +101,7 @@ local PG_TYPES = {
   [1015] = "array_string",
   [1002] = "array_string",
   [1014] = "array_string",
+  [2951] = "array_string",
   [114] = "json",
   [3802] = "json"
 }
