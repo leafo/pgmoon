@@ -18,6 +18,39 @@ environment and on the command line (eg. tests) in web frameworks like [Lapis][3
 $ luarocks install pgmoon
 ```
 
+## Configure PostgreSQL
+
+If you are getting the following error:
+
+```
+init.lua:217: missing password, required for connect
+```
+
+Update `pg_hba.conf` settings from:
+
+```
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# "local" is for Unix domain socket connections only
+local   all             all                                     peer
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            ident
+# IPv6 local connections:
+host    all             all             ::1/128                 ident
+```
+
+To the following:
+
+```
+# TYPE  DATABASE        USER            ADDRESS                 METHOD
+# "local" is for Unix domain socket connections only
+local   all             all                                     trust
+# IPv4 local connections:
+host    all             all             127.0.0.1/32            trust
+# IPv6 local connections:
+host    all             all             ::1/128                 trust
+```
+
+
 ## Example
 
 ```lua
