@@ -37,6 +37,7 @@ MSG_TYPE = flipped {
   ready_for_query: "Z"
   query: "Q"
   notice: "N"
+  notification: "A"
 
   password: "p"
 
@@ -219,6 +220,7 @@ class Postgres
 
     local result
     num_queries = 0
+    async_operations = {}
 
     while true
       t, msg = @receive_message!
@@ -246,13 +248,15 @@ class Postgres
           row_desc, data_rows, command_complete = nil
         when MSG_TYPE.ready_for_query
           break
+        when MSG_TYPE.notification
+          insert async_operations, @parse_notification(msg)
         -- when MSG_TYPE.notice
         --   -- TODO: do something with notices
 
     if err_msg
-      return nil, @parse_error(err_msg), result, num_queries
+      return nil, @parse_error(err_msg), result, num_queries, async_operations
 
-    result, num_queries
+    result, num_queries, async_operations
 
   format_query_result: (row_desc, data_rows, command_complete) =>
     local command, affected_rows
@@ -372,6 +376,21 @@ class Postgres
       out[field_name] = value
 
     out
+
+  parse_notification: (msg) =>
+    pid = @decode_int msg\sub 1, 4
+    offset = 4
+
+    channel, payload = msg\match "^([^%z]+)%z([^%z]*)%z$", offset + 1
+    unless channel
+      error "parse_notification: failed to parse notification"
+
+    return {
+      operation: 'notification'
+      pid: pid
+      channel: channel
+      payload: payload
+    }
 
   wait_until_ready: =>
     while true

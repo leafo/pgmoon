@@ -68,6 +68,7 @@ local MSG_TYPE = flipped({
   ready_for_query = "Z",
   query = "Q",
   notice = "N",
+  notification = "A",
   password = "p",
   row_description = "T",
   data_row = "D",
@@ -245,6 +246,7 @@ do
       local row_desc, data_rows, command_complete, err_msg
       local result
       local num_queries = 0
+      local async_operations = { }
       while true do
         local t, msg = self:receive_message()
         if not (t) then
@@ -275,12 +277,14 @@ do
           row_desc, data_rows, command_complete = nil
         elseif MSG_TYPE.ready_for_query == _exp_0 then
           break
+        elseif MSG_TYPE.notification == _exp_0 then
+          insert(async_operations, self:parse_notification(msg))
         end
       end
       if err_msg then
-        return nil, self:parse_error(err_msg), result, num_queries
+        return nil, self:parse_error(err_msg), result, num_queries, async_operations
       end
-      return result, num_queries
+      return result, num_queries, async_operations
     end,
     format_query_result = function(self, row_desc, data_rows, command_complete)
       local command, affected_rows
@@ -414,6 +418,20 @@ do
         end
       end
       return out
+    end,
+    parse_notification = function(self, msg)
+      local pid = self:decode_int(msg:sub(1, 4))
+      local offset = 4
+      local channel, payload = msg:match("^([^%z]+)%z([^%z]*)%z$", offset + 1)
+      if not (channel) then
+        error("parse_notification: failed to parse notification")
+      end
+      return {
+        operation = 'notification',
+        pid = pid,
+        channel = channel,
+        payload = payload
+      }
     end,
     wait_until_ready = function(self)
       while true do
