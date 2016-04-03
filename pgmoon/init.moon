@@ -258,6 +258,14 @@ class Postgres
 
     result, num_queries, async_operations
 
+  wait: =>
+    while true
+      t, msg = @receive_message!
+      return nil, msg unless t
+      switch t
+        when MSG_TYPE.notification
+          return @parse_notification(msg)
+
   format_query_result: (row_desc, data_rows, command_complete) =>
     local command, affected_rows
 

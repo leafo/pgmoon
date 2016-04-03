@@ -286,6 +286,18 @@ do
       end
       return result, num_queries, async_operations
     end,
+    wait = function(self)
+      while true do
+        local t, msg = self:receive_message()
+        if not (t) then
+          return nil, msg
+        end
+        local _exp_0 = t
+        if MSG_TYPE.notification == _exp_0 then
+          return self:parse_notification(msg)
+        end
+      end
+    end,
     format_query_result = function(self, row_desc, data_rows, command_complete)
       local command, affected_rows
       if command_complete then
