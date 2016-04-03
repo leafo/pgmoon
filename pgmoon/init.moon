@@ -215,7 +215,7 @@ class Postgres
         error "unknown response from auth"
 
   query: (q) =>
-    @send_message MSG_TYPE.query, {q, NULL}
+    @post q
     local row_desc, data_rows, command_complete, err_msg
 
     local result
@@ -257,6 +257,9 @@ class Postgres
       return nil, @parse_error(err_msg), result, num_queries, async_operations
 
     result, num_queries, async_operations
+
+  post: (q) =>
+    @send_message MSG_TYPE.query, {q, NULL}
 
   wait: =>
     while true

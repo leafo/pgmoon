@@ -239,10 +239,7 @@ do
       end
     end,
     query = function(self, q)
-      self:send_message(MSG_TYPE.query, {
-        q,
-        NULL
-      })
+      self:post(q)
       local row_desc, data_rows, command_complete, err_msg
       local result
       local num_queries = 0
@@ -285,6 +282,12 @@ do
         return nil, self:parse_error(err_msg), result, num_queries, async_operations
       end
       return result, num_queries, async_operations
+    end,
+    post = function(self, q)
+      return self:send_message(MSG_TYPE.query, {
+        q,
+        NULL
+      })
     end,
     wait = function(self)
       while true do
