@@ -56,6 +56,8 @@ of options. The table can have the following keys:
 * `"user"`: the database username to authenticate (default: `"postgres"`)
 * `"database"`: the database name to connect to **required**
 * `"password"`: password for authentication, optional depending on server configuration
+* `"ssl"`: use an ssl connection (default: false)
+* `"ssl_verify"`: verify the ssl certificate and hostname (default: false)
 
 Methods on the `Postgres` object returned by `new`:
 
