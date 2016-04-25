@@ -128,6 +128,8 @@ class Postgres
       @database = opts.database
       @port = opts.port
       @password = opts.password
+      @ssl = opts.ssl
+      @ssl_verify = opts.ssl_verify
 
   connect: =>
     @sock = socket.new!
@@ -135,6 +137,17 @@ class Postgres
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0
+      if @ssl
+        success, err = @send_ssl_request!
+        return nil, err unless success
+      
+        has_ssl, err = @sock\receive 1
+        if has_ssl == "S"
+          success, err = @sock\sslhandshake false, @host, @ssl_verify
+          return nil, err unless success
+        else
+          return nil, "Server does not support SSL"
+        
       success, err = @send_startup_message!
       return nil, err unless success
       success, err = @auth!
@@ -419,6 +432,13 @@ class Postgres
     @sock\send {
       @encode_int _len(data) + 4
       data
+    }
+
+  send_ssl_request: =>
+
+    @sock\send {
+      @encode_int 8
+      @encode_int 80877103
     }
 
   send_message: (t, data, len=nil) =>
