@@ -80,7 +80,9 @@ local ERROR_TYPES = flipped({
   code = "C",
   message = "M",
   position = "P",
-  detail = "D"
+  detail = "D",
+  schema = "s",
+  table = "t"
 })
 local PG_TYPES = {
   [16] = "boolean",
@@ -241,9 +243,8 @@ do
     query = function(self, q)
       self:post(q)
       local row_desc, data_rows, command_complete, err_msg
-      local result
+      local result, notifications
       local num_queries = 0
-      local async_operations = { }
       while true do
         local t, msg = self:receive_message()
         if not (t) then
@@ -275,13 +276,16 @@ do
         elseif MSG_TYPE.ready_for_query == _exp_0 then
           break
         elseif MSG_TYPE.notification == _exp_0 then
-          insert(async_operations, self:parse_notification(msg))
+          if not (notifications) then
+            notifications = { }
+          end
+          insert(notifications, self:parse_notification(msg))
         end
       end
       if err_msg then
-        return nil, self:parse_error(err_msg), result, num_queries, async_operations
+        return nil, self:parse_error(err_msg), result, num_queries, notifications
       end
-      return result, num_queries, async_operations
+      return result, num_queries, notifications
     end,
     post = function(self, q)
       return self:send_message(MSG_TYPE.query, {
@@ -442,7 +446,7 @@ do
         error("parse_notification: failed to parse notification")
       end
       return {
-        operation = 'notification',
+        operation = "notification",
         pid = pid,
         channel = channel,
         payload = payload

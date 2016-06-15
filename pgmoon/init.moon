@@ -54,6 +54,8 @@ ERROR_TYPES = flipped {
   message: "M"
   position: "P"
   detail: "D"
+  schema: "s"
+  table: "t"
 }
 
 PG_TYPES = {
@@ -218,9 +220,8 @@ class Postgres
     @post q
     local row_desc, data_rows, command_complete, err_msg
 
-    local result
+    local result, notifications
     num_queries = 0
-    async_operations = {}
 
     while true
       t, msg = @receive_message!
@@ -249,14 +250,15 @@ class Postgres
         when MSG_TYPE.ready_for_query
           break
         when MSG_TYPE.notification
-          insert async_operations, @parse_notification(msg)
+          notifications = {} unless notifications
+          insert notifications, @parse_notification(msg)
         -- when MSG_TYPE.notice
-        --   -- TODO: do something with notices
+        -- TODO: do something with notices
 
     if err_msg
-      return nil, @parse_error(err_msg), result, num_queries, async_operations
+      return nil, @parse_error(err_msg), result, num_queries, notifications
 
-    result, num_queries, async_operations
+    result, num_queries, notifications
 
   post: (q) =>
     @send_message MSG_TYPE.query, {q, NULL}
@@ -393,11 +395,12 @@ class Postgres
     offset = 4
 
     channel, payload = msg\match "^([^%z]+)%z([^%z]*)%z$", offset + 1
+
     unless channel
       error "parse_notification: failed to parse notification"
 
-    return {
-      operation: 'notification'
+    {
+      operation: "notification"
       pid: pid
       channel: channel
       payload: payload
