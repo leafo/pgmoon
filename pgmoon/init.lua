@@ -293,7 +293,7 @@ do
         NULL
       })
     end,
-    wait = function(self)
+    wait_for_notification = function(self)
       while true do
         local t, msg = self:receive_message()
         if not (t) then

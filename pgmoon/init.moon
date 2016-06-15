@@ -263,7 +263,7 @@ class Postgres
   post: (q) =>
     @send_message MSG_TYPE.query, {q, NULL}
 
-  wait: =>
+  wait_for_notification: =>
     while true
       t, msg = @receive_message!
       return nil, msg unless t
