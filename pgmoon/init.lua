@@ -82,7 +82,8 @@ local ERROR_TYPES = flipped({
   position = "P",
   detail = "D",
   schema = "s",
-  table = "t"
+  table = "t",
+  constraint = "n"
 })
 local PG_TYPES = {
   [16] = "boolean",
@@ -335,6 +336,7 @@ do
     end,
     parse_error = function(self, err_msg)
       local severity, message, detail, position
+      local error_data = { }
       local offset = 1
       while offset <= #err_msg do
         local t = err_msg:sub(offset, offset)
@@ -343,6 +345,12 @@ do
           break
         end
         offset = offset + (2 + #str)
+        do
+          local field = ERROR_TYPES[t]
+          if field then
+            error_data[field] = str
+          end
+        end
         local _exp_0 = t
         if ERROR_TYPES.severity == _exp_0 then
           severity = str
@@ -361,7 +369,7 @@ do
       if detail then
         msg = tostring(msg) .. "\n" .. tostring(detail)
       end
-      return msg
+      return msg, error_data
     end,
     parse_row_desc = function(self, row_desc)
       local num_fields = self:decode_int(row_desc:sub(1, 2))

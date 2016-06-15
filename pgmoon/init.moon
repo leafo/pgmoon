@@ -56,6 +56,7 @@ ERROR_TYPES = flipped {
   detail: "D"
   schema: "s"
   table: "t"
+  constraint: "n"
 }
 
 PG_TYPES = {
@@ -299,6 +300,8 @@ class Postgres
   parse_error: (err_msg) =>
     local severity, message, detail, position
 
+    error_data = {}
+
     offset = 1
     while offset <= #err_msg
       t = err_msg\sub offset, offset
@@ -306,6 +309,9 @@ class Postgres
       break unless str
 
       offset += 2 + #str
+
+      if field = ERROR_TYPES[t]
+        error_data[field] = str
 
       switch t
         when ERROR_TYPES.severity
@@ -325,7 +331,7 @@ class Postgres
     if detail
       msg = "#{msg}\n#{detail}"
 
-    msg
+    msg, error_data
 
   parse_row_desc: (row_desc) =>
     num_fields = @decode_int row_desc\sub(1,2)
