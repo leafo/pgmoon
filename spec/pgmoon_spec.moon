@@ -105,7 +105,7 @@ describe "pgmoon with server", ->
 
         assert.same { affected_rows: 10 }, res
         assert.same "blahblah",
-          unpack(pg\query "select name from hello_world limit 1").name
+          unpack((pg\query "select name from hello_world limit 1")).name
 
       it "delete a row", ->
         res = assert pg\query [[
@@ -114,7 +114,7 @@ describe "pgmoon with server", ->
 
         assert.same { affected_rows: 1 }, res
         assert.same nil,
-          unpack(pg\query "select * from hello_world where id = 1") or nil
+          unpack((pg\query "select * from hello_world where id = 1")) or nil
 
       it "truncate table", ->
         res = assert pg\query "truncate hello_world"
