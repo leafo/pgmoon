@@ -7,7 +7,7 @@ pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 pgmoon was originally designed for use in [OpenResty][5] to take advantage of the
 [cosocket api][4] to provide asynchronous queries but it also works in the regular
 Lua environment as well using [LuaSocket][1] (and optionally [LuaCrypto][2] for
-MD5 authentication)
+MD5 authentication and [LuaSec][6] for SSL connections)
 
 It's a perfect candidate for running your queries both inside OpenResty's
 environment and on the command line (eg. tests) in web frameworks like [Lapis][3].
@@ -56,6 +56,9 @@ of options. The table can have the following keys:
 * `"user"`: the database username to authenticate (default: `"postgres"`)
 * `"database"`: the database name to connect to **required**
 * `"password"`: password for authentication, optional depending on server configuration
+* `"ssl"`: enable ssl
+* `"ssl_verify"`: verify server certificate
+* `"ssl_required"`: abort the connection if the server does not support SSL connections
 
 Methods on the `Postgres` object returned by `new`:
 
@@ -192,6 +195,32 @@ with built in language keywords.
 
 Returns string representation of current state of `Postgres` object.
 
+## SSL connections
+
+pgmoon can establish an SSL connection to a Postgres server. It can also refuse
+to connect to it if the server does not support SSL.
+Just as pgmoon depends on LuaSocket for usage outside of OpenResty, it depends
+on LuaSec for SSL connections in such contexts.
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new({
+  host = "127.0.0.1",
+  ssl = true, -- enable SSL
+  ssl_verify = true, -- verify server certificate
+  ssl_required = true, -- abort if the server does not support SSL connections
+  cafile = "...", -- certificate authority (LuaSec only)
+  cert = "...", -- client certificate (LuaSec only)
+  key = "...", -- client key (LuaSec only)
+})
+
+assert(pg:connect())
+```
+
+In OpenResty, make sure to configure the [lua_ssl_trusted_certificate][7]
+directive if you wish to verify the server certificate, as the LuaSec-only
+options become irrelevant in that case.
+
 ## Authentication types
 
 Postgres has a handful of authentication types. pgmoon currently supports
@@ -313,3 +342,5 @@ THE SOFTWARE.
   [3]: http://leafo.net/lapis
   [4]: http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp
   [5]: http://openresty.org/
+  [6]: https://github.com/brunoos/luasec
+  [7]: https://github.com/openresty/lua-nginx-module#lua_ssl_trusted_certificate
