@@ -1,3 +1,4 @@
 .tup
 logs/
 nginx.conf.compiled
+pgdata
