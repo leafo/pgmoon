@@ -36,7 +36,7 @@ describe "pgmoon with server", ->
     }
 
     assert pg\connect!
-    pg\query "select * from information_schema.tables"
+    assert pg\query "select * from information_schema.tables"
     pg\disconnect!
 
 
