@@ -20,6 +20,7 @@ before_install:
 install:
   - luarocks install busted
   - luarocks install luasocket
+  - luarocks install luasec
   - luarocks install moonscript
   - luarocks install lua-cjson
   - luarocks make
