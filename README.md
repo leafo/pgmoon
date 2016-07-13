@@ -307,6 +307,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.5.0 — 2016-07-12 — Add SSL support (@thibaultCha), Add UUID array type (@edan), Add support for notifications (@starius)
 * 1.4.0 — 2016-02-18 — Add support for decoding jsonb, add a json serializer (@thibaultCha)
 * 1.3.0 — 2016-02-11 — Fix bug parsing a string that looked like a number failed, add support for using in ngx when in init context (@thibaultCha), add cleartext password auth, fix warning with md5 auth
 * 1.2.0 — 2015-07-10 — Add support for PostgreSQL Arrays
