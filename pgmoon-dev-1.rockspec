@@ -25,8 +25,8 @@ build = {
     ["pgmoon"] = "pgmoon/init.lua",
     ["pgmoon.arrays"] = "pgmoon/arrays.lua",
     ["pgmoon.crypto"] = "pgmoon/crypto.lua",
+    ["pgmoon.json"] = "pgmoon/json.lua",
     ["pgmoon.socket"] = "pgmoon/socket.lua",
-    ["pgmoon.json"] = "pgmoon/json.lua"
   },
 }
 
