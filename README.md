@@ -307,6 +307,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.6.0 — 2016-07-21 — Add support for json and jsonb array decoding
 * 1.5.0 — 2016-07-12 — Add SSL support (@thibaultCha), Add UUID array type (@edan), Add support for notifications (@starius)
 * 1.4.0 — 2016-02-18 — Add support for decoding jsonb, add a json serializer (@thibaultCha)
 * 1.3.0 — 2016-02-11 — Fix bug parsing a string that looked like a number failed, add support for using in ngx when in init context (@thibaultCha), add cleartext password auth, fix warning with md5 auth
@@ -317,7 +318,7 @@ Homepage: <http://leafo.net>
 
 ## License (MIT)
 
-Copyright (C) 2014 by Leaf Corcoran
+Copyright (C) 2016 by Leaf Corcoran
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
