@@ -388,6 +388,27 @@ describe "pgmoon with server", ->
       assert.same {"1one"}, decode_array "{1one}"
       assert.same {"1one", "2two"}, decode_array "{1one,2two}"
 
+    it "decodes json array result", ->
+      res = pg\query "select array(select row_to_json(t) from (values (1,'hello'), (2, 'world')) as t(id, name)) as items"
+      assert.same {
+        {
+          items: {
+            { id: 1, name: "hello" }
+            { id: 2, name: "world" }
+          }
+        }
+      }, res
+
+    it "decodes jsonb array result", ->
+      assert.same {
+        {
+          items: {
+            { id: 442, name: "itch" }
+            { id: 99, name: "zone" }
+          }
+        }
+      }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
+
     describe "with table", ->
       before_each ->
         pg\query "drop table if exists arrays_test"

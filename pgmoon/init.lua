@@ -94,6 +94,8 @@ local PG_TYPES = {
   [700] = "number",
   [701] = "number",
   [1700] = "number",
+  [114] = "json",
+  [3802] = "json",
   [1000] = "array_boolean",
   [1005] = "array_number",
   [1007] = "array_number",
@@ -106,8 +108,8 @@ local PG_TYPES = {
   [1002] = "array_string",
   [1014] = "array_string",
   [2951] = "array_string",
-  [114] = "json",
-  [3802] = "json"
+  [199] = "array_json",
+  [3807] = "array_json"
 }
 local NULL = "\0"
 local tobool
@@ -149,6 +151,13 @@ do
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
         return decode_array(val)
+      end,
+      array_json = function(self, val, name)
+        local decode_array
+        decode_array = require("pgmoon.arrays").decode_array
+        local decode_json
+        decode_json = require("pgmoon.json").decode_json
+        return decode_array(val, decode_json)
       end
     },
     connect = function(self)

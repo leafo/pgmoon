@@ -70,6 +70,9 @@ PG_TYPES = {
   [701]: "number" -- float8
   [1700]: "number" -- numeric
 
+  [114]: "json" -- json
+  [3802]: "json" -- jsonb
+
   -- arrays
   [1000]: "array_boolean" -- bool array
 
@@ -86,8 +89,8 @@ PG_TYPES = {
   [1014]: "array_string" -- bpchar array
   [2951]: "array_string" -- uuid array
 
-  [114]: "json" -- json
-  [3802]: "json" -- jsonb
+  [199]: "array_json" -- json array
+  [3807]: "array_json" -- jsonb array
 }
 
 NULL = "\0"
@@ -124,6 +127,11 @@ class Postgres
     array_string: (val, name) =>
       import decode_array from require "pgmoon.arrays"
       decode_array val
+
+    array_json: (val, name) =>
+      import decode_array from require "pgmoon.arrays"
+      import decode_json from require "pgmoon.json"
+      decode_array val, decode_json
   }
 
   new: (opts) =>
