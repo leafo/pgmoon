@@ -289,6 +289,67 @@ describe "pgmoon with server", ->
       drop table types_test
     ]]
 
+  describe "hstore", ->
+    import encode_hstore, decode_hstore from require "pgmoon.hstore"
+
+    describe "encoding", ->
+      it "encodes hstore type", ->
+        t = { foo: "bar" }
+        enc = encode_hstore t
+        assert.same [['"foo"=>"bar"']], enc
+
+      it "encodes multiple pairs", ->
+        t = { foo: "bar", abc: "123" }
+        enc = encode_hstore t
+        assert.same [['"foo"=>"bar", "abc"=>"123"']], enc
+
+      it "escapes", ->
+        t = { foo: "bar's" }
+        enc = encode_hstore t
+        assert.same [['"foo"=>"bar''s"']], enc
+
+    describe "decoding", ->
+      it "decodes hstore into a table", ->
+        s = '"foo"=>"bar"'
+        dec = decode_hstore s
+        assert.same {foo: 'bar'}, dec
+
+    describe "serializing", ->
+      before_each ->
+        assert pg\query [[
+          CREATE EXTENSION hstore;
+          create table hstore_test (
+            id serial primary key,
+            h hstore
+          )
+        ]]
+        res, err = assert(pg\query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))
+        pg\set_hstore_oid(tonumber(res[1].oid))
+
+      after_each ->
+        assert pg\query [[
+          DROP TABLE hstore_test;
+          DROP EXTENSION hstore;
+        ]]
+
+      it "serializes correctly", ->
+        assert pg\query "INSERT INTO hstore_test (h) VALUES (#{encode_hstore {foo: 'bar'}});"
+        res = assert pg\query "SELECT * FROM hstore_test;"
+
+        assert.same {foo: 'bar'}, res[1].h
+
+      it "serializes NULL as string", ->
+        assert pg\query "INSERT INTO hstore_test (h) VALUES (#{encode_hstore {foo: 'NULL'}});"
+        res = assert pg\query "SELECT * FROM hstore_test;"
+
+        assert.same 'NULL', res[1].h.foo
+
+      it "serializes multiple pairs", ->
+        assert pg\query "INSERT INTO hstore_test (h) VALUES (#{encode_hstore {abc: '123', foo: 'bar'}});"
+        res = assert pg\query "SELECT * FROM hstore_test;"
+
+        assert.same {abc: '123', foo: 'bar'}, res[1].h
+
   describe "json", ->
     import encode_json, decode_json from require "pgmoon.json"
 

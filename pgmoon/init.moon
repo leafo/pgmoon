@@ -132,7 +132,15 @@ class Postgres
       import decode_array from require "pgmoon.arrays"
       import decode_json from require "pgmoon.json"
       decode_array val, decode_json
+
+    hstore: (val, name) =>
+      import decode_hstore from require "pgmoon.hstore"
+      decode_hstore val
   }
+
+  set_hstore_oid: (oid) =>
+    if oid
+      PG_TYPES[tonumber(oid)] = "hstore"
 
   new: (opts) =>
     if opts
