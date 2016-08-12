@@ -301,7 +301,8 @@ describe "pgmoon with server", ->
       it "encodes multiple pairs", ->
         t = { foo: "bar", abc: "123" }
         enc = encode_hstore t
-        assert.same [['"foo"=>"bar", "abc"=>"123"']], enc
+        results = {'\'"foo"=>"bar", "abc"=>"123"\'', '\'"abc"=>"123", "foo"=>"bar"\''}
+        assert(enc == results[1] or enc == results[2])
 
       it "escapes", ->
         t = { foo: "bar's" }
