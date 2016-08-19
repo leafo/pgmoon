@@ -161,7 +161,6 @@ do
       end
     },
     connect = function(self)
-      self.sock = socket.new()
       local ok, err = self.sock:connect(self.host, self.port)
       if not (ok) then
         return nil, err
@@ -189,6 +188,9 @@ do
         end
       end
       return true
+    end,
+    settimeout = function(self, ...)
+      return self.sock:settimeout(...)
     end,
     disconnect = function(self)
       local sock = self.sock
@@ -633,6 +635,7 @@ do
   _base_0.__index = _base_0
   _class_0 = setmetatable({
     __init = function(self, opts)
+      self.sock = socket.new()
       if opts then
         self.user = opts.user
         self.host = opts.host

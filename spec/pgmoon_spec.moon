@@ -37,6 +37,17 @@ describe "pgmoon with server", ->
 
     assert.same true, res
 
+  it "settimeout()", ->
+    timeout_pg = Postgres {
+      host: "10.0.0.1"
+    }
+
+    timeout_pg\settimeout 1000
+
+    ok, err = timeout_pg\connect!
+    assert.is_nil ok
+    assert.equal "timeout", err
+
   it "tries to connect with SSL", ->
     -- we expect a server with ssl = off
     ssl_pg = Postgres {
