@@ -158,8 +158,18 @@ do
         local decode_json
         decode_json = require("pgmoon.json").decode_json
         return decode_array(val, decode_json)
+      end,
+      hstore = function(self, val, name)
+        local decode_hstore
+        decode_hstore = require("pgmoon.hstore").decode_hstore
+        return decode_hstore(val)
       end
     },
+    set_hstore_oid = function(self, oid)
+      if oid then
+        PG_TYPES[tonumber(oid)] = "hstore"
+      end
+    end,
     connect = function(self)
       local ok, err = self.sock:connect(self.host, self.port)
       if not (ok) then

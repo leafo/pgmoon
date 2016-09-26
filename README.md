@@ -277,6 +277,33 @@ local my_tbl = {hello = "world"}
 pg:query("insert into some_table (some_json_col) values(" .. encode_json(my_tbl) .. ")")
 ```
 
+## Handling hstore
+
+the `hstore` type is automatically decoded if the hstore oid is set on the pg table
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+local res = pg.query("SELECT oid FROM pg_type WHERE typname = 'hstore'")
+pg:set_hstore_oid(tonumber(res[1].oid))
+```
+
+Use `encode_hstore` to encode a Lua table into hstore syntax:
+
+```lua
+local encode_hstore = require("pgmoon.hstore").encode_hstore
+local tbl = {foo = "bar"}
+pg:query("insert into some_table (hstore_col) values(" .. encode_hstore(tbl) .. ")")
+```
+Use `decode_hstore` to decode hstore syntax into a Lua table.  Useful if you don't set the hstore oid:
+
+```lua
+local decode_hstore = require("pgmoon.hstore").decode_hstore
+local res = pg:query("select * from some_table")
+local hstore_tbl = decode_hstore(res[1].hstore_col)
+```
+
 ## Converting `NULL`s
 
 By default `NULL`s in Postgres are converted to `nil`, meaning they aren't
