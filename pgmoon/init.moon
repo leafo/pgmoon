@@ -135,6 +135,7 @@ class Postgres
   }
 
   new: (opts) =>
+    @sock = socket.new!
     if opts
       @user = opts.user
       @host = opts.host
@@ -151,7 +152,6 @@ class Postgres
       }
 
   connect: =>
-    @sock = socket.new!
     ok, err = @sock\connect @host, @port
     return nil, err unless ok
 
@@ -170,6 +170,9 @@ class Postgres
       return nil, err unless success
 
     true
+
+  settimeout: (...) =>
+    @sock\settimeout ...
 
   disconnect: =>
     sock = @sock

@@ -31,7 +31,8 @@ luasocket = do
   overrides = {
     send: true
     getreusedtimes: true
-    sslhandshake: true
+    sslhandshake: true,
+    settimeout: true
   }
 
   {
@@ -42,6 +43,10 @@ luasocket = do
         :sock
         send: (...) => @sock\send _flatten ...
         getreusedtimes: => 0
+        settimeout: (t) =>
+          if t
+            t = t/1000
+          @sock\settimeout t
         sslhandshake: (_, _, verify, _, opts={}) =>
           ssl = require "ssl"
           params = {
