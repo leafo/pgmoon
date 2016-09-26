@@ -335,8 +335,7 @@ describe "pgmoon with server", ->
             h hstore
           )
         ]]
-        res, err = assert(pg\query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))
-        pg\set_hstore_oid(tonumber(res[1].oid))
+        pg\setup_hstore!
 
       after_each ->
         assert pg\query [[

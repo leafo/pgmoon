@@ -124,6 +124,7 @@ do
     NULL = {
       "NULL"
     },
+    PG_TYPES = PG_TYPES,
     user = "postgres",
     host = "127.0.0.1",
     port = "5432",
@@ -165,10 +166,22 @@ do
         return decode_hstore(val)
       end
     },
-    set_hstore_oid = function(self, oid)
-      if oid then
-        PG_TYPES[tonumber(oid)] = "hstore"
+    set_type_oid = function(self, oid, name)
+      if not (rawget(self, "PG_TYPES")) then
+        do
+          local _tbl_0 = { }
+          for k, v in pairs(self.PG_TYPES) do
+            _tbl_0[k] = v
+          end
+          self.PG_TYPES = _tbl_0
+        end
       end
+      self.PG_TYPES[assert(tonumber(oid))] = name
+    end,
+    setup_hstore = function(self)
+      local res = unpack(self:query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))
+      assert(res, "hstore oid not found")
+      return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
       local ok, err = self.sock:connect(self.host, self.port)
@@ -411,7 +424,7 @@ do
           local name = row_desc:match("[^%z]+", offset)
           offset = offset + #name + 1
           local data_type = self:decode_int(row_desc:sub(offset + 6, offset + 6 + 3))
-          data_type = PG_TYPES[data_type] or "string"
+          data_type = self.PG_TYPES[data_type] or "string"
           local format = self:decode_int(row_desc:sub(offset + 16, offset + 16 + 1))
           assert(0 == format, "don't know how to handle format")
           offset = offset + 18

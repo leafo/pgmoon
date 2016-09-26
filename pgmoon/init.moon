@@ -101,6 +101,7 @@ tobool = (str) ->
 class Postgres
   convert_null: false
   NULL: {"NULL"}
+  :PG_TYPES
 
   user: "postgres"
   host: "127.0.0.1"
@@ -138,9 +139,16 @@ class Postgres
       decode_hstore val
   }
 
-  set_hstore_oid: (oid) =>
-    if oid
-      PG_TYPES[tonumber(oid)] = "hstore"
+  set_type_oid: (oid, name) =>
+    unless rawget(@, "PG_TYPES")
+      @PG_TYPES = {k,v for k,v in pairs @PG_TYPES}
+
+    @PG_TYPES[assert tonumber oid] = name
+
+  setup_hstore: =>
+    res = unpack @query "SELECT oid FROM pg_type WHERE typname = 'hstore'"
+    assert res, "hstore oid not found"
+    @set_type_oid tonumber(res.oid), "hstore"
 
   new: (opts) =>
     @sock = socket.new!
@@ -377,7 +385,7 @@ class Postgres
 
       -- 4: object id of data type (6)
       data_type = @decode_int row_desc\sub offset + 6, offset + 6 + 3
-      data_type = PG_TYPES[data_type] or "string"
+      data_type = @PG_TYPES[data_type] or "string"
 
       -- 2: data type size (10)
       -- 4: type modifier (12)
