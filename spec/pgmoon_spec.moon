@@ -326,6 +326,18 @@ describe "pgmoon with server", ->
         dec = decode_hstore s
         assert.same {foo: 'bar'}, dec
 
+      it "decodes hstore with multiple parts", ->
+        s = '"foo"=>"bar", "1-a"=>"anything at all"'
+        assert.same {
+          foo: "bar"
+          "1-a": "anything at all"
+        }, decode_hstore s
+
+      it "decodes hstore with embedded quote", ->
+        assert.same {
+          hello: 'wo"rld'
+        }, decode_hstore [["hello"=>"wo\"rld"]]
+
     describe "serializing", ->
       before_each ->
         assert pg\query [[
