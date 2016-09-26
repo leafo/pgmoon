@@ -279,24 +279,28 @@ pg:query("insert into some_table (some_json_col) values(" .. encode_json(my_tbl)
 
 ## Handling hstore
 
-the `hstore` type is automatically decoded if the hstore oid is set on the pg table
+Because `hstore` is an extension type, a query is reuired to find out the type
+id before pgmoon can automatically decode it. Call the `setup_hstore` method on
+your connection object after connecting to set it up.
 
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
-local res = pg.query("SELECT oid FROM pg_type WHERE typname = 'hstore'")
-pg:set_hstore_oid(tonumber(res[1].oid))
+pg:setup_hstore()
 ```
 
-Use `encode_hstore` to encode a Lua table into hstore syntax:
+Use `encode_hstore` to encode a Lua table into hstore syntax when updating and
+inserting:
 
 ```lua
 local encode_hstore = require("pgmoon.hstore").encode_hstore
 local tbl = {foo = "bar"}
 pg:query("insert into some_table (hstore_col) values(" .. encode_hstore(tbl) .. ")")
 ```
-Use `decode_hstore` to decode hstore syntax into a Lua table.  Useful if you don't set the hstore oid:
+
+You can manually decode a hstore value from string using the `decode_hstore`
+function. This is only required if you didn't call `setup_hstore`.
 
 ```lua
 local decode_hstore = require("pgmoon.hstore").decode_hstore
