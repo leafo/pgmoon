@@ -50,7 +50,7 @@ do
   end
   local g = P({
     "hstore",
-    hstore = Cf(Ct("") * (V("pair") * (V("delim") * V("pair")) ^ 0) ^ -1, rawset),
+    hstore = Cf(Ct("") * (V("pair") * (V("delim") * V("pair")) ^ 0) ^ -1, rawset) * -1,
     pair = Cg(V("value") * "=>" * (V("value") + V("null"))),
     value = V("invalid_char") + V("string"),
     string = P('"') * Cs((P([[\\]]) / [[\]] + P([[\"]]) / [["]] + (P(1) - P('"'))) ^ 0) * P('"'),
