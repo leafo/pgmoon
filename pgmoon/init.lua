@@ -184,7 +184,13 @@ do
       return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
-      local ok, err = self.sock:connect(self.host, self.port)
+      local opts
+      if self.sock_type == "nginx" then
+        opts = {
+          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database)
+        }
+      end
+      local ok, err = self.sock:connect(self.host, self.port, opts)
       if not (ok) then
         return nil, err
       end
@@ -658,7 +664,7 @@ do
   _base_0.__index = _base_0
   _class_0 = setmetatable({
     __init = function(self, opts)
-      self.sock = socket.new()
+      self.sock, self.sock_type = socket.new()
       if opts then
         self.user = opts.user
         self.host = opts.host
@@ -668,6 +674,7 @@ do
         self.ssl = opts.ssl
         self.ssl_verify = opts.ssl_verify
         self.ssl_required = opts.ssl_required
+        self.pool_name = opts.pool
         self.luasec_opts = {
           key = opts.key,
           cert = opts.cert,

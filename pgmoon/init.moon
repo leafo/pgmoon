@@ -151,7 +151,8 @@ class Postgres
     @set_type_oid tonumber(res.oid), "hstore"
 
   new: (opts) =>
-    @sock = socket.new!
+    @sock, @sock_type = socket.new!
+
     if opts
       @user = opts.user
       @host = opts.host
@@ -161,6 +162,7 @@ class Postgres
       @ssl = opts.ssl
       @ssl_verify = opts.ssl_verify
       @ssl_required = opts.ssl_required
+      @pool_name = opts.pool
       @luasec_opts = {
         key: opts.key
         cert: opts.cert
@@ -168,7 +170,12 @@ class Postgres
       }
 
   connect: =>
-    ok, err = @sock\connect @host, @port
+    opts = if @sock_type == "nginx"
+      {
+        pool: @pool_name or "#{@host}:#{@port}:#{@database}"
+      }
+
+    ok, err = @sock\connect @host, @port, opts
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0

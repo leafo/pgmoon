@@ -97,9 +97,9 @@ end
 return {
   new = function()
     if ngx and ngx.get_phase() ~= "init" then
-      return ngx.socket.tcp()
+      return ngx.socket.tcp(), "nginx"
     else
-      return luasocket.tcp()
+      return luasocket.tcp(), "luasocket"
     end
   end
 }
