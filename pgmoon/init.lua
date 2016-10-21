@@ -664,7 +664,7 @@ do
   _base_0.__index = _base_0
   _class_0 = setmetatable({
     __init = function(self, opts)
-      self.sock, self.sock_type = socket.new()
+      self.sock, self.sock_type = socket.new(opts and opts.socket_type)
       if opts then
         self.user = opts.user
         self.host = opts.host

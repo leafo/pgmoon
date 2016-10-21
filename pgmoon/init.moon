@@ -151,7 +151,7 @@ class Postgres
     @set_type_oid tonumber(res.oid), "hstore"
 
   new: (opts) =>
-    @sock, @sock_type = socket.new!
+    @sock, @sock_type = socket.new opts and opts.socket_type
 
     if opts
       @user = opts.user

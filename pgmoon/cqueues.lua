@@ -63,11 +63,6 @@ do
   _base_0.__class = _class_0
   CqueuesSocket = _class_0
 end
-local new
-new = function()
-  return CqueuesSocket(), "cqueues"
-end
 return {
-  new = new,
   CqueuesSocket = CqueuesSocket
 }

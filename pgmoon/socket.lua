@@ -79,11 +79,25 @@ do
   }
 end
 return {
-  new = function()
-    if ngx and ngx.get_phase() ~= "init" then
-      return ngx.socket.tcp(), "nginx"
-    else
-      return luasocket.tcp(), "luasocket"
+  new = function(socket_type)
+    if socket_type == nil then
+      if ngx and ngx.get_phase() ~= "init" then
+        socket_type = "nginx"
+      else
+        socket_type = "luasocket"
+      end
     end
+    local socket
+    local _exp_0 = socket_type
+    if "nginx" == _exp_0 then
+      socket = ngx.socket.tcp()
+    elseif "luasocket" == _exp_0 then
+      socket = luasocket.tcp()
+    elseif "cqueues" == _exp_0 then
+      socket = require("pgmoon.cqueues").CqueuesSocket()
+    else
+      socket = error("unknown socket type: " .. tostring(socket_type))
+    end
+    return socket, socket_type
   end
 }

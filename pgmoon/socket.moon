@@ -65,12 +65,25 @@ luasocket = do
   }
 
 {
-  new: ->
-    -- Fallback to LuaSocket is only required when pgmoon
-    -- runs in plain Lua, or in the init_by_lua context.
-    if ngx and ngx.get_phase! != "init"
-      ngx.socket.tcp!, "nginx"
-    else
-      luasocket.tcp!, "luasocket"
+  new: (socket_type) ->
+    if socket_type == nil
+      -- choose the default socket, try to use nginx, otherwise default to
+      -- luasocket
+      socket_type = if ngx and ngx.get_phase! != "init"
+        "nginx"
+      else
+        "luasocket"
+
+    socket = switch socket_type
+      when "nginx"
+        ngx.socket.tcp!
+      when "luasocket"
+        luasocket.tcp!
+      when "cqueues"
+        require("pgmoon.cqueues").CqueuesSocket!
+      else
+        error "unknown socket type: #{socket_type}"
+
+    socket, socket_type
 }
 

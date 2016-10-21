@@ -45,9 +45,6 @@ class CqueuesSocket
   -- openresty pooling interface, disable pooling
   getreusedtimes: => 0
 
-new = ->
-  CqueuesSocket!, "cqueues"
-
-{ :new , :CqueuesSocket }
+{ :CqueuesSocket }
 
 
