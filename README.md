@@ -59,6 +59,7 @@ of options. The table can have the following keys:
 * `"ssl"`: enable ssl
 * `"ssl_verify"`: verify server certificate
 * `"ssl_required"`: abort the connection if the server does not support SSL connections
+* `"pool"`: optional name of pool to use when using OpenResty cosocket (defaults to `"#{host}:#{port}:#{database}"`)
 
 Methods on the `Postgres` object returned by `new`:
 
