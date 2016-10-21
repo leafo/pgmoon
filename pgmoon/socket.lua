@@ -1,23 +1,7 @@
 local luasocket
 do
-  local __flatten
-  __flatten = function(t, buffer)
-    local _exp_0 = type(t)
-    if "string" == _exp_0 then
-      buffer[#buffer + 1] = t
-    elseif "table" == _exp_0 then
-      for _index_0 = 1, #t do
-        local thing = t[_index_0]
-        __flatten(thing, buffer)
-      end
-    end
-  end
-  local _flatten
-  _flatten = function(t)
-    local buffer = { }
-    __flatten(t, buffer)
-    return table.concat(buffer)
-  end
+  local flatten
+  flatten = require("pgmoon.util").flatten
   local proxy_mt = {
     __index = function(self, key)
       local sock = self.sock
@@ -47,7 +31,7 @@ do
       local proxy = setmetatable({
         sock = sock,
         send = function(self, ...)
-          return self.sock:send(_flatten(...))
+          return self.sock:send(flatten(...))
         end,
         getreusedtimes = function(self)
           return 0
