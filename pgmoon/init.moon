@@ -2,6 +2,8 @@ socket = require "pgmoon.socket"
 import insert from table
 import rshift, lshift, band from require "bit"
 
+unpack = table.unpack or unpack
+
 VERSION = "1.7.0"
 
 _len = (thing, t=type(thing)) ->

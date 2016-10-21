@@ -1,6 +1,8 @@
 
 import Postgres from require "pgmoon"
 
+unpack = table.unpack or unpack
+
 HOST = "127.0.0.1"
 USER = "postgres"
 DB = "pgmoon_test"

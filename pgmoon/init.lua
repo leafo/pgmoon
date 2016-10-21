@@ -6,6 +6,7 @@ do
   local _obj_0 = require("bit")
   rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
 end
+local unpack = table.unpack or unpack
 local VERSION = "1.7.0"
 local _len
 _len = function(thing, t)
