@@ -339,6 +339,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.7.0 — 2016-09-21 — Add to opm, add support for openresty pool, better default pool, support for hstore (@edan)
 * 1.6.0 — 2016-07-21 — Add support for json and jsonb array decoding
 * 1.5.0 — 2016-07-12 — Add SSL support (@thibaultCha), Add UUID array type (@edan), Add support for notifications (@starius)
 * 1.4.0 — 2016-02-18 — Add support for decoding jsonb, add a json serializer (@thibaultCha)
