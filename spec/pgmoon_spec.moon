@@ -46,7 +46,12 @@ describe "pgmoon with server", ->
 
     ok, err = timeout_pg\connect!
     assert.is_nil ok
-    assert.equal "timeout", err
+    errors = {
+      "timeout": true
+      "Connection timed out": true
+    }
+
+    assert.true errors[err]
 
   it "tries to connect with SSL", ->
     -- we expect a server with ssl = off
