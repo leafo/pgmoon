@@ -23,6 +23,7 @@ install:
   - luarocks install luasec
   - luarocks install moonscript
   - luarocks install lua-cjson
+  - luarocks install cqueues
   - luarocks make
 
 script:
