@@ -4,10 +4,12 @@
 
 pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 
-pgmoon was originally designed for use in [OpenResty][5] to take advantage of the
-[cosocket api][4] to provide asynchronous queries but it also works in the regular
-Lua environment as well using [LuaSocket][1] (and optionally [LuaCrypto][2] for
-MD5 authentication and [LuaSec][6] for SSL connections)
+pgmoon was originally designed for use in [OpenResty][5] to take advantage of
+the [cosocket api][4] to provide asynchronous queries but it also works in the
+regular Lua environment as well using [LuaSocket][1] (and optionally
+[LuaCrypto][2] for MD5 authentication and [LuaSec][6] for SSL connections).
+pgmoon can also use [cqueues][]' socket when passed `"cqueues"` as the socket
+type when instantiating.
 
 It's a perfect candidate for running your queries both inside OpenResty's
 environment and on the command line (eg. tests) in web frameworks like [Lapis][3].
@@ -56,10 +58,11 @@ of options. The table can have the following keys:
 * `"user"`: the database username to authenticate (default: `"postgres"`)
 * `"database"`: the database name to connect to **required**
 * `"password"`: password for authentication, optional depending on server configuration
-* `"ssl"`: enable ssl
-* `"ssl_verify"`: verify server certificate
-* `"ssl_required"`: abort the connection if the server does not support SSL connections
+* `"ssl"`: enable ssl (default: `false`)
+* `"ssl_verify"`: verify server certificate (default: `nil`)
+* `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
 * `"pool"`: optional name of pool to use when using OpenResty cosocket (defaults to `"#{host}:#{port}:#{database}"`)
+* `"socket_type"`: optional, the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
 
 Methods on the `Postgres` object returned by `new`:
 
@@ -379,3 +382,4 @@ THE SOFTWARE.
   [5]: http://openresty.org/
   [6]: https://github.com/brunoos/luasec
   [7]: https://github.com/openresty/lua-nginx-module#lua_ssl_trusted_certificate
+  [cqueues]: http://25thandclement.com/~william/projects/cqueues.html
