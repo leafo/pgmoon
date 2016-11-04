@@ -42,7 +42,7 @@ do
           end
           return self.sock:settimeout(t)
         end,
-        sslhandshake = function(self, _, _, verify, _, opts)
+        sslhandshake = function(self, verify, opts)
           if opts == nil then
             opts = { }
           end

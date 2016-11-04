@@ -34,7 +34,7 @@ luasocket = do
           if t
             t = t/1000
           @sock\settimeout t
-        sslhandshake: (_, _, verify, _, opts={}) =>
+        sslhandshake: (verify, opts={}) =>
           ssl = require "ssl"
           params = {
             mode: "client"

@@ -521,7 +521,10 @@ class Postgres
     return nil, err unless t
 
     if t == MSG_TYPE.status
-      @sock\sslhandshake false, nil, @ssl_verify, nil, @luasec_opts
+      if @sock_type == "nginx"
+        @sock\sslhandshake false, nil, @ssl_verify
+      else
+        @sock\sslhandshake @ssl_verify, @luasec_opts
     elseif t == MSG_TYPE.error or @ssl_required
       @disconnect!
       nil, "the server does not support SSL connections"
