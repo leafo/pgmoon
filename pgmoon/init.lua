@@ -576,7 +576,11 @@ do
         return nil, err
       end
       if t == MSG_TYPE.status then
-        return self.sock:sslhandshake(false, nil, self.ssl_verify, nil, self.luasec_opts)
+        if self.sock_type == "nginx" then
+          return self.sock:sslhandshake(false, nil, self.ssl_verify)
+        else
+          return self.sock:sslhandshake(self.ssl_verify, self.luasec_opts)
+        end
       elseif t == MSG_TYPE.error or self.ssl_required then
         self:disconnect()
         return nil, "the server does not support SSL connections"
