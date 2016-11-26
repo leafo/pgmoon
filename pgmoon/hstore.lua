@@ -24,7 +24,6 @@ end
 local encode_hstore
 do
   encode_hstore = function(tbl, escape_literal)
-    escape_literal = escape_literal or default_escape_literal
     if not (escape_literal) then
       local Postgres
       Postgres = require("pgmoon").Postgres

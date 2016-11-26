@@ -6,8 +6,6 @@ getmetatable(PostgresHstore).__call = (t) =>
 
 encode_hstore = do
   (tbl, escape_literal) ->
-    escape_literal or= default_escape_literal
-
     unless escape_literal
       import Postgres from require "pgmoon"
       default_escape_literal = (v) ->
