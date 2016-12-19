@@ -1,8 +1,5 @@
 default_escape_literal = nil
 
-as_json = (val, escape_literal) ->
-  return -> encode_json(val, escape_literal)
-
 encode_json = (tbl, escape_literal) ->
   escape_literal or= default_escape_literal
   json = require "cjson"
@@ -17,8 +14,11 @@ encode_json = (tbl, escape_literal) ->
   enc = json.encode tbl
   escape_literal enc
 
+as_json = (val, escape_literal) ->
+  return -> encode_json(val, escape_literal)
+
 decode_json = (str) ->
   json = require "cjson"
   json.decode str
 
-{ :as_json, :encode_json, :decode_json }
+{ :encode_json, :as_json, :decode_json }

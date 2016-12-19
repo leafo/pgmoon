@@ -6,9 +6,6 @@ getmetatable(PostgresArray).__call = (t) =>
 
 default_escape_literal = nil
 
-as_array = (val, escape_literal) ->
-  return -> encode_array(val, escape_literal)
-
 encode_array = do
   append_buffer = (escape_literal, buffer, values) ->
     for item in *values
@@ -38,6 +35,9 @@ encode_array = do
 
     buffer[#buffer] = "]" -- strips trailing comma
     table.concat buffer
+
+as_array = (val, escape_literal) ->
+  return -> encode_array(val, escape_literal)
 
 convert_values = (array, fn) ->
   for idx, v in ipairs array
@@ -80,5 +80,5 @@ decode_array = do
 
 
 
-{ :as_array, :encode_array, :decode_array, :PostgresArray }
+{ :encode_array, :as_array, :decode_array, :PostgresArray }
 

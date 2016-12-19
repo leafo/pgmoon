@@ -4,9 +4,6 @@ class PostgresHstore
 getmetatable(PostgresHstore).__call = (t) =>
   setmetatable t, @__base
 
-as_hstore = (val, escape_literal) ->
-  return -> encode_hstore(val, escape_literal)
-
 encode_hstore = do
   (tbl, escape_literal) ->
     unless escape_literal
@@ -21,6 +18,9 @@ encode_hstore = do
       table.insert buffer, '"' .. k .. '"=>"' .. v .. '"'
 
     escape_literal table.concat buffer, ", "
+
+as_hstore = (val, escape_literal) ->
+  return -> encode_hstore(val, escape_literal)
 
 decode_hstore = do
   import P, R, S, V, Ct, C, Cs, Cg, Cf from require "lpeg"
@@ -50,5 +50,5 @@ decode_hstore = do
 
 
 
-{ :as_hstore, :encode_hstore, :decode_hstore, :PostgresHstore }
+{ :encode_hstore, :as_hstore, :decode_hstore, :PostgresHstore }
 
