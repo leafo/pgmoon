@@ -21,4 +21,4 @@ decode_json = (str) ->
   json = require "cjson"
   json.decode str
 
-{ :as_json :encode_json, :decode_json }
+{ :as_json, :encode_json, :decode_json }
