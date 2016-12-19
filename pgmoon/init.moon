@@ -1,4 +1,5 @@
 socket = require "pgmoon.socket"
+import gsub from string
 import insert from table
 import rshift, lshift, band from require "bit"
 
@@ -267,8 +268,12 @@ class Postgres
       else
         error "unknown response from auth"
 
-  query: (q) =>
-    @post q
+  query: (q, ...) =>
+    local params = {}
+    for k,v in ipairs {...}
+      insert params, @escape_literal(v)
+
+    @post gsub(q, "$(%d+)", (m) -> params[tonumber m])
     local row_desc, data_rows, command_complete, err_msg
 
     local result, notifications
@@ -581,6 +586,8 @@ class Postgres
 
   escape_literal: (val) =>
     switch type val
+      when "function"
+        return val()
       when "number"
         return tostring val
       when "string"

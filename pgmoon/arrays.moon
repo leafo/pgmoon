@@ -6,6 +6,9 @@ getmetatable(PostgresArray).__call = (t) =>
 
 default_escape_literal = nil
 
+as_array = (val, escape_literal) ->
+  return -> encode_array(val, escape_literal)
+
 encode_array = do
   append_buffer = (escape_literal, buffer, values) ->
     for item in *values
@@ -77,5 +80,5 @@ decode_array = do
 
 
 
-{ :encode_array, :decode_array, :PostgresArray }
+{ :as_array, :encode_array, :decode_array, :PostgresArray }
 

@@ -4,6 +4,9 @@ class PostgresHstore
 getmetatable(PostgresHstore).__call = (t) =>
   setmetatable t, @__base
 
+as_hstore = (val, escape_literal) ->
+  return -> encode_hstore(val, escape_literal)
+
 encode_hstore = do
   (tbl, escape_literal) ->
     unless escape_literal
@@ -47,5 +50,5 @@ decode_hstore = do
 
 
 
-{ :encode_hstore, :decode_hstore, :PostgresHstore }
+{ :as_hstore, :encode_hstore, :decode_hstore, :PostgresHstore }
 
