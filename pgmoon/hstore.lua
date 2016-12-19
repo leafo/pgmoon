@@ -21,6 +21,12 @@ end
 getmetatable(PostgresHstore).__call = function(self, t)
   return setmetatable(t, self.__base)
 end
+local as_hstore
+as_hstore = function(val, escape_literal)
+  return function()
+    return encode_hstore(val, escape_literal)
+  end
+end
 local encode_hstore
 do
   encode_hstore = function(tbl, escape_literal)
@@ -66,6 +72,7 @@ do
   end
 end
 return {
+  as_hstore = as_hstore,
   encode_hstore = encode_hstore,
   decode_hstore = decode_hstore,
   PostgresHstore = PostgresHstore

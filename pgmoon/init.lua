@@ -1,4 +1,6 @@
 local socket = require("pgmoon.socket")
+local gsub
+gsub = string.gsub
 local insert
 insert = table.insert
 local rshift, lshift, band
@@ -290,8 +292,18 @@ do
         return error("unknown response from auth")
       end
     end,
-    query = function(self, q)
-      self:post(q)
+    query = function(self, q, ...)
+      local values = { }
+      local _list_0 = {
+        ...
+      }
+      for _index_0 = 1, #_list_0 do
+        local v = _list_0[_index_0]
+        insert(values, self:escape_literal(v))
+      end
+      self:post(gsub(q, "$(%d+)", function(m)
+        return values[tonumber(m)]
+      end))
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications
       local num_queries = 0
@@ -653,7 +665,9 @@ do
     end,
     escape_literal = function(self, val)
       local _exp_0 = type(val)
-      if "number" == _exp_0 then
+      if "function" == _exp_0 then
+        return val()
+      elseif "number" == _exp_0 then
         return tostring(val)
       elseif "string" == _exp_0 then
         return "'" .. tostring((val:gsub("'", "''"))) .. "'"

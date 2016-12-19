@@ -270,7 +270,7 @@ class Postgres
 
   query: (q, ...) =>
     local params = {}
-    for k,v in ipairs {...}
+    for i,v in ipairs({...})
       insert params, @escape_literal(v)
 
     @post gsub(q, "$(%d+)", (m) -> params[tonumber m])
