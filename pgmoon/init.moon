@@ -269,11 +269,11 @@ class Postgres
         error "unknown response from auth"
 
   query: (q, ...) =>
-    local params = {}
-    for i,v in ipairs({...})
-      insert params, @escape_literal(v)
+    values = {}
+    for v in *{...}
+      insert values, @escape_literal(v)
 
-    @post gsub(q, "$(%d+)", (m) -> params[tonumber m])
+    @post gsub(q, "$(%d+)", (m) -> values[tonumber m])
     local row_desc, data_rows, command_complete, err_msg
 
     local result, notifications
