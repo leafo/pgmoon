@@ -1,6 +1,9 @@
 local socket = require("pgmoon.socket")
-local gsub
-gsub = string.gsub
+local find, gsub
+do
+  local _obj_0 = string
+  find, gsub = _obj_0.find, _obj_0.gsub
+end
 local insert
 insert = table.insert
 local rshift, lshift, band
@@ -293,17 +296,25 @@ do
       end
     end,
     query = function(self, q, ...)
-      local values = { }
-      local _list_0 = {
+      local num_values = #{
         ...
       }
-      for _index_0 = 1, #_list_0 do
-        local v = _list_0[_index_0]
-        insert(values, self:escape_literal(v))
+      if (find(q, "$" .. tostring(num_params))) then
+        local values = { }
+        local _list_0 = {
+          ...
+        }
+        for _index_0 = 1, #_list_0 do
+          local v = _list_0[_index_0]
+          insert(values, self:escape_literal(v))
+        end
+        q = gsub(q, "$(%d+)", function(m)
+          return values[tonumber(m)]
+        end)
+      elseif num_params > 0 then
+        error(tostring(num_params) .. " but missing placeholder(s)")
       end
-      self:post(gsub(q, "$(%d+)", function(m)
-        return values[tonumber(m)]
-      end))
+      self:post(q)
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications
       local num_queries = 0

@@ -20,7 +20,7 @@ encode_hstore = do
     escape_literal table.concat buffer, ", "
 
 as_hstore = (val, escape_literal) ->
-  return -> encode_hstore(val, escape_literal)
+  return -> encode_hstore val, escape_literal
 
 decode_hstore = do
   import P, R, S, V, Ct, C, Cs, Cg, Cf from require "lpeg"

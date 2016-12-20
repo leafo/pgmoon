@@ -106,34 +106,57 @@ describe "pgmoon with server", ->
             drop table hello_world
           ]]
 
-        it "inserts a row", ->
-          res = assert pg\query [[
-            insert into "hello_world" ("name", "count") values ('hi', 100)
-          ]]
+        describe "with static queries", ->
+          it "inserts a row", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ('hi', 100)
+            ]]
 
-          assert.same { affected_rows: 1 }, res
+            assert.same { affected_rows: 1 }, res
 
-        it "inserts a row with return value", ->
-          res = assert pg\query [[
-            insert into "hello_world" ("name", "count") values ('hi', 100) returning "id"
-          ]]
+          it "inserts a row with return value", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ('hi', 100) returning "id"
+            ]]
 
-          assert.same {
-            affected_rows: 1
-            { id: 1 }
-          }, res
+            assert.same {
+              affected_rows: 1
+              { id: 1 }
+            }, res
 
-        it "selects from empty table", ->
-          res = assert pg\query [[select * from hello_world limit 2]]
-          assert.same {}, res
+          it "selects from empty table", ->
+            res = assert pg\query [[select * from hello_world limit 2]]
+            assert.same {}, res
 
-        it "deletes nothing", ->
-          res = assert pg\query [[delete from hello_world]]
-          assert.same { affected_rows: 0 }, res
+          it "deletes nothing", ->
+            res = assert pg\query [[delete from hello_world]]
+            assert.same { affected_rows: 0 }, res
 
-        it "update no rows", ->
-          res = assert pg\query [[update "hello_world" SET "name" = 'blahblah']]
-          assert.same { affected_rows: 0 }, res
+          it "update no rows", ->
+            res = assert pg\query [[update "hello_world" SET "name" = 'blahblah']]
+            assert.same { affected_rows: 0 }, res
+
+        describe "with parameterized queries", ->
+          it "inserts a row with parameterized values", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ($1, $2)
+            ]], "hi", 100
+
+            assert.same { affected_rows: 1 }, res
+
+          it "inserts a row with parameterized values and return value", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ($1, $2) returning "id"
+            ]], "hi", 100
+
+            assert.same {
+              affected_rows: 1
+              { id: 1 }
+            }, res
+
+          it "update no rows with parameterized value", ->
+            res = assert pg\query [[update "hello_world" SET "name" = $1]], "blahblah"
+            assert.same { affected_rows: 0 }, res
 
         describe "with rows", ->
           before_each ->

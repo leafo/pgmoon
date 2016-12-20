@@ -1,5 +1,4 @@
 socket = require "pgmoon.socket"
-import gsub from string
 import insert from table
 import rshift, lshift, band from require "bit"
 
@@ -269,11 +268,21 @@ class Postgres
         error "unknown response from auth"
 
   query: (q, ...) =>
-    values = {}
-    for v in *{...}
-      insert values, @escape_literal(v)
+    num_values = #{...}
+    -- Only process placeholders if there are sufficient values to fill them
+    -- Prepared statements can have placeholders if there are no values
+    if q\find "$#{tostring(num_values)}"
+      if q\find "$#{tostring(num_values + 1)}"
+        error "Insufficient number of values for the number of query placeholders"
+      values = {}
+      for v in *{...}
+        values\insert @escape_literal v
+      q = q\gsub '$(%d+)', (m) ->
+        values[tonumber m]
+    elseif num_values > 0
+      error "#{num_values} values but missing query placeholder(s)"
 
-    @post gsub(q, "$(%d+)", (m) -> values[tonumber m])
+    @post q
     local row_desc, data_rows, command_complete, err_msg
 
     local result, notifications
@@ -583,6 +592,9 @@ class Postgres
 
   escape_identifier: (ident) =>
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
+
+  as_identifier: (ident) =>
+    return -> @escape_identifier ident
 
   escape_literal: (val) =>
     switch type val
