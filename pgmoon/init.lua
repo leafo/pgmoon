@@ -1,9 +1,4 @@
 local socket = require("pgmoon.socket")
-local find, gsub
-do
-  local _obj_0 = string
-  find, gsub = _obj_0.find, _obj_0.gsub
-end
 local insert
 insert = table.insert
 local rshift, lshift, band
@@ -299,7 +294,10 @@ do
       local num_values = #{
         ...
       }
-      if (find(q, "$" .. tostring(num_params))) then
+      if q:find("$" .. tostring(tostring(num_values))) then
+        if q:find("$" .. tostring(tostring(num_values + 1))) then
+          error("Insufficient number of values for the number of query placeholders")
+        end
         local values = { }
         local _list_0 = {
           ...
@@ -308,11 +306,11 @@ do
           local v = _list_0[_index_0]
           insert(values, self:escape_literal(v))
         end
-        q = gsub(q, "$(%d+)", function(m)
+        q = q:gsub('$(%d+)', function(m)
           return values[tonumber(m)]
         end)
-      elseif num_params > 0 then
-        error(tostring(num_params) .. " but missing placeholder(s)")
+      elseif num_values > 0 then
+        error(tostring(num_values) .. " values but missing query placeholder(s)")
       end
       self:post(q)
       local row_desc, data_rows, command_complete, err_msg
@@ -673,6 +671,11 @@ do
     end,
     escape_identifier = function(self, ident)
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'
+    end,
+    as_identifier = function(self, ident)
+      return function()
+        return self:escape_identifier(ident)
+      end
     end,
     escape_literal = function(self, val)
       local _exp_0 = type(val)

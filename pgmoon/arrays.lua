@@ -22,12 +22,6 @@ getmetatable(PostgresArray).__call = function(self, t)
   return setmetatable(t, self.__base)
 end
 local default_escape_literal = nil
-local as_array
-as_array = function(val, escape_literal)
-  return function()
-    return encode_array(val, escape_literal)
-  end
-end
 local encode_array
 do
   local append_buffer
@@ -61,6 +55,12 @@ do
     }, tbl)
     buffer[#buffer] = "]"
     return table.concat(buffer)
+  end
+end
+local as_array
+as_array = function(val, escape_literal)
+  return function()
+    return encode_array(val, escape_literal)
   end
 end
 local convert_values
@@ -105,8 +105,8 @@ do
   end
 end
 return {
-  as_array = as_array,
   encode_array = encode_array,
+  as_array = as_array,
   decode_array = decode_array,
   PostgresArray = PostgresArray
 }

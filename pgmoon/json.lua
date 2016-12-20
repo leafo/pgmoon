@@ -1,10 +1,4 @@
 local default_escape_literal = nil
-local as_json
-as_json = function(val, escape_literal)
-  return function()
-    return encode_json(val, escape_literal)
-  end
-end
 local encode_json
 encode_json = function(tbl, escape_literal)
   escape_literal = escape_literal or default_escape_literal
@@ -20,13 +14,19 @@ encode_json = function(tbl, escape_literal)
   local enc = json.encode(tbl)
   return escape_literal(enc)
 end
+local as_json
+as_json = function(val, escape_literal)
+  return function()
+    return encode_json(val, escape_literal)
+  end
+end
 local decode_json
 decode_json = function(str)
   local json = require("cjson")
   return json.decode(str)
 end
 return {
-  as_json = as_json,
   encode_json = encode_json,
+  as_json = as_json,
   decode_json = decode_json
 }

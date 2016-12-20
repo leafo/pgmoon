@@ -276,7 +276,7 @@ class Postgres
         error "Insufficient number of values for the number of query placeholders"
       values = {}
       for v in *{...}
-        values\insert @escape_literal v
+        insert values, @escape_literal v
       q = q\gsub '$(%d+)', (m) ->
         values[tonumber m]
     elseif num_values > 0
