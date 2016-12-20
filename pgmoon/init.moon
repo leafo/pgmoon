@@ -200,13 +200,13 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
-    sock = @sock
-    @sock = nil
-    sock\close!
+    @sock\close!
 
   keepalive: (...) =>
-    sock = @sock
-    sock\setkeepalive ...
+    if @sock_type == "nginx"
+      @sock\setkeepalive ...
+    else
+      @disconnect!
 
   auth: =>
     t, msg = @receive_message!

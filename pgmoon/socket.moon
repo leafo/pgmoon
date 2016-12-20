@@ -20,7 +20,6 @@ luasocket = do
     getreusedtimes: true
     sslhandshake: true,
     settimeout: true
-    setkeepalive: true
   }
 
   {
@@ -60,7 +59,6 @@ luasocket = do
           @sock = sec_sock
 
           true
-        setkeepalive: => @sock\close!
       }, proxy_mt
 
       proxy
