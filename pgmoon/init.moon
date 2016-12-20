@@ -206,7 +206,6 @@ class Postgres
 
   keepalive: (...) =>
     sock = @sock
-    @sock = nil
     sock\setkeepalive ...
 
   auth: =>

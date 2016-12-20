@@ -229,7 +229,6 @@ do
     end,
     keepalive = function(self, ...)
       local sock = self.sock
-      self.sock = nil
       return sock:setkeepalive(...)
     end,
     auth = function(self)
