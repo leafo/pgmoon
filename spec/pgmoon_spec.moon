@@ -59,6 +59,28 @@ describe "pgmoon with server", ->
 
         assert.true errors[err]
 
+      it "keepalive()", ->
+        keepalive_pg = Postgres {
+          database: DB
+          user: USER
+          host: HOST
+          :socket_type
+        }
+
+        assert keepalive_pg\connect!
+
+        res = assert pg\query [[select 1]]
+        assert.same 1, #res
+
+        assert keepalive_pg\keepalive!
+        assert keepalive_pg\connect!
+
+        res = assert pg\query [[select 1]]
+        assert.same 1, #res
+
+        finally ->
+          keepalive_pg\disconnect!
+
       it "tries to connect with SSL", ->
         -- we expect a server with ssl = off
         ssl_pg = Postgres {
