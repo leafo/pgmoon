@@ -681,6 +681,8 @@ do
       local _exp_0 = type(val)
       if "function" == _exp_0 then
         return val()
+      elseif "nil" == _exp_0 then
+        return "NULL"
       elseif "number" == _exp_0 then
         return tostring(val)
       elseif "string" == _exp_0 then

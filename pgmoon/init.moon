@@ -600,6 +600,8 @@ class Postgres
     switch type val
       when "function"
         return val()
+      when "nil"
+        return "NULL"
       when "number"
         return tostring val
       when "string"
