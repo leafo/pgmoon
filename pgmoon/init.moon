@@ -597,11 +597,12 @@ class Postgres
     return -> @escape_identifier ident
 
   escape_literal: (val) =>
+    if val == nil or val == @NULL
+      return "NULL"
+
     switch type val
       when "function"
         return val()
-      when "nil"
-        return "NULL"
       when "number"
         return tostring val
       when "string"
