@@ -14,8 +14,8 @@ encode_json = (tbl, escape_literal) ->
   enc = json.encode tbl
   escape_literal enc
 
-as_json = (val, escape_literal) ->
-  return -> encode_json val, escape_literal
+as_json = (val) ->
+  return (escape_literal) -> encode_json val, escape_literal
 
 decode_json = (str) ->
   json = require "cjson"

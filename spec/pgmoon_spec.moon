@@ -158,6 +158,10 @@ describe "pgmoon with server", ->
             res = assert pg\query [[update "hello_world" SET "name" = $1]], "blahblah"
             assert.same { affected_rows: 0 }, res
 
+          it "select with null", ->
+            res = assert pg\query [[select $1 AS val]], pg.NULL
+            assert.same 1, #res
+
         describe "with rows", ->
           before_each ->
             for i=1,10
@@ -198,6 +202,50 @@ describe "pgmoon with server", ->
             for i=1,20
               assert pg\query [[update "hello_world" SET "name" = 'blahblah' where id = ]] .. i
               assert pg\query [[ select * from hello_world ]]
+
+        describe "parameterized with rows", ->
+          before_each ->
+            for i=1,10
+              assert pg\query [[
+                insert into "hello_world" ("name", "count")
+                  values ($1, $2)
+                ]], "thing_#{i}", i
+
+          it "select some rows", ->
+            res = assert pg\query [[
+              select * from $1
+            ]], pg\as_identifier "hello_world"
+            assert.same "table", type(res)
+            assert.same 10, #res
+
+          it "update rows", ->
+            res = assert pg\query [[
+              update "hello_world" SET "name" = $1
+            ]], "blahblah"
+
+            assert.same { affected_rows: 10 }, res
+            assert.same "blahblah",
+              unpack((pg\query "select name from hello_world limit 1")).name
+
+          it "delete a row", ->
+            res = assert pg\query [[
+              delete from "hello_world" where id = $1
+            ]], 1
+
+            assert.same { affected_rows: 1 }, res
+            assert.same nil,
+              unpack((pg\query "select * from hello_world where id = $1", 1)) or nil
+
+          it "truncate table", ->
+            res = assert pg\query "truncate hello_world"
+            assert.same true, res
+
+          it "make many select queries", ->
+            for i=1,20
+              assert pg\query [[
+                update "hello_world" SET "name" = 'blahblah' where id = $1
+              ]], i
+              assert pg\query [[ select * from $1 ]], pg\as_identifier "hello_world"
 
 
           -- single call, multiple queries
@@ -290,6 +338,51 @@ describe "pgmoon with server", ->
               }, { :res, :err, :partial, :num_queries }
 
 
+          -- single call, multiple queries
+          describe "parameterized multi-queries #multi", ->
+            it "does multiple updates", ->
+              res, num_queries = assert pg\query [[
+                update hello_world set flag = $1 where id = $2;
+                update hello_world set flag = $3;
+              ]], false, 3, true
+
+              assert.same 2, num_queries
+              assert.same {
+                { affected_rows: 1 }
+                { affected_rows: 10 }
+              }, res
+
+
+            it "does mix update and select", ->
+              res, num_queries = assert pg\query [[
+                update hello_world set flag = false where id = $1;
+                select id, flag from hello_world where id = $1
+              ]], 3
+
+              assert.same 2, num_queries
+              assert.same {
+                { affected_rows: 1 }
+                {
+                  { id: 3, flag: false }
+                }
+              }, res
+
+
+            it "returns partial result on error", ->
+              res, err, partial, num_queries = pg\query [[
+                select id, flag from $1 order by id asc limit 1;
+                select id, flag from $2 limit 1;
+              ]], pg\as_identifier("hello_world"), pg\as_identifier("jello_world")
+
+              assert.same {
+                err: [[ERROR: relation "jello_world" does not exist (114)]]
+                num_queries: 1
+                partial: {
+                  { id: 1, flag: true }
+                }
+              }, { :res, :err, :partial, :num_queries }
+
+
       it "deserializes types correctly", ->
         assert pg\query [[
           create table types_test (
@@ -337,7 +430,7 @@ describe "pgmoon with server", ->
         ]]
 
       describe "hstore", ->
-        import encode_hstore, decode_hstore from require "pgmoon.hstore"
+        import encode_hstore, decode_hstore, as_hstore from require "pgmoon.hstore"
 
         describe "encoding", ->
           it "encodes hstore type", ->
@@ -409,8 +502,45 @@ describe "pgmoon with server", ->
 
             assert.same {abc: '123', foo: 'bar'}, res[1].h
 
+        describe "parameterized serializing", ->
+          before_each ->
+            assert pg\query [[
+              CREATE EXTENSION hstore;
+              create table hstore_test (
+                id serial primary key,
+                h hstore
+              )
+            ]]
+            pg\setup_hstore!
+
+          after_each ->
+            assert pg\query [[
+              DROP TABLE hstore_test;
+              DROP EXTENSION hstore;
+            ]]
+
+          it "serializes correctly", ->
+            payload = {foo:'bar'}
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore payload
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same payload, res[1].h
+
+          it "serializes NULL as string", ->
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore {foo:'NULL'}
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same 'NULL', res[1].h.foo
+
+          it "serializes multiple pairs", ->
+            payload = {abc: '123', foo: 'bar'}
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore payload
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same payload, res[1].h
+
       describe "json", ->
-        import encode_json, decode_json from require "pgmoon.json"
+        import encode_json, decode_json, as_json from require "pgmoon.json"
 
         it "encodes json type", ->
           t = { hello: "world" }
@@ -450,8 +580,31 @@ describe "pgmoon with server", ->
             drop table json_test
           ]]
 
+        it "parameterized serialize correctly", ->
+          assert pg\query [[
+            create table param_json_test (
+              id serial not null,
+              config json,
+              primary key (id)
+            )
+          ]]
+
+          payload = {foo: "some 'string'"}
+          assert pg\query "insert into param_json_test (config) values ($1)", as_json payload
+          res = assert pg\query [[select * from param_json_test where id = 1]]
+          assert.same payload, res[1].config
+
+          payload = {foo: "some \"string\""}
+          assert pg\query "insert into param_json_test (config) values ($1)", as_json payload
+          res = assert pg\query [[select * from param_json_test where id = 2]]
+          assert.same payload, res[1].config
+
+          assert pg\query [[
+            drop table param_json_test
+          ]]
+
       describe "arrays", ->
-        import decode_array, encode_array from require "pgmoon.arrays"
+        import decode_array, encode_array, as_array from require "pgmoon.arrays"
 
         it "converts table to array", ->
           import PostgresArray from require "pgmoon.arrays"
@@ -528,6 +681,11 @@ describe "pgmoon with server", ->
               }
             }
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
+
+        it "parameterized serialized array", ->
+          payload = { 2, 4, 6, 8, 10 }
+          res = pg\query "select $1::int[] AS arr", as_array payload
+          assert.same payload, res[1].arr
 
         describe "with table", ->
           before_each ->

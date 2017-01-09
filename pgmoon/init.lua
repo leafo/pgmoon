@@ -62,6 +62,12 @@ flipped = function(t)
   end
   return t
 end
+local gen_escape
+gen_escape = function(ref)
+  return function(val)
+    return ref:escape_literal(val)
+  end
+end
 local MSG_TYPE = flipped({
   status = "S",
   auth = "R",
@@ -299,12 +305,19 @@ do
           error("Insufficient number of values for the number of query placeholders")
         end
         local values = { }
+        local default_escape = gen_escape(self)
         local _list_0 = {
           ...
         }
         for _index_0 = 1, #_list_0 do
           local v = _list_0[_index_0]
-          insert(values, self:escape_literal(v))
+          if v == nil then
+            insert(values, "NULL")
+          elseif type(v) == "function" then
+            insert(values, v(default_escape))
+          else
+            insert(values, self:escape_literal(v))
+          end
         end
         q = q:gsub('$(%d+)', function(m)
           return values[tonumber(m)]
@@ -678,13 +691,11 @@ do
       end
     end,
     escape_literal = function(self, val)
-      if val == nil or val == self.NULL then
+      if val == nil or (self ~= nil and val == self.NULL) then
         return "NULL"
       end
       local _exp_0 = type(val)
-      if "function" == _exp_0 then
-        return val()
-      elseif "number" == _exp_0 then
+      if "number" == _exp_0 then
         return tostring(val)
       elseif "string" == _exp_0 then
         return "'" .. tostring((val:gsub("'", "''"))) .. "'"

@@ -15,8 +15,8 @@ encode_json = function(tbl, escape_literal)
   return escape_literal(enc)
 end
 local as_json
-as_json = function(val, escape_literal)
-  return function()
+as_json = function(val)
+  return function(escape_literal)
     return encode_json(val, escape_literal)
   end
 end

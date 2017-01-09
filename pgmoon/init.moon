@@ -32,6 +32,9 @@ flipped = (t) ->
     t[t[key]] = key
   t
 
+gen_escape = (ref) ->
+  return (val) -> ref\escape_literal(val)
+
 MSG_TYPE = flipped {
   status: "S"
   auth: "R"
@@ -275,8 +278,14 @@ class Postgres
       if q\find "$#{tostring(num_values + 1)}"
         error "Insufficient number of values for the number of query placeholders"
       values = {}
+      default_escape = gen_escape(self)
       for v in *{...}
-        insert values, @escape_literal v
+        if v == nil
+          insert values, "NULL"  -- skip the extra function call
+        elseif type(v) == "function"
+          insert values, v default_escape
+        else
+          insert values, @escape_literal v
       q = q\gsub '$(%d+)', (m) ->
         values[tonumber m]
     elseif num_values > 0
@@ -597,12 +606,12 @@ class Postgres
     return -> @escape_identifier ident
 
   escape_literal: (val) =>
-    if val == nil or val == @NULL
+    -- When this is called by encode_hstore, encode_json, etc., the default
+    -- escape function is often used, making the self reference unavailable
+    if val == nil or (self != nil and val == @NULL)
       return "NULL"
 
     switch type val
-      when "function"
-        return val()
       when "number"
         return tostring val
       when "string"

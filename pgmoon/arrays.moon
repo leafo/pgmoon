@@ -36,8 +36,8 @@ encode_array = do
     buffer[#buffer] = "]" -- strips trailing comma
     table.concat buffer
 
-as_array = (val, escape_literal) ->
-  return -> encode_array val, escape_literal
+as_array = (val) ->
+  return (escape_literal) -> encode_array val, escape_literal
 
 convert_values = (array, fn) ->
   for idx, v in ipairs array

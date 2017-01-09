@@ -58,8 +58,8 @@ do
   end
 end
 local as_array
-as_array = function(val, escape_literal)
-  return function()
+as_array = function(val)
+  return function(escape_literal)
     return encode_array(val, escape_literal)
   end
 end

@@ -41,8 +41,8 @@ do
   end
 end
 local as_hstore
-as_hstore = function(val, escape_literal)
-  return function()
+as_hstore = function(val)
+  return function(escape_literal)
     return encode_hstore(val, escape_literal)
   end
 end
