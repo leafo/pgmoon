@@ -256,16 +256,13 @@ Arrays are automatically decoded when they are returned from a query. Numeric,
 string, and boolean types are automatically loaded accordingly. Nested arrays
 are also supported.
 
-Use `as_array` to encode a Lua table to array syntax for a query:
-
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
 
-local as_array = require("pgmoon.arrays").as_array
 local my_array = {1,2,3,4,5}
-pg:query("insert into some_table (some_arr_col) values($1)",  as_array(my_array))
+pg:query("insert into some_table (some_arr_col) values($1)",  my_array)
 ```
 
 ## Handling JSON
@@ -273,16 +270,15 @@ pg:query("insert into some_table (some_arr_col) values($1)",  as_array(my_array)
 `json` and `jsonb` types are automatically decoded when they are returned from
 a query.
 
-Use `as_json` to encode a Lua table to the JSON syntax for a query:
+Use `pg:as_json` to encode a Lua table to the JSON syntax for a query:
 
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
 
-local as_json = require("pgmoon.json").as_json
 local my_tbl = {hello = "world"}
-pg:query("insert into some_table (some_json_col) values($1)", as_json(my_tbl))
+pg:query("insert into some_table (some_json_col) values($1)", pg:as_json(my_tbl))
 ```
 
 ## Handling hstore
@@ -298,13 +294,12 @@ pg:connect()
 pg:setup_hstore()
 ```
 
-Use `as_hstore` to encode a Lua table into hstore syntax when updating and
+Use `pg:as_hstore` to encode a Lua table into hstore syntax when updating and
 inserting:
 
 ```lua
-local as_hstore = require("pgmoon.hstore").as_hstore
 local tbl = {foo = "bar"}
-pg:query("insert into some_table (hstore_col) values($1)", as_hstore(tbl))
+pg:query("insert into some_table (hstore_col) values($1)", pg:as_hstore(tbl))
 ```
 
 You can manually decode a hstore value from string using the `decode_hstore`
