@@ -311,10 +311,15 @@ do
         }
         for _index_0 = 1, #_list_0 do
           local v = _list_0[_index_0]
-          if v == nil then
+          local type_v = type(v)
+          if v == nil or v == self.NULL then
             insert(values, "NULL")
-          elseif type(v) == "function" then
+          elseif type_v == "function" then
             insert(values, v(default_escape))
+          elseif type_v == "table" then
+            local encode_array
+            encode_array = require("pgmoon.arrays").encode_array
+            insert(values, encode_array(v, default_escape))
           else
             insert(values, self:escape_literal(v))
           end
@@ -685,11 +690,6 @@ do
     escape_identifier = function(self, ident)
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'
     end,
-    as_identifier = function(self, ident)
-      return function()
-        return self:escape_identifier(ident)
-      end
-    end,
     escape_literal = function(self, val)
       if val == nil or (self ~= nil and val == self.NULL) then
         return "NULL"
@@ -703,6 +703,25 @@ do
         return val and "TRUE" or "FALSE"
       end
       return error("don't know how to escape value: " .. tostring(val))
+    end,
+    as_ident = function(self, ident)
+      return function()
+        return self:escape_identifier(ident)
+      end
+    end,
+    as_hstore = function(self, tbl)
+      return function(escape_literal)
+        local encode_hstore
+        encode_hstore = require("pgmoon.hstore").encode_hstore
+        return encode_hstore(tbl, escape_literal)
+      end
+    end,
+    as_json = function(self, tbl)
+      return function(escape_literal)
+        local json = require("cjson")
+        local enc = json.encode(tbl)
+        return escape_literal(enc)
+      end
     end,
     __tostring = function(self)
       return "<Postgres socket: " .. tostring(self.sock) .. ">"

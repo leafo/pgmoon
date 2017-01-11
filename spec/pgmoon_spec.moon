@@ -214,7 +214,7 @@ describe "pgmoon with server", ->
           it "select some rows", ->
             res = assert pg\query [[
               select * from $1
-            ]], pg\as_identifier "hello_world"
+            ]], pg\as_ident "hello_world"
             assert.same "table", type(res)
             assert.same 10, #res
 
@@ -245,7 +245,7 @@ describe "pgmoon with server", ->
               assert pg\query [[
                 update "hello_world" SET "name" = 'blahblah' where id = $1
               ]], i
-              assert pg\query [[ select * from $1 ]], pg\as_identifier "hello_world"
+              assert pg\query [[ select * from $1 ]], pg\as_ident "hello_world"
 
 
           -- single call, multiple queries
@@ -372,7 +372,7 @@ describe "pgmoon with server", ->
               res, err, partial, num_queries = pg\query [[
                 select id, flag from $1 order by id asc limit 1;
                 select id, flag from $2 limit 1;
-              ]], pg\as_identifier("hello_world"), pg\as_identifier("jello_world")
+              ]], pg\as_ident("hello_world"), pg\as_ident("jello_world")
 
               assert.same {
                 err: [[ERROR: relation "jello_world" does not exist (114)]]
@@ -430,7 +430,7 @@ describe "pgmoon with server", ->
         ]]
 
       describe "hstore", ->
-        import encode_hstore, decode_hstore, as_hstore from require "pgmoon.hstore"
+        import encode_hstore, decode_hstore from require "pgmoon.hstore"
 
         describe "encoding", ->
           it "encodes hstore type", ->
@@ -520,27 +520,26 @@ describe "pgmoon with server", ->
             ]]
 
           it "serializes correctly", ->
-            payload = {foo:'bar'}
-            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore payload
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", pg\as_hstore {foo:'bar'}
             res = assert pg\query "SELECT * FROM hstore_test;"
 
-            assert.same payload, res[1].h
+            assert.same {foo:'bar'}, res[1].h
 
           it "serializes NULL as string", ->
-            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore {foo:'NULL'}
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", pg\as_hstore {foo:'NULL'}
             res = assert pg\query "SELECT * FROM hstore_test;"
 
             assert.same 'NULL', res[1].h.foo
 
           it "serializes multiple pairs", ->
-            payload = {abc: '123', foo: 'bar'}
-            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", as_hstore payload
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);",
+                            pg\as_hstore {abc:'123', foo:'bar'}
             res = assert pg\query "SELECT * FROM hstore_test;"
 
-            assert.same payload, res[1].h
+            assert.same {abc:'123', foo:'bar'}, res[1].h
 
       describe "json", ->
-        import encode_json, decode_json, as_json from require "pgmoon.json"
+        import encode_json, decode_json from require "pgmoon.json"
 
         it "encodes json type", ->
           t = { hello: "world" }
@@ -589,22 +588,22 @@ describe "pgmoon with server", ->
             )
           ]]
 
-          payload = {foo: "some 'string'"}
-          assert pg\query "insert into param_json_test (config) values ($1)", as_json payload
+          assert pg\query "insert into param_json_test (config) values ($1)",
+                          pg\as_json {foo:"some 'string'"}
           res = assert pg\query [[select * from param_json_test where id = 1]]
-          assert.same payload, res[1].config
+          assert.same {foo:"some 'string'"}, res[1].config
 
-          payload = {foo: "some \"string\""}
-          assert pg\query "insert into param_json_test (config) values ($1)", as_json payload
+          assert pg\query "insert into param_json_test (config) values ($1)",
+                          pg\as_json {foo:"some \"string\""}
           res = assert pg\query [[select * from param_json_test where id = 2]]
-          assert.same payload, res[1].config
+          assert.same {foo:"some \"string\""}, res[1].config
 
           assert pg\query [[
             drop table param_json_test
           ]]
 
       describe "arrays", ->
-        import decode_array, encode_array, as_array from require "pgmoon.arrays"
+        import decode_array, encode_array from require "pgmoon.arrays"
 
         it "converts table to array", ->
           import PostgresArray from require "pgmoon.arrays"
@@ -683,9 +682,8 @@ describe "pgmoon with server", ->
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
 
         it "parameterized serialized array", ->
-          payload = { 2, 4, 6, 8, 10 }
-          res = pg\query "select $1::int[] AS arr", as_array payload
-          assert.same payload, res[1].arr
+          res = pg\query "select $1::int[] AS arr", { 2, 4, 6, 8, 10 }
+          assert.same { 2, 4, 6, 8, 10 }, res[1].arr
 
         describe "with table", ->
           before_each ->

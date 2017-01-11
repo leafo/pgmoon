@@ -19,9 +19,6 @@ encode_hstore = do
 
     escape_literal table.concat buffer, ", "
 
-as_hstore = (val) ->
-  return (escape_literal) -> encode_hstore val, escape_literal
-
 decode_hstore = do
   import P, R, S, V, Ct, C, Cs, Cg, Cf from require "lpeg"
   g = P {
@@ -50,5 +47,5 @@ decode_hstore = do
 
 
 
-{ :encode_hstore, :as_hstore, :decode_hstore, :PostgresHstore }
+{ :encode_hstore, :decode_hstore, :PostgresHstore }
 

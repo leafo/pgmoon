@@ -280,10 +280,14 @@ class Postgres
       values = {}
       default_escape = gen_escape(self)
       for v in *{...}
-        if v == nil
+        type_v = type(v)
+        if v == nil or v == @NULL
           insert values, "NULL"  -- skip the extra function call
-        elseif type(v) == "function"
+        elseif type_v == "function"
           insert values, v default_escape
+        elseif type_v == "table"
+          import encode_array from require "pgmoon.arrays"
+          insert values, encode_array(v, default_escape)
         else
           insert values, @escape_literal v
       q = q\gsub '$(%d+)', (m) ->
@@ -602,9 +606,6 @@ class Postgres
   escape_identifier: (ident) =>
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
 
-  as_identifier: (ident) =>
-    return -> @escape_identifier ident
-
   escape_literal: (val) =>
     -- When this is called by encode_hstore, encode_json, etc., the default
     -- escape function is often used, making the self reference unavailable
@@ -620,6 +621,20 @@ class Postgres
         return val and "TRUE" or "FALSE"
 
     error "don't know how to escape value: #{val}"
+
+  as_ident: (ident) =>
+    return -> @escape_identifier ident
+
+  as_hstore: (tbl) =>
+    return (escape_literal) ->
+      import encode_hstore from require "pgmoon.hstore"
+      return encode_hstore tbl, escape_literal
+
+  as_json: (tbl) =>
+    return (escape_literal) ->
+      json = require "cjson"
+      enc = json.encode tbl
+      escape_literal enc
 
   __tostring: =>
     "<Postgres socket: #{@sock}>"

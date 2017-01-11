@@ -14,12 +14,6 @@ encode_json = function(tbl, escape_literal)
   local enc = json.encode(tbl)
   return escape_literal(enc)
 end
-local as_json
-as_json = function(val)
-  return function(escape_literal)
-    return encode_json(val, escape_literal)
-  end
-end
 local decode_json
 decode_json = function(str)
   local json = require("cjson")
@@ -27,6 +21,5 @@ decode_json = function(str)
 end
 return {
   encode_json = encode_json,
-  as_json = as_json,
   decode_json = decode_json
 }

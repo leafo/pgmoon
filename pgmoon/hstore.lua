@@ -40,12 +40,6 @@ do
     return escape_literal(table.concat(buffer, ", "))
   end
 end
-local as_hstore
-as_hstore = function(val)
-  return function(escape_literal)
-    return encode_hstore(val, escape_literal)
-  end
-end
 local decode_hstore
 do
   local P, R, S, V, Ct, C, Cs, Cg, Cf
@@ -73,7 +67,6 @@ do
 end
 return {
   encode_hstore = encode_hstore,
-  as_hstore = as_hstore,
   decode_hstore = decode_hstore,
   PostgresHstore = PostgresHstore
 }

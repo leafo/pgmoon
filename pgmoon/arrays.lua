@@ -57,12 +57,6 @@ do
     return table.concat(buffer)
   end
 end
-local as_array
-as_array = function(val)
-  return function(escape_literal)
-    return encode_array(val, escape_literal)
-  end
-end
 local convert_values
 convert_values = function(array, fn)
   for idx, v in ipairs(array) do
@@ -106,7 +100,6 @@ do
 end
 return {
   encode_array = encode_array,
-  as_array = as_array,
   decode_array = decode_array,
   PostgresArray = PostgresArray
 }

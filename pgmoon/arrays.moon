@@ -36,9 +36,6 @@ encode_array = do
     buffer[#buffer] = "]" -- strips trailing comma
     table.concat buffer
 
-as_array = (val) ->
-  return (escape_literal) -> encode_array val, escape_literal
-
 convert_values = (array, fn) ->
   for idx, v in ipairs array
     if type(v) == "table"
@@ -80,5 +77,5 @@ decode_array = do
 
 
 
-{ :encode_array, :as_array, :decode_array, :PostgresArray }
+{ :encode_array, :decode_array, :PostgresArray }
 
