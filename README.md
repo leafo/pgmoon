@@ -262,7 +262,7 @@ local pg = pgmoon.new(auth)
 pg:connect()
 
 local my_array = {1,2,3,4,5}
-pg:query("insert into some_table (some_arr_col) values($1)",  my_array)
+local res = pg:query("insert into some_table (some_arr_col) values($1)", pg:as_array(my_array))
 ```
 
 ## Handling JSON
@@ -278,7 +278,7 @@ local pg = pgmoon.new(auth)
 pg:connect()
 
 local my_tbl = {hello = "world"}
-pg:query("insert into some_table (some_json_col) values($1)", pg:as_json(my_tbl))
+local res = pg:query("insert into some_table (some_json_col) values($1)", pg:as_json(my_tbl))
 ```
 
 ## Handling hstore
@@ -299,7 +299,7 @@ inserting:
 
 ```lua
 local tbl = {foo = "bar"}
-pg:query("insert into some_table (hstore_col) values($1)", pg:as_hstore(tbl))
+local res = pg:query("insert into some_table (hstore_col) values($1)", pg:as_hstore(tbl))
 ```
 
 You can manually decode a hstore value from string using the `decode_hstore`
@@ -340,7 +340,7 @@ local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
 
-local res = pg:query("select coalesce($1, 'example') AS val", pg:NULL)
+local res = pg:query("select coalesce($1, 'example') AS val", pg.NULL)
 
 assert("example" == res[1].val)
 ```

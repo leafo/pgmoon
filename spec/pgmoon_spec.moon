@@ -682,7 +682,7 @@ describe "pgmoon with server", ->
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
 
         it "parameterized serialized array", ->
-          res = pg\query "select $1::int[] AS arr", { 2, 4, 6, 8, 10 }
+          res = pg\query "select $1::int[] AS arr", pg\as_array { 2, 4, 6, 8, 10 }
           assert.same { 2, 4, 6, 8, 10 }, res[1].arr
 
         describe "with table", ->

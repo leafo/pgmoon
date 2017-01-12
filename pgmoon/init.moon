@@ -272,11 +272,9 @@ class Postgres
 
   query: (q, ...) =>
     num_values = #{...}
-    -- Only process placeholders if there are sufficient values to fill them
+    -- Only process placeholders if there are values to fill them
     -- Prepared statements can have placeholders if there are no values
     if q\find "$#{tostring(num_values)}"
-      if q\find "$#{tostring(num_values + 1)}"
-        error "Insufficient number of values for the number of query placeholders"
       values = {}
       default_escape = gen_escape(self)
       for v in *{...}
@@ -285,15 +283,12 @@ class Postgres
           insert values, "NULL"  -- skip the extra function call
         elseif type_v == "function"
           insert values, v default_escape
-        elseif type_v == "table"
-          import encode_array from require "pgmoon.arrays"
-          insert values, encode_array(v, default_escape)
         else
           insert values, @escape_literal v
       q = q\gsub '$(%d+)', (m) ->
         values[tonumber m]
     elseif num_values > 0
-      error "#{num_values} values but missing query placeholder(s)"
+      error "#{num_values} values but missing associated query placeholder(s)"
 
     @post q
     local row_desc, data_rows, command_complete, err_msg
@@ -624,6 +619,11 @@ class Postgres
 
   as_ident: (ident) =>
     return -> @escape_identifier ident
+
+  as_array: (tbl) =>
+    return (escape_literal) ->
+      import encode_array from require "pgmoon.arrays"
+      return encode_array tbl, escape_literal
 
   as_hstore: (tbl) =>
     return (escape_literal) ->

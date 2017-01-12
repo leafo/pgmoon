@@ -301,9 +301,6 @@ do
         ...
       }
       if q:find("$" .. tostring(tostring(num_values))) then
-        if q:find("$" .. tostring(tostring(num_values + 1))) then
-          error("Insufficient number of values for the number of query placeholders")
-        end
         local values = { }
         local default_escape = gen_escape(self)
         local _list_0 = {
@@ -316,10 +313,6 @@ do
             insert(values, "NULL")
           elseif type_v == "function" then
             insert(values, v(default_escape))
-          elseif type_v == "table" then
-            local encode_array
-            encode_array = require("pgmoon.arrays").encode_array
-            insert(values, encode_array(v, default_escape))
           else
             insert(values, self:escape_literal(v))
           end
@@ -328,7 +321,7 @@ do
           return values[tonumber(m)]
         end)
       elseif num_values > 0 then
-        error(tostring(num_values) .. " values but missing query placeholder(s)")
+        error(tostring(num_values) .. " values but missing associated query placeholder(s)")
       end
       self:post(q)
       local row_desc, data_rows, command_complete, err_msg
@@ -707,6 +700,13 @@ do
     as_ident = function(self, ident)
       return function()
         return self:escape_identifier(ident)
+      end
+    end,
+    as_array = function(self, tbl)
+      return function(escape_literal)
+        local encode_array
+        encode_array = require("pgmoon.arrays").encode_array
+        return encode_array(tbl, escape_literal)
       end
     end,
     as_hstore = function(self, tbl)
