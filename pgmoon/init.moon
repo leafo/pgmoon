@@ -203,10 +203,10 @@ class Postgres
     @sock\close!
 
   keepalive: (...) =>
-    if @sock_type == "nginx"
-      @sock\setkeepalive ...
+    if @sock.setkeepalive
+      return @sock\setkeepalive ...
     else
-      @disconnect!
+      error "socket implementation #{@sock_type} does not support keepalive"
 
   auth: =>
     t, msg = @receive_message!

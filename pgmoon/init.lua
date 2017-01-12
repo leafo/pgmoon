@@ -223,13 +223,14 @@ do
       return self.sock:settimeout(...)
     end,
     disconnect = function(self)
-      local sock = self.sock
-      self.sock = nil
-      return sock:close()
+      return self.sock:close()
     end,
     keepalive = function(self, ...)
-      local sock = self.sock
-      return sock:setkeepalive(...)
+      if self.sock.setkeepalive then
+        return self.sock:setkeepalive(...)
+      else
+        return error("socket implementation " .. tostring(self.sock_type) .. " does not support keepalive")
+      end
     end,
     auth = function(self)
       local t, msg = self:receive_message()
