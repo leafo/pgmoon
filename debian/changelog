@@ -1,0 +1,6 @@
+lua-pgmoon (1.8.0-1) unstable; urgency=low
+
+  * Add cqueues support
+  * SSL calling fix for Nginx cosocket (@thibaultCha)
+
+ -- Leaf Corcoran <leafot@gmail.com> Mon, 07 Nov 2016 12:00:00 -0000

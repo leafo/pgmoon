@@ -1,5 +1,7 @@
 .PHONY: build test local show_types lint
 
+deb_revision = 1
+
 build:
 	moonc pgmoon
 
@@ -14,3 +16,8 @@ show_types:
 
 lint:
 	moonc -l pgmoon
+
+deb: build
+	$(eval version := $(shell sed -ne "s/^VERSION *= *['\"]\([^'\"]*\)['\"] *.*/\1/p" pgmoon/init.moon))
+	sed s"/^Version:.*/Version: $(version)-$(deb_revision)/" -i "debian/DEBIAN/control"
+	debuild -i -us -uc -b --no-tgz-check
