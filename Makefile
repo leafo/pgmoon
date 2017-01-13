@@ -19,5 +19,5 @@ lint:
 
 deb: build
 	$(eval version := $(shell sed -ne "s/^VERSION *= *['\"]\([^'\"]*\)['\"] *.*/\1/p" pgmoon/init.moon))
-	sed s"/^Version:.*/Version: $(version)-$(deb_revision)/" -i "debian/DEBIAN/control"
+	sed s"/^Version:.*/Version: $(version)-$(deb_revision)/" -i "debian/control"
 	debuild -i -us -uc -b --no-tgz-check
