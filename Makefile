@@ -18,4 +18,4 @@ lint:
 	moonc -l pgmoon
 
 deb: build
-	DEB_BUILD_OPTIONS=nocheck debuild -i -us -uc -b --no-tgz-check
+	DEB_BUILD_OPTIONS=nocheck debuild --no-tgz-check -i -us -uc -b
