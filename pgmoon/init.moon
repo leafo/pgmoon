@@ -5,7 +5,7 @@ unpack = table.unpack or unpack
 
 VERSION = "1.8.0"
 
-export bit32
+export bit32  -- Use Lua 5.2 bit32 if available. Polyfill otherwise.
 if bit32 == nil
   bit32 = require "bit32"
 lshift, rshift, band = bit32.lshift, bit32.rshift, bit32.band
