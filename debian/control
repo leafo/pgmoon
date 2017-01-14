@@ -9,7 +9,6 @@ Vcs-Browser: https://github.com/leafo/pgmoon
 Vcs-Git: https://github.com/leafo/pgmoon
 
 Package: lua-pgmoon
-Version: 1.8.0-1
 Architecture: all
 Pre-Depends: debconf
 Depends: lua | libluajit-5.1-2, nginx-extras | lua-socket, lua-cjson,
