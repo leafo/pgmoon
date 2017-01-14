@@ -32,6 +32,9 @@ flipped = (t) ->
     t[t[key]] = key
   t
 
+gen_escape = (ref) ->
+  return (val) -> ref\escape_literal(val)
+
 MSG_TYPE = flipped {
   status: "S"
   auth: "R"
@@ -266,7 +269,26 @@ class Postgres
       else
         error "unknown response from auth"
 
-  query: (q) =>
+  query: (q, ...) =>
+    num_values = #{...}
+    -- Only process placeholders if there are values to fill them
+    -- Prepared statements can have placeholders if there are no values
+    if q\find "$#{tostring(num_values)}"
+      values = {}
+      default_escape = gen_escape(self)
+      for v in *{...}
+        type_v = type(v)
+        if v == nil or v == @NULL
+          insert values, "NULL"  -- skip the extra function call
+        elseif type_v == "function"
+          insert values, v default_escape
+        else
+          insert values, @escape_literal v
+      q = q\gsub '$(%d+)', (m) ->
+        values[tonumber m]
+    elseif num_values > 0
+      error "#{num_values} values but missing associated query placeholder(s)"
+
     @post q
     local row_desc, data_rows, command_complete, err_msg
 
@@ -579,6 +601,11 @@ class Postgres
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
 
   escape_literal: (val) =>
+    -- When this is called by encode_hstore, encode_json, etc., the default
+    -- escape function is often used, making the self reference unavailable
+    if val == nil or (self != nil and val == @NULL)
+      return "NULL"
+
     switch type val
       when "number"
         return tostring val
@@ -588,6 +615,25 @@ class Postgres
         return val and "TRUE" or "FALSE"
 
     error "don't know how to escape value: #{val}"
+
+  as_ident: (ident) =>
+    return -> @escape_identifier ident
+
+  as_array: (tbl) =>
+    return (escape_literal) ->
+      import encode_array from require "pgmoon.arrays"
+      return encode_array tbl, escape_literal
+
+  as_hstore: (tbl) =>
+    return (escape_literal) ->
+      import encode_hstore from require "pgmoon.hstore"
+      return encode_hstore tbl, escape_literal
+
+  as_json: (tbl) =>
+    return (escape_literal) ->
+      json = require "cjson"
+      enc = json.encode tbl
+      escape_literal enc
 
   __tostring: =>
     "<Postgres socket: #{@sock}>"

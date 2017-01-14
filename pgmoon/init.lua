@@ -62,6 +62,12 @@ flipped = function(t)
   end
   return t
 end
+local gen_escape
+gen_escape = function(ref)
+  return function(val)
+    return ref:escape_literal(val)
+  end
+end
 local MSG_TYPE = flipped({
   status = "S",
   auth = "R",
@@ -290,7 +296,33 @@ do
         return error("unknown response from auth")
       end
     end,
-    query = function(self, q)
+    query = function(self, q, ...)
+      local num_values = #{
+        ...
+      }
+      if q:find("$" .. tostring(tostring(num_values))) then
+        local values = { }
+        local default_escape = gen_escape(self)
+        local _list_0 = {
+          ...
+        }
+        for _index_0 = 1, #_list_0 do
+          local v = _list_0[_index_0]
+          local type_v = type(v)
+          if v == nil or v == self.NULL then
+            insert(values, "NULL")
+          elseif type_v == "function" then
+            insert(values, v(default_escape))
+          else
+            insert(values, self:escape_literal(v))
+          end
+        end
+        q = q:gsub('$(%d+)', function(m)
+          return values[tonumber(m)]
+        end)
+      elseif num_values > 0 then
+        error(tostring(num_values) .. " values but missing associated query placeholder(s)")
+      end
       self:post(q)
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications
@@ -652,6 +684,9 @@ do
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'
     end,
     escape_literal = function(self, val)
+      if val == nil or (self ~= nil and val == self.NULL) then
+        return "NULL"
+      end
       local _exp_0 = type(val)
       if "number" == _exp_0 then
         return tostring(val)
@@ -661,6 +696,32 @@ do
         return val and "TRUE" or "FALSE"
       end
       return error("don't know how to escape value: " .. tostring(val))
+    end,
+    as_ident = function(self, ident)
+      return function()
+        return self:escape_identifier(ident)
+      end
+    end,
+    as_array = function(self, tbl)
+      return function(escape_literal)
+        local encode_array
+        encode_array = require("pgmoon.arrays").encode_array
+        return encode_array(tbl, escape_literal)
+      end
+    end,
+    as_hstore = function(self, tbl)
+      return function(escape_literal)
+        local encode_hstore
+        encode_hstore = require("pgmoon.hstore").encode_hstore
+        return encode_hstore(tbl, escape_literal)
+      end
+    end,
+    as_json = function(self, tbl)
+      return function(escape_literal)
+        local json = require("cjson")
+        local enc = json.encode(tbl)
+        return escape_literal(enc)
+      end
     end,
     __tostring = function(self)
       return "<Postgres socket: " .. tostring(self.sock) .. ">"

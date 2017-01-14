@@ -33,16 +33,18 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 
-local res = assert(pg:query("select * from users where username = " ..
-  pg:escape_literal("leafo")))
+local res = assert(pg:query("select * from users where username = $1", "leafo"))
 ```
 
-If you are using OpenResty you should relinquish the socket after you are done
-with it so it can be reused in future requests:
+If you are using OpenResty you can relinquish the socket after you
+are done with it so it can be reused in future requests with built-in connection pooling:
 
 ```lua
 pg:keepalive()
 ```
+
+Alternatively whether using OpenResty or not, you can use 3rd party connection pooling with
+[PgBouncer](https://pgbouncer.github.io/) or — for more complex installations — [Pgpool](http://www.pgpool.net/mediawiki/index.php/Main_Page).
 
 ## Reference
 
@@ -84,8 +86,8 @@ called on the object after this other than another call to connect.
 Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
 arguments passed here are also passed to `setkeepalive`.
 
-### result, num_queries = postgres:query(query_string)
-### result, err, partial, num_queries = postgres:query(query_string)
+### result, num_queries = postgres:query(query_string, params...)
+### result, err, partial, num_queries = postgres:query(query_string, params...)
 
 Sends a query to the server. On failure returns `nil` and the error message.
 
@@ -186,14 +188,16 @@ error message.
 
 Escapes a Lua value for use as a Postgres value interpolated into a query
 string. When sending user provided data into a query you should use this method
-to prevent SQL injection attacks.
+to prevent SQL injection attacks. Note: you do not need this method when using
+parameterized queries.
 
 ### escaped = postgres:escape_identifier(val)
 
 Escapes a Lua value for use as a Postgres identifier. This includes things like
 table or column names. This does not include regular values, you should use
 `escape_literal` for that. Identifier escaping is required when names collide
-with built in language keywords.
+with built in language keywords. Note: you do not need this method when using
+parameterized queries.
 
 ### str = tostring(postgres)
 
@@ -252,16 +256,13 @@ Arrays are automatically decoded when they are returned from a query. Numeric,
 string, and boolean types are automatically loaded accordingly. Nested arrays
 are also supported.
 
-Use `encode_array` to encode a Lua table to array syntax for a query:
-
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
 
-local encode_array = require("pgmoon.arrays").encode_array
 local my_array = {1,2,3,4,5}
-pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
+local res = pg:query("insert into some_table (some_arr_col) values($1)", pg:as_array(my_array))
 ```
 
 ## Handling JSON
@@ -269,16 +270,15 @@ pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_arra
 `json` and `jsonb` types are automatically decoded when they are returned from
 a query.
 
-Use `encode_json` to encode a Lua table to the JSON syntax for a query:
+Use `pg:as_json` to encode a Lua table to the JSON syntax for a query:
 
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
 pg:connect()
 
-local encode_json = require("pgmoon.json").encode_json
 local my_tbl = {hello = "world"}
-pg:query("insert into some_table (some_json_col) values(" .. encode_json(my_tbl) .. ")")
+local res = pg:query("insert into some_table (some_json_col) values($1)", pg:as_json(my_tbl))
 ```
 
 ## Handling hstore
@@ -294,13 +294,12 @@ pg:connect()
 pg:setup_hstore()
 ```
 
-Use `encode_hstore` to encode a Lua table into hstore syntax when updating and
+Use `pg:as_hstore` to encode a Lua table into hstore syntax when updating and
 inserting:
 
 ```lua
-local encode_hstore = require("pgmoon.hstore").encode_hstore
 local tbl = {foo = "bar"}
-pg:query("insert into some_table (hstore_col) values(" .. encode_hstore(tbl) .. ")")
+local res = pg:query("insert into some_table (hstore_col) values($1)", pg:as_hstore(tbl))
 ```
 
 You can manually decode a hstore value from string using the `decode_hstore`
@@ -332,6 +331,34 @@ assert(pg.NULL == res[1].the_null)
 As shown above, the `NULL` value is set to `pg.NULL`. You can change this value
 to make pgmoon use something else as `NULL`. For example if you're using
 OpenResty you might want to reuse `ngx.null`.
+
+If the `NULL` value is required in a query parameter, you can pass the `Postgres` object's `NULL`
+property:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+
+local res = pg:query("select coalesce($1, 'example') AS val", pg.NULL)
+
+assert("example" == res[1].val)
+```
+
+Passing `nil` is error prone due to the way Lua handles array values; trailing `nil`s are always
+omitted. By passing `pg:NULL` your `NULL` value will always be processed by pgmoon as intended. So
+for values that may be `NULL`:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(auth)
+pg:connect()
+
+local res = pg:query("insert into log_table (ip, url, referrer) VALUES($1, $2, $3)",
+                     ngx.var.remote_addr,
+                     ngx.var.uri,
+                     ngx.req.get_headers()["Referer"] or pg:NULL)
+```
 
 # Contact
 
@@ -379,8 +406,8 @@ THE SOFTWARE.
   [1]: http://w3.impa.br/~diego/software/luasocket/
   [2]: http://mkottman.github.io/luacrypto/
   [3]: http://leafo.net/lapis
-  [4]: http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp
-  [5]: http://openresty.org/
+  [4]: https://github.com/openresty/lua-nginx-module#ngxsockettcp
+  [5]: https://openresty.org/
   [6]: https://github.com/brunoos/luasec
   [7]: https://github.com/openresty/lua-nginx-module#lua_ssl_trusted_certificate
   [cqueues]: http://25thandclement.com/~william/projects/cqueues.html
