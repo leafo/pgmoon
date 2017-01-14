@@ -5,6 +5,7 @@ unpack = table.unpack or unpack
 
 VERSION = "1.8.0"
 
+export bit32
 if bit32 == nil
   bit32 = require "bit"
 
