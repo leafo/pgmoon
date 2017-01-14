@@ -4,7 +4,7 @@ insert = table.insert
 local unpack = table.unpack or unpack
 local VERSION = "1.8.0"
 if bit32 == nil then
-  bit32 = require("bit32")
+  bit32 = require("bit")
 end
 local lshift, rshift, band = bit32.lshift, bit32.rshift, bit32.band
 local _len
