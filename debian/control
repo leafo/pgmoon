@@ -17,7 +17,7 @@ Recommends: lua-sec
 Suggests: luarocks
 Provides: lua5.1-pgmoon, lua5.2-pgmoon
 Description: Pure Lua Postgres driver for use in OpenResty & more
- pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
+ pgostgreSQL client library written in pure Lua (MoonScript).
  .
  pgmoon was originally designed for use in OpenResty to take advantage of
  the cosocket api to provide asynchronous queries but the necessary
