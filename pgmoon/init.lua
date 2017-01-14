@@ -6,9 +6,7 @@ local VERSION = "1.8.0"
 if bit32 == nil then
   bit32 = require("bit32")
 end
-local lshift = bit32.lshift
-local rshift = bit32.rshift
-local band = bit32.band
+local lshift, rshift, band = bit32.lshift, bit32.rshift, bit32.band
 local _len
 _len = function(thing, t)
   if t == nil then

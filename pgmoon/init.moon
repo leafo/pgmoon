@@ -8,10 +8,7 @@ VERSION = "1.8.0"
 export bit32
 if bit32 == nil
   bit32 = require "bit32"
-
-lshift = bit32.lshift
-rshift = bit32.rshift
-band = bit32.band
+lshift, rshift, band = bit32.lshift, bit32.rshift, bit32.band
 
 _len = (thing, t=type(thing)) ->
   switch t
