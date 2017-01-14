@@ -18,4 +18,4 @@ lint:
 all: lint build test local show_types
 
 deb: build
-	debuild --no-tgz-check -i -us -uc -b
+	DEB_BUILD_OPTIONS=nocheck debuild --no-tgz-check -i -us -uc -b
