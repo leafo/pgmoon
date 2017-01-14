@@ -7,7 +7,7 @@ VERSION = "1.8.0"
 
 export bit32
 if bit32 == nil
-  bit32 = require "bit"
+  bit32 = require "bit32"
 
 lshift = bit32.lshift
 rshift = bit32.rshift
