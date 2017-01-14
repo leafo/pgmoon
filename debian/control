@@ -16,7 +16,7 @@ Depends: lua | libluajit-5.1-2, nginx-extras | lua-socket, lua-cjson,
 Recommends: lua-sec
 Suggests: luarocks
 Provides: lua5.1-pgmoon, lua5.2-pgmoon
-Description: A pure Lua Postgres driver for use in OpenResty & more
+Description: Pure Lua Postgres driver for use in OpenResty & more
  pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
  .
  pgmoon was originally designed for use in OpenResty to take advantage of
