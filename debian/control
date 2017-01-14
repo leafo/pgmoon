@@ -11,13 +11,13 @@ Vcs-Git: https://github.com/leafo/pgmoon
 Package: lua-pgmoon
 Architecture: all
 Pre-Depends: debconf
-Depends: lua | libluajit-5.1-2, nginx-extras | lua-socket, lua-cjson,
+Depends: lua5.1 | lua5.2 | libluajit-5.1-2, nginx-extras | lua-socket, lua-cjson,
  lua-bitop, lua-lpeg
 Recommends: lua-sec
-Suggests: luarocks
+Suggests: luarocks, pgbouncer, pgpool2
 Provides: lua5.1-pgmoon, lua5.2-pgmoon
 Description: Pure Lua Postgres driver for use in OpenResty & more
- pgostgreSQL client library written in pure Lua (MoonScript).
+ PostgreSQL client library written in pure Lua (MoonScript).
  .
  pgmoon was originally designed for use in OpenResty to take advantage of
  the cosocket api to provide asynchronous queries but the necessary
