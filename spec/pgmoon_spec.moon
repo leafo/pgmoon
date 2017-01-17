@@ -296,7 +296,7 @@ describe "pgmoon with server", ->
         ]]
 
         largenum = "9223372036854775807"
-        if 9223372036854775807 - 1 == 9223372036854775807  -- No 64-bit int support in Lua
+        if 9223372036854775807 - 1 ~= 9223372036854775807  -- 64-bit int support in Lua
           largenum = tonumber(largenum)
 
         assert.same {
