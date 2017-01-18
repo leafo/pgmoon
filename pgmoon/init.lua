@@ -66,6 +66,12 @@ local gen_escape
 gen_escape = function(ref)
   return function(val)
     return ref:escape_literal(val)
+local int8_serialization
+int8_serialization = function()
+  if 9223372036854775807 - 1 == 9223372036854775807 then
+    return "string"
+  else
+    return "number"
   end
 end
 local MSG_TYPE = flipped({
@@ -95,7 +101,7 @@ local ERROR_TYPES = flipped({
 local PG_TYPES = {
   [16] = "boolean",
   [17] = "bytea",
-  [20] = "number",
+  [20] = int8_serialization(),
   [21] = "number",
   [23] = "number",
   [700] = "number",
