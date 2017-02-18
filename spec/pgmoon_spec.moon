@@ -277,7 +277,6 @@ describe "pgmoon with server", ->
         assert pg\query [[
           create table types_test (
             id serial not null,
-            largenum bigint default 9223372036854775807,
             name text default 'hello',
             subname varchar default 'world',
             count integer default 100,
@@ -301,14 +300,9 @@ describe "pgmoon with server", ->
           select * from types_test order by id asc limit 1
         ]]
 
-        largenum = "9223372036854775807"
-        if 9223372036854775807 - 1 ~= 9223372036854775807  -- 64-bit int support in Lua
-          largenum = tonumber(largenum)
-
         assert.same {
           {
             id: 1
-            largenum: largenum  -- int8 result depends on 64-bit support in Lua
             name: "hello"
             subname: "world"
             count: 100
