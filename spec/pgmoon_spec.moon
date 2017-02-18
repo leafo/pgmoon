@@ -130,7 +130,7 @@ describe "pgmoon with server", ->
         it "selects count as a number", ->
           res = assert pg\query [[select count(*) from hello_world]]
           assert.same {
-            count: 0
+            { count: 0 }
           }, res
 
         it "deletes nothing", ->
