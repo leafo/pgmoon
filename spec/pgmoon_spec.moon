@@ -127,6 +127,12 @@ describe "pgmoon with server", ->
           res = assert pg\query [[select * from hello_world limit 2]]
           assert.same {}, res
 
+        it "selects count as a number", ->
+          res = assert pg\query [[select count(*) from hello_world]]
+          assert.same {
+            count: 0
+          }, res
+
         it "deletes nothing", ->
           res = assert pg\query [[delete from hello_world]]
           assert.same { affected_rows: 0 }, res
