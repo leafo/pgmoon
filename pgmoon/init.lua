@@ -563,6 +563,10 @@ do
         NULL,
         self.database,
         NULL,
+        "application_name",
+        NULL,
+        "pgmoon",
+        NULL,
         NULL
       }
       return self.sock:send({

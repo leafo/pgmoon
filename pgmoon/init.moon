@@ -509,6 +509,8 @@ class Postgres
       @user, NULL
       "database", NULL
       @database, NULL
+      "application_name", NULL
+      "pgmoon", NULL
       NULL
     }
 
