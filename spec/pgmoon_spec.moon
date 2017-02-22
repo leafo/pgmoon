@@ -168,9 +168,9 @@ describe "pgmoon with server", ->
           res = assert pg\query [[delete from hello_world]]
           assert.same { affected_rows: 0 }, res
 
-          it "select with null", ->
-            res = assert pg\query [[select $1 AS val]], pg.NULL
-            assert.same 1, #res
+        it "select with null", ->
+          res = assert pg\query [[select $1 AS val]], pg.NULL
+          assert.same 1, #res
 
         describe "with rows", ->
           before_each ->
