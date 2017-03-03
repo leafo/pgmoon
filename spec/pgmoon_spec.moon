@@ -127,6 +127,12 @@ describe "pgmoon with server", ->
           res = assert pg\query [[select * from hello_world limit 2]]
           assert.same {}, res
 
+        it "selects count as a number", ->
+          res = assert pg\query [[select count(*) from hello_world]]
+          assert.same {
+            { count: 0 }
+          }, res
+
         it "deletes nothing", ->
           res = assert pg\query [[delete from hello_world]]
           assert.same { affected_rows: 0 }, res
@@ -271,7 +277,6 @@ describe "pgmoon with server", ->
         assert pg\query [[
           create table types_test (
             id serial not null,
-            largenum bigint default 9223372036854775807,
             name text default 'hello',
             subname varchar default 'world',
             count integer default 100,
@@ -295,14 +300,9 @@ describe "pgmoon with server", ->
           select * from types_test order by id asc limit 1
         ]]
 
-        largenum = "9223372036854775807"
-        if 9223372036854775807 - 1 ~= 9223372036854775807  -- 64-bit int support in Lua
-          largenum = tonumber(largenum)
-
         assert.same {
           {
             id: 1
-            largenum: largenum  -- int8 result depends on 64-bit support in Lua
             name: "hello"
             subname: "world"
             count: 100
@@ -318,6 +318,29 @@ describe "pgmoon with server", ->
         assert pg\query [[
           drop table types_test
         ]]
+
+      describe "custom deserializer", ->
+        it "deserializes big integer to string", ->
+          assert pg\query [[
+             create table bigint_test (
+               id serial not null,
+               largenum bigint default 9223372036854775807,
+               primary key (id)
+            )
+          ]]
+
+          assert pg\query [[
+            insert into bigint_test (largenum) values (default)
+          ]]
+
+          pg\set_type_oid 20, "bignumber"
+          pg.type_deserializers.bignumber = (val) => val
+          row = unpack pg\query "select * from bigint_test"
+
+          assert.same {
+            id: 1
+            largenum: "9223372036854775807"
+          }, row
 
       describe "hstore", ->
         import encode_hstore, decode_hstore from require "pgmoon.hstore"

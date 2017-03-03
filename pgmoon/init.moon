@@ -32,13 +32,6 @@ flipped = (t) ->
     t[t[key]] = key
   t
 
-int8_serialization = ->
-  -- Lua prior to v5.3 does not support 64-bit integers
-  if 9223372036854775807 - 1 == 9223372036854775807  -- Lua <= 5.2
-    return "string"
-  else  -- Lua >= 5.3
-    return "number"
-
 MSG_TYPE = flipped {
   status: "S"
   auth: "R"
@@ -72,7 +65,7 @@ PG_TYPES = {
   [16]: "boolean"
   [17]: "bytea"
 
-  [20]: int8_serialization! -- int8
+  [20]: "number" -- int8
   [21]: "number" -- int2
   [23]: "number" -- int4
   [700]: "number" -- float4
@@ -509,6 +502,8 @@ class Postgres
       @user, NULL
       "database", NULL
       @database, NULL
+      "application_name", NULL
+      "pgmoon", NULL
       NULL
     }
 
