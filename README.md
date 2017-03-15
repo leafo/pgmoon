@@ -213,6 +213,7 @@ local pg = pgmoon.new({
   ssl = true, -- enable SSL
   ssl_verify = true, -- verify server certificate
   ssl_required = true, -- abort if the server does not support SSL connections
+  ssl_version = "tlsv1", -- e.g., "tlsv1_2"; defaults to TLS v1.0 (LuaSec only)
   cafile = "...", -- certificate authority (LuaSec only)
   cert = "...", -- client certificate (LuaSec only)
   key = "...", -- client key (LuaSec only)
