@@ -49,7 +49,7 @@ do
           local ssl = require("ssl")
           local params = {
             mode = "client",
-            protocol = "tlsv1",
+            protocol = opts.ssl_version or "tlsv1",
             key = opts.key,
             certificate = opts.cert,
             cafile = opts.cafile,
