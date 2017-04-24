@@ -59,6 +59,18 @@ describe "pgmoon with server", ->
 
         assert.true errors[err]
 
+      it "keepalive(...)", ->
+        keepalive_pg = Postgres {
+          database: DB
+          user: USER
+          host: HOST
+          :socket_type
+        }
+
+        assert keepalive_pg\connect!
+        assert.has_error ->
+          keepalive_pg\keepalive!
+
       it "tries to connect with SSL", ->
         -- we expect a server with ssl = off
         ssl_pg = Postgres {
@@ -106,40 +118,67 @@ describe "pgmoon with server", ->
             drop table hello_world
           ]]
 
-        it "inserts a row", ->
-          res = assert pg\query [[
-            insert into "hello_world" ("name", "count") values ('hi', 100)
-          ]]
+        describe "with static queries", ->
+          it "inserts a row", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ('hi', 100)
+            ]]
 
-          assert.same { affected_rows: 1 }, res
+            assert.same { affected_rows: 1 }, res
 
-        it "inserts a row with return value", ->
-          res = assert pg\query [[
-            insert into "hello_world" ("name", "count") values ('hi', 100) returning "id"
-          ]]
+          it "inserts a row with return value", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ('hi', 100) returning "id"
+            ]]
 
-          assert.same {
-            affected_rows: 1
-            { id: 1 }
-          }, res
+            assert.same {
+              affected_rows: 1
+              { id: 1 }
+            }, res
 
-        it "selects from empty table", ->
-          res = assert pg\query [[select * from hello_world limit 2]]
-          assert.same {}, res
+          it "selects from empty table", ->
+            res = assert pg\query [[select * from hello_world limit 2]]
+            assert.same {}, res
 
-        it "selects count as a number", ->
-          res = assert pg\query [[select count(*) from hello_world]]
-          assert.same {
-            { count: 0 }
-          }, res
+          it "selects count as a number", ->
+            res = assert pg\query [[select count(*) from hello_world]]
+            assert.same {
+              { count: 0 }
+            }, res
 
-        it "deletes nothing", ->
-          res = assert pg\query [[delete from hello_world]]
-          assert.same { affected_rows: 0 }, res
+          it "deletes nothing", ->
+            res = assert pg\query [[delete from hello_world]]
+            assert.same { affected_rows: 0 }, res
 
-        it "update no rows", ->
-          res = assert pg\query [[update "hello_world" SET "name" = 'blahblah']]
-          assert.same { affected_rows: 0 }, res
+          it "update no rows", ->
+            res = assert pg\query [[update "hello_world" SET "name" = 'blahblah']]
+            assert.same { affected_rows: 0 }, res
+
+        describe "with parameterized queries", ->
+          it "inserts a row with parameterized values", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ($1, $2)
+            ]], "hi", 100
+
+            assert.same { affected_rows: 1 }, res
+
+          it "inserts a row with parameterized values and return value", ->
+            res = assert pg\query [[
+              insert into "hello_world" ("name", "count") values ($1, $2) returning "id"
+            ]], "hi", 100
+
+            assert.same {
+              affected_rows: 1
+              { id: 1 }
+            }, res
+
+          it "update no rows with parameterized value", ->
+            res = assert pg\query [[update "hello_world" SET "name" = $1]], "blahblah"
+            assert.same { affected_rows: 0 }, res
+
+          it "select with null", ->
+            res = assert pg\query [[select $1 AS val]], pg.NULL
+            assert.same 1, #res
 
         describe "with rows", ->
           before_each ->
@@ -181,6 +220,50 @@ describe "pgmoon with server", ->
             for i=1,20
               assert pg\query [[update "hello_world" SET "name" = 'blahblah' where id = ]] .. i
               assert pg\query [[ select * from hello_world ]]
+
+        describe "parameterized with rows", ->
+          before_each ->
+            for i=1,10
+              assert pg\query [[
+                insert into "hello_world" ("name", "count")
+                  values ($1, $2)
+                ]], "thing_#{i}", i
+
+          it "select some rows", ->
+            res = assert pg\query [[
+              select * from $1
+            ]], pg\as_ident "hello_world"
+            assert.same "table", type(res)
+            assert.same 10, #res
+
+          it "update rows", ->
+            res = assert pg\query [[
+              update "hello_world" SET "name" = $1
+            ]], "blahblah"
+
+            assert.same { affected_rows: 10 }, res
+            assert.same "blahblah",
+              unpack((pg\query "select name from hello_world limit 1")).name
+
+          it "delete a row", ->
+            res = assert pg\query [[
+              delete from "hello_world" where id = $1
+            ]], 1
+
+            assert.same { affected_rows: 1 }, res
+            assert.same nil,
+              unpack((pg\query "select * from hello_world where id = $1", 1)) or nil
+
+          it "truncate table", ->
+            res = assert pg\query "truncate hello_world"
+            assert.same true, res
+
+          it "make many select queries", ->
+            for i=1,20
+              assert pg\query [[
+                update "hello_world" SET "name" = 'blahblah' where id = $1
+              ]], i
+              assert pg\query [[ select * from $1 ]], pg\as_ident "hello_world"
 
 
           -- single call, multiple queries
@@ -266,6 +349,51 @@ describe "pgmoon with server", ->
 
               assert.same {
                 err: [[ERROR: relation "jello_world" does not exist (112)]]
+                num_queries: 1
+                partial: {
+                  { id: 1, flag: true }
+                }
+              }, { :res, :err, :partial, :num_queries }
+
+
+          -- single call, multiple queries
+          describe "parameterized multi-queries #multi", ->
+            it "does multiple updates", ->
+              res, num_queries = assert pg\query [[
+                update hello_world set flag = $1 where id = $2;
+                update hello_world set flag = $3;
+              ]], false, 3, true
+
+              assert.same 2, num_queries
+              assert.same {
+                { affected_rows: 1 }
+                { affected_rows: 10 }
+              }, res
+
+
+            it "does mix update and select", ->
+              res, num_queries = assert pg\query [[
+                update hello_world set flag = false where id = $1;
+                select id, flag from hello_world where id = $1
+              ]], 3
+
+              assert.same 2, num_queries
+              assert.same {
+                { affected_rows: 1 }
+                {
+                  { id: 3, flag: false }
+                }
+              }, res
+
+
+            it "returns partial result on error", ->
+              res, err, partial, num_queries = pg\query [[
+                select id, flag from $1 order by id asc limit 1;
+                select id, flag from $2 limit 1;
+              ]], pg\as_ident("hello_world"), pg\as_ident("jello_world")
+
+              assert.same {
+                err: [[ERROR: relation "jello_world" does not exist (114)]]
                 num_queries: 1
                 partial: {
                   { id: 1, flag: true }
@@ -415,6 +543,42 @@ describe "pgmoon with server", ->
 
             assert.same {abc: '123', foo: 'bar'}, res[1].h
 
+        describe "parameterized serializing", ->
+          before_each ->
+            assert pg\query [[
+              CREATE EXTENSION hstore;
+              create table hstore_test (
+                id serial primary key,
+                h hstore
+              )
+            ]]
+            pg\setup_hstore!
+
+          after_each ->
+            assert pg\query [[
+              DROP TABLE hstore_test;
+              DROP EXTENSION hstore;
+            ]]
+
+          it "serializes correctly", ->
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", pg\as_hstore {foo:'bar'}
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same {foo:'bar'}, res[1].h
+
+          it "serializes NULL as string", ->
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);", pg\as_hstore {foo:'NULL'}
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same 'NULL', res[1].h.foo
+
+          it "serializes multiple pairs", ->
+            assert pg\query "INSERT INTO hstore_test (h) VALUES ($1);",
+                            pg\as_hstore {abc:'123', foo:'bar'}
+            res = assert pg\query "SELECT * FROM hstore_test;"
+
+            assert.same {abc:'123', foo:'bar'}, res[1].h
+
       describe "json", ->
         import encode_json, decode_json from require "pgmoon.json"
 
@@ -454,6 +618,29 @@ describe "pgmoon with server", ->
 
           assert pg\query [[
             drop table json_test
+          ]]
+
+        it "parameterized serialize correctly", ->
+          assert pg\query [[
+            create table param_json_test (
+              id serial not null,
+              config json,
+              primary key (id)
+            )
+          ]]
+
+          assert pg\query "insert into param_json_test (config) values ($1)",
+                          pg\as_json {foo:"some 'string'"}
+          res = assert pg\query [[select * from param_json_test where id = 1]]
+          assert.same {foo:"some 'string'"}, res[1].config
+
+          assert pg\query "insert into param_json_test (config) values ($1)",
+                          pg\as_json {foo:"some \"string\""}
+          res = assert pg\query [[select * from param_json_test where id = 2]]
+          assert.same {foo:"some \"string\""}, res[1].config
+
+          assert pg\query [[
+            drop table param_json_test
           ]]
 
       describe "arrays", ->
@@ -534,6 +721,10 @@ describe "pgmoon with server", ->
               }
             }
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
+
+        it "parameterized serialized array", ->
+          res = pg\query "select $1::int[] AS arr", pg\as_array { 2, 4, 6, 8, 10 }
+          assert.same { 2, 4, 6, 8, 10 }, res[1].arr
 
         describe "with table", ->
           before_each ->
