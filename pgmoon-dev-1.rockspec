@@ -15,7 +15,6 @@ description = {
 
 dependencies = {
   "lua >= 5.1",
-  "luabitop",
   "lpeg",
 }
 

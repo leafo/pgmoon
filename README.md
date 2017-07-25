@@ -20,6 +20,13 @@ environment and on the command line (eg. tests) in web frameworks like [Lapis][3
 $ luarocks install pgmoon
 ```
 
+If you are on Lua version 5.1, or Lua 5.2 without the `bit32` library, you will
+need to install `luabitop`. Lua 5.3 and above have builtin bit operators.
+
+```bash
+$ luarocks install luabitop
+```
+
 ## Example
 
 ```lua
