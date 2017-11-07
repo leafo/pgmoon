@@ -594,9 +594,6 @@ do
     end,
     send_message = function(self, t, data, len)
       if len == nil then
-        len = nil
-      end
-      if len == nil then
         len = _len(data)
       end
       len = len + 4
