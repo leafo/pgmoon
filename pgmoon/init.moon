@@ -558,7 +558,7 @@ class Postgres
     else
       true -- no SSL support, but not required by client
 
-  send_message: (t, data, len=nil) =>
+  send_message: (t, data, len) =>
     len = _len data if len == nil
     len += 4 -- includes the length of the length integer
 
