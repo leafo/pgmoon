@@ -1,10 +1,14 @@
 socket = require "pgmoon.socket"
 import insert from table
-import rshift, lshift, band from require "bit"
 
 unpack = table.unpack or unpack
 
 VERSION = "1.8.0"
+
+export bit32  -- Use Lua 5.2 bit32 if available. Polyfill otherwise.
+if bit32 == nil
+  bit32 = require "bit"
+lshift, rshift, band = bit32.lshift, bit32.rshift, bit32.band
 
 _len = (thing, t=type(thing)) ->
   switch t
@@ -203,14 +207,13 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
-    sock = @sock
-    @sock = nil
-    sock\close!
+    @sock\close!
 
   keepalive: (...) =>
-    sock = @sock
-    @sock = nil
-    sock\setkeepalive ...
+    if @sock.setkeepalive
+      return @sock\setkeepalive ...
+    else
+      error "socket implementation #{@sock_type} does not support keepalive"
 
   auth: =>
     t, msg = @receive_message!
@@ -555,7 +558,7 @@ class Postgres
     else
       true -- no SSL support, but not required by client
 
-  send_message: (t, data, len=nil) =>
+  send_message: (t, data, len) =>
     len = _len data if len == nil
     len += 4 -- includes the length of the length integer
 

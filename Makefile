@@ -1,6 +1,6 @@
-.PHONY: build test local show_types lint
+.PHONY: build
 
-build:
+build: lint
 	moonc pgmoon
 
 test: build
@@ -14,3 +14,8 @@ show_types:
 
 lint:
 	moonc -l pgmoon
+
+all: lint build test local show_types
+
+deb: build
+	DEB_BUILD_OPTIONS=nocheck debuild --no-tgz-check -i -us -uc -b
