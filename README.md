@@ -342,6 +342,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.9.0 — 2018-04-02 - nginx pool name includes user, connection reports name as `pgmoon`
 * 1.8.0 — 2016-11-07 — Add cqueues support, SSL calling fix for Nginx cosocket (@thibaultCha)
 * 1.7.0 — 2016-09-21 — Add to opm, add support for openresty pool, better default pool, support for hstore (@edan)
 * 1.6.0 — 2016-07-21 — Add support for json and jsonb array decoding
