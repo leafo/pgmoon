@@ -188,7 +188,7 @@ do
       local opts
       if self.sock_type == "nginx" then
         opts = {
-          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database)
+          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
         }
       end
       local ok, err = self.sock:connect(self.host, self.port, opts)
