@@ -222,6 +222,9 @@ do
     settimeout = function(self, ...)
       return self.sock:settimeout(...)
     end,
+    isconnected = function(self)
+      return self.sock ~= nil
+    end,
     disconnect = function(self)
       local sock = self.sock
       self.sock = nil

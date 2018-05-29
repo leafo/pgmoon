@@ -78,6 +78,9 @@ message.
 Closes the socket to the server if one is open. No other methods should be
 called on the object after this other than another call to connect.
 
+### connected = postgres:isconnected()
+
+Returns true if the socket to the server is connected. Returns false if not.
 
 ### success, err = postgres:keepalive(...)
 
