@@ -656,7 +656,8 @@ describe "pgmoon with server", ->
         assert.same [[FATAL: database "doesnotexist" does not exist]], err
 
       teardown ->
-        pg\disconnect!
+        if pg\isconnected
+          pg\disconnect!
         os.execute "dropdb -U postgres '#{DB}'"
 
 describe "pgmoon without server", ->

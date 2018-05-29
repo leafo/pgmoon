@@ -199,6 +199,9 @@ class Postgres
   settimeout: (...) =>
     @sock\settimeout ...
 
+  isconnected: =>
+    @sock != nil
+
   disconnect: =>
     sock = @sock
     @sock = nil
