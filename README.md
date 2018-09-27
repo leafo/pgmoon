@@ -73,6 +73,12 @@ Connects to the Postgres server using the credentials specified in the call to
 message.
 
 
+### postgres:settimeout(time)
+
+Sets the timeout value (in milliseconds) for all socket operations (connect,
+write, receive). This function does not have any return values.
+
+
 ### success, err = postgres:disconnect()
 
 Closes the socket to the server if one is open. No other methods should be
