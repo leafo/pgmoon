@@ -268,6 +268,9 @@ class Postgres
         error "unknown response from auth"
 
   query: (q) =>
+    if q\find NULL
+      return nil, "invalid null byte in query"
+
     @post q
     local row_desc, data_rows, command_complete, err_msg
 

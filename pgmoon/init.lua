@@ -291,6 +291,9 @@ do
       end
     end,
     query = function(self, q)
+      if q:find(NULL) then
+        return nil, "invalid null byte in query"
+      end
       self:post(q)
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications
