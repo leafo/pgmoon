@@ -7,7 +7,7 @@ pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 pgmoon was originally designed for use in [OpenResty][5] to take advantage of
 the [cosocket api][4] to provide asynchronous queries but it also works in the
 regular Lua environment as well using [LuaSocket][1] (and optionally
-[LuaCrypto][2] for MD5 authentication and [LuaSec][6] for SSL connections).
+[luaossl](https://luarocks.org/modules/daurnimator/luaossl) or [LuaCrypto][2] for MD5 authentication and [LuaSec][6] for SSL connections).
 pgmoon can also use [cqueues][]' socket when passed `"cqueues"` as the socket
 type when instantiating.
 
@@ -348,6 +348,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.10.0 — 2019-04-15 - support luaossl for crypto functions, added better error when missing crypto library
 * 1.9.0 — 2018-04-02 - nginx pool name includes user, connection reports name as `pgmoon`
 * 1.8.0 — 2016-11-07 — Add cqueues support, SSL calling fix for Nginx cosocket (@thibaultCha)
 * 1.7.0 — 2016-09-21 — Add to opm, add support for openresty pool, better default pool, support for hstore (@edan)
