@@ -20,21 +20,23 @@ function start {
   [ -d "${pgroot}" ] && rm -rf $pgroot
   initdb --locale 'en_US.UTF-8' -E 'UTF8' -A 'trust' -D $pgroot
 
-  # install ssl
-  makecerts
+  if [ "$1" = "ssl" ]; then
+    # install ssl
+    makecerts
 
-  echo "
+    echo "
 ssl = on
 ssl_cert_file = '${pgroot}/server.crt'
 ssl_key_file = '${pgroot}/server.key'
 # ssl_ca_file = ''
 # ssl_crl_file = ''
-  " >> $pgroot/postgresql.conf
+    " >> $pgroot/postgresql.conf
+  fi
 
   postgresql-check-db-dir $pgroot
   PGPORT=$port pg_ctl -s -o '-k /tmp' -D $pgroot start -w
-  createuser -h localhost -p $port postgres
-  createdb -h localhost -p $port pgmoon_test
+  createuser -h localhost -p $port -w -s postgres
+  createdb -h localhost -p $port -U postgres pgmoon_test
 }
 
 function stop {
@@ -43,7 +45,7 @@ function stop {
 
 case "$1" in
   start)
-    start
+    start "$2"
     ;;
   stop)
     stop
