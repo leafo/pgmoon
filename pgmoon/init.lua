@@ -465,7 +465,7 @@ do
           field_name, field_type = field[1], field[2]
           local len = self:decode_int(data_row:sub(offset, offset + 3))
           offset = offset + 4
-          if len < 0 then
+          if len < 0 or len == 4294967295 then
             if self.convert_null then
               out[field_name] = self.NULL
             end
