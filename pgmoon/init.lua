@@ -2,7 +2,7 @@ local socket = require("pgmoon.socket")
 local insert
 insert = table.insert
 local unpack = table.unpack or unpack
-local VERSION = "1.8.0"
+local VERSION = "1.10.0"
 if bit32 == nil then
   bit32 = require("bit")
 end
@@ -193,7 +193,7 @@ do
       local opts
       if self.sock_type == "nginx" then
         opts = {
-          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database)
+          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
         }
       end
       local ok, err = self.sock:connect(self.host, self.port, opts)
@@ -299,7 +299,9 @@ do
       local num_values = #{
         ...
       }
-      if q:find("$" .. tostring(tostring(num_values))) then
+      if q:find(NULL) then
+        return nil, "invalid null byte in query"
+      elseif q:find("$" .. tostring(tostring(num_values))) then
         local values = { }
         local default_escape = gen_escape(self)
         local _list_0 = {

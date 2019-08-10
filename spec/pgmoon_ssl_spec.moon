@@ -9,7 +9,7 @@ describe "pgmoon with server", ->
   local pg
 
   setup ->
-    os.execute "spec/postgres.sh start"
+    os.execute "spec/postgres.sh start ssl"
 
   teardown ->
     os.execute "spec/postgres.sh stop"

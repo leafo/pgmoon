@@ -3,7 +3,7 @@ import insert from table
 
 unpack = table.unpack or unpack
 
-VERSION = "1.8.0"
+VERSION = "1.10.0"
 
 export bit32  -- Use Lua 5.2 bit32 if available. Polyfill otherwise.
 if bit32 == nil
@@ -181,7 +181,7 @@ class Postgres
   connect: =>
     opts = if @sock_type == "nginx"
       {
-        pool: @pool_name or "#{@host}:#{@port}:#{@database}"
+        pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
       }
 
     ok, err = @sock\connect @host, @port, opts
@@ -275,9 +275,11 @@ class Postgres
 
   query: (q, ...) =>
     num_values = #{...}
-    -- Only process placeholders if there are values to fill them
-    -- Prepared statements can have placeholders if there are no values
-    if q\find "$#{tostring(num_values)}"
+    if q\find NULL
+      return nil, "invalid null byte in query"
+    elseif q\find "$#{tostring(num_values)}"
+      -- Only process placeholders if there are values to fill them
+      -- Prepared statements can have placeholders if there are no values
       values = {}
       default_escape = gen_escape(self)
       for v in *{...}
@@ -419,6 +421,7 @@ class Postgres
 
       -- 4: object id of data type (6)
       data_type = @decode_int row_desc\sub offset + 6, offset + 6 + 3
+
       data_type = @PG_TYPES[data_type] or "string"
 
       -- 2: data type size (10)

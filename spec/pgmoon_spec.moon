@@ -4,25 +4,39 @@ import Postgres from require "pgmoon"
 unpack = table.unpack or unpack
 
 HOST = "127.0.0.1"
+PORT = "9999"
 USER = "postgres"
 DB = "pgmoon_test"
 
+psql = ->
+  os.execute "psql -h '#{HOST}' -p '#{PORT}' -U '#{USER}'"
+
 describe "pgmoon with server", ->
+  setup ->
+    os.execute "spec/postgres.sh start"
+
+  teardown ->
+    os.execute "spec/postgres.sh stop"
+
   for socket_type in *{"luasocket", "cqueues"}
     describe "socket(#{socket_type})", ->
       local pg
 
       setup ->
-        os.execute "dropdb --if-exists -U '#{USER}' '#{DB}'"
-        os.execute "createdb -U postgres '#{DB}'"
+        assert 0 == os.execute "dropdb -h '#{HOST}' -p '#{PORT}' --if-exists -U '#{USER}' '#{DB}'"
+        assert 0 == os.execute "createdb -h '#{HOST}' -p '#{PORT}' -U '#{USER}' '#{DB}'"
 
         pg = Postgres {
           database: DB
           user: USER
           host: HOST
+          port: PORT
           :socket_type
         }
         assert pg\connect!
+
+      teardown ->
+        pg\disconnect!
 
       it "creates and drop table", ->
         res = assert pg\query [[
@@ -77,6 +91,7 @@ describe "pgmoon with server", ->
           database: DB
           user: USER
           host: HOST
+          port: PORT
           ssl: true
           :socket_type
         }
@@ -91,6 +106,7 @@ describe "pgmoon with server", ->
           database: DB
           user: USER
           host: HOST
+          port: PORT
           ssl: true
           ssl_required: true
           :socket_type
@@ -873,16 +889,15 @@ describe "pgmoon with server", ->
       it "errors when connecting with invalid server", ->
         pg2 = Postgres {
           database: "doesnotexist"
+          user: USER
+          host: HOST
+          port: PORT
           :socket_type
         }
 
         status, err = pg2\connect!
         assert.falsy status
         assert.same [[FATAL: database "doesnotexist" does not exist]], err
-
-      teardown ->
-        pg\disconnect!
-        os.execute "dropdb -U postgres '#{DB}'"
 
 describe "pgmoon without server", ->
   escape_ident = {
