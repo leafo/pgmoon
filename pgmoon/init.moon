@@ -157,6 +157,7 @@ class Postgres
 
     if opts
       @user = opts.user
+      @usock = opts.socket
       @host = opts.host
       @database = opts.database
       @port = opts.port
@@ -172,12 +173,21 @@ class Postgres
       }
 
   connect: =>
-    opts = if @sock_type == "nginx"
-      {
-        pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
+    local opts
+    if @sock_type == "nginx"
+      if @usock
+        alt_pool_name = "unix:#{@usock}:#{@database}:#{@user}"
+      else
+        alt_pool_name = "#{@host}:#{@port}:#{@database}:#{@user}"
+      opts = {
+       pool: @pool_name or alt_pool_name
       }
 
-    ok, err = @sock\connect @host, @port, opts
+    local ok, err
+    if @usock
+      ok, err = @sock\connect "unix:#{@usock}", opts
+    else
+      ok, err = @sock\connect @host, @port, opts
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0

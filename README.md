@@ -44,6 +44,20 @@ with it so it can be reused in future requests:
 pg:keepalive()
 ```
 
+With the nginx socket provider (e.g. OpenResty) it is possible to connect
+to a UNIX domain socket:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new({
+  socket = "/var/run/postgresql/.s.PGSQL.5432",
+  database = "mydb",
+  user = "postgres"
+})
+
+assert(pg:connect())
+```
+
 ## Reference
 
 Functions in table returned by `require("pgmoon")`:
@@ -55,6 +69,7 @@ of options. The table can have the following keys:
 
 * `"host"`: the host to connect to (default: `"127.0.0.1"`)
 * `"port"`: the port to connect to (default: `"5432"`)
+* `"socket"`: path to a UNIX domain socket to connect to, overrides host and port (default: `nil`)
 * `"user"`: the database username to authenticate (default: `"postgres"`)
 * `"database"`: the database name to connect to **required**
 * `"password"`: password for authentication, optional depending on server configuration

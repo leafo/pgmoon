@@ -187,11 +187,21 @@ do
     connect = function(self)
       local opts
       if self.sock_type == "nginx" then
+        if self.usock then
+          local alt_pool_name = "unix:" .. tostring(self.usock) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
+        else
+          local alt_pool_name = tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
+        end
         opts = {
-          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
+          pool = self.pool_name or alt_pool_name
         }
       end
-      local ok, err = self.sock:connect(self.host, self.port, opts)
+      local ok, err
+      if self.usock then
+        ok, err = self.sock:connect("unix:" .. tostring(self.usock), opts)
+      else
+        ok, err = self.sock:connect(self.host, self.port, opts)
+      end
       if not (ok) then
         return nil, err
       end
@@ -676,6 +686,7 @@ do
       self.sock, self.sock_type = socket.new(opts and opts.socket_type)
       if opts then
         self.user = opts.user
+        self.usock = opts.socket
         self.host = opts.host
         self.database = opts.database
         self.port = opts.port
