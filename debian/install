@@ -1,0 +1,3 @@
+pgmoon.lua /usr/share/lua/5.1/pgmoon/
+pgmoon/*.lua /usr/share/lua/5.1/pgmoon/pgmoon/
+debian/pgmoon /usr/share/lua/5.2/
