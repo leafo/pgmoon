@@ -467,7 +467,11 @@ do
           offset = offset + 4
           if len < 0 then
             if self.convert_null then
-              out[field_name] = self.NULL
+              if not self.compact then
+                out[field_name] = self.NULL
+              else
+                out[i] = self.NULL
+              end
             end
             _continue_0 = true
             break
@@ -489,7 +493,11 @@ do
               end
             end
           end
-          out[field_name] = value
+          if not self.compact then
+            out[field_name] = value
+          else
+            out[i] = value
+          end
           _continue_0 = true
         until true
         if not _continue_0 then
