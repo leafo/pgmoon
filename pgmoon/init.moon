@@ -197,7 +197,8 @@ class Postgres
     true
 
   settimeout: (...) =>
-    @sock\settimeout ...
+    @sock\settime
+    ...
 
   disconnect: =>
     sock = @sock
@@ -429,7 +430,11 @@ class Postgres
       offset += 4
 
       if len < 0
-        out[field_name] = @NULL if @convert_null
+        if @convert_null
+          if not @compact
+            out[field_name] = @NULL
+          else
+            out[i] = @NULL
         continue
 
       value = data_row\sub offset, offset + len - 1
@@ -445,8 +450,10 @@ class Postgres
         else
           if fn = @type_deserializers[field_type]
             value = fn @, value, field_type
-
-      out[field_name] = value
+      if not @compact
+        out[field_name] = value
+      else
+        out[i] = value
 
     out
 
