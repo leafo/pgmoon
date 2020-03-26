@@ -4,7 +4,7 @@ import rshift, lshift, band from require "bit"
 
 unpack = table.unpack or unpack
 
-VERSION = "1.10.0"
+VERSION = "1.11.0"
 
 _len = (thing, t=type(thing)) ->
   switch t
