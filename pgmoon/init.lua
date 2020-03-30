@@ -6,6 +6,8 @@ do
   local _obj_0 = require("pgmoon.bit")
   rshift, lshift, band, bxor = _obj_0.rshift, _obj_0.lshift, _obj_0.band, _obj_0.bxor
 end
+local pl_file = require("pl.file")
+local ssl = require("ngx.ssl")
 local unpack = table.unpack or unpack
 local VERSION = "1.14.0"
 local _len
@@ -262,9 +264,15 @@ do
       return out
     end,
     create_luasec_opts = function(self)
+      local key = self.config.key
+      local cert = self.config.cert
+      if self.config.sock_type == "nginx" and key and cert then
+        key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
+        cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
+      end
       return {
-        key = self.config.key,
-        certificate = self.config.cert,
+        key = key,
+        certificate = cert,
         cafile = self.config.cafile,
         protocol = self.config.ssl_version,
         verify = self.config.ssl_verify and "peer" or "none"
@@ -794,7 +802,8 @@ do
       if t == MSG_TYPE.status then
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
-          return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+	        local luasec_opts = self.config.luasec_opts or self:create_luasec_opts()
+          return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.cert, client_priv_key = luasec_opts.key })
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
         elseif "cqueues" == _exp_0 then
