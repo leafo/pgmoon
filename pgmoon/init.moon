@@ -2,6 +2,8 @@ socket = require "pgmoon.socket"
 import insert from table
 
 import rshift, lshift, band from require "pgmoon.bit"
+pl_file = require "pl.file"
+ssl = require "ngx.ssl"
 
 unpack = table.unpack or unpack
 
@@ -166,9 +168,17 @@ class Postgres
       @ssl_verify = opts.ssl_verify
       @ssl_required = opts.ssl_required
       @pool_name = opts.pool
+
+      key = opts.key
+      cert = opts.cert
+
+      if @sock_type == "nginx" and key and cert
+        key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
+        cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
+
       @luasec_opts = {
-        key: opts.key
-        cert: opts.cert
+        key: key
+        cert: cert
         cafile: opts.cafile
         ssl_version: opts.ssl_version or "tlsv1_2"
       }
@@ -530,7 +540,11 @@ class Postgres
 
     if t == MSG_TYPE.status
       if @sock_type == "nginx"
-        @sock\sslhandshake false, nil, @ssl_verify
+        @sock\tlshandshake {
+          verify: @ssl_verify,
+          client_cert: @luasec_opts.cert,
+          client_priv_key: @luasec_opts.key,
+        }
       else
         @sock\sslhandshake @ssl_verify, @luasec_opts
     elseif t == MSG_TYPE.error or @ssl_required

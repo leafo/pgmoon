@@ -6,6 +6,8 @@ do
   local _obj_0 = require("pgmoon.bit")
   rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
 end
+local pl_file = require("pl.file")
+local ssl = require("ngx.ssl")
 local unpack = table.unpack or unpack
 local VERSION = "1.12.0"
 local _len
@@ -584,7 +586,11 @@ do
       end
       if t == MSG_TYPE.status then
         if self.sock_type == "nginx" then
-          return self.sock:sslhandshake(false, nil, self.ssl_verify)
+          return self.sock:tlshandshake({
+            verify = self.ssl_verify,
+            client_cert = self.luasec_opts.cert,
+            client_priv_key = self.luasec_opts.key
+          })
         else
           return self.sock:sslhandshake(self.ssl_verify, self.luasec_opts)
         end
@@ -684,6 +690,12 @@ do
         self.ssl_verify = opts.ssl_verify
         self.ssl_required = opts.ssl_required
         self.pool_name = opts.pool
+        local key = opts.key
+        local cert = opts.cert
+        if self.sock_type == "nginx" and key and cert then
+          key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
+          cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
+        end
         self.luasec_opts = {
           key = opts.key,
           cert = opts.cert,
