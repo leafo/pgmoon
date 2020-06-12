@@ -184,14 +184,14 @@ do
       assert(res, "hstore oid not found")
       return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
-    connect = function(self)
+    connect = function(self, ...)
       local opts
       if self.sock_type == "nginx" then
         opts = {
           pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
         }
       end
-      local ok, err = self.sock:connect(self.host, self.port, opts)
+      local ok, err = self.sock:connect(self.host, self.port, opts, ...)
       if not (ok) then
         return nil, err
       end
