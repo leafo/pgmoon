@@ -170,6 +170,7 @@ class Postgres
         key: opts.key
         cert: opts.cert
         cafile: opts.cafile
+        ssl_version: opts.ssl_version
       }
 
   connect: =>
