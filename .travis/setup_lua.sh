@@ -67,8 +67,11 @@ else
     curl http://www.lua.org/ftp/lua-5.2.4.tar.gz | tar xz
     cd lua-5.2.4;
   elif [ "$LUA" == "lua5.3" ]; then
-    curl http://www.lua.org/ftp/lua-5.3.2.tar.gz | tar xz
-    cd lua-5.3.2;
+    curl http://www.lua.org/ftp/lua-5.3.6.tar.gz | tar xz
+    cd lua-5.3.6;
+  elif [ "$LUA" == "lua5.4" ]; then
+    curl http://www.lua.org/ftp/lua-5.4.1.tar.gz | tar xz
+    cd lua-5.4.1;
   fi
 
   # Build Lua without backwards compatibility for testing
@@ -118,5 +121,7 @@ elif [ "$LUA" == "lua5.1" ]; then
 elif [ "$LUA" == "lua5.2" ]; then
   rm -rf lua-5.2.4;
 elif [ "$LUA" == "lua5.3" ]; then
-  rm -rf lua-5.3.2;
+  rm -rf lua-5.3.6;
+elif [ "$LUA" == "lua5.4" ]; then
+  rm -rf lua-5.4.1;
 fi
