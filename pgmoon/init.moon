@@ -1,6 +1,7 @@
 socket = require "pgmoon.socket"
 import insert from table
-import rshift, lshift, band from require "bit"
+
+import rshift, lshift, band from require "pgmoon.bit"
 
 unpack = table.unpack or unpack
 

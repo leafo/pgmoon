@@ -15,7 +15,6 @@ description = {
 
 dependencies = {
   "lua >= 5.1",
-  "luabitop",
   "lpeg",
 }
 
@@ -24,6 +23,7 @@ build = {
   modules = {
     ["pgmoon"] = "pgmoon/init.lua",
     ["pgmoon.arrays"] = "pgmoon/arrays.lua",
+    ["pgmoon.bit"] = "pgmoon/bit.lua",
     ["pgmoon.cqueues"] = "pgmoon/cqueues.lua",
     ["pgmoon.crypto"] = "pgmoon/crypto.lua",
     ["pgmoon.hstore"] = "pgmoon/hstore.lua",
