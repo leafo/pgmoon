@@ -331,7 +331,7 @@ class Postgres
 
     if command_complete
       command = command_complete\match "^%w+"
-      affected_rows = tonumber command_complete\match "%d+%z$"
+      affected_rows = tonumber command_complete\match "(%d+)%z$"
 
     if row_desc
       return {} unless data_rows
