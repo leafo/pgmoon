@@ -25,8 +25,8 @@ install:
   - luarocks install moonscript
   - luarocks install lua-cjson
   - luarocks install cqueues
-  - test "$LUA" = "lua5.1" && luarocks install luabitop
-  - test "$LUA" = "lua5.2" && luarocks install luabitop
+  - test "$LUA" = "lua5.1" && luarocks install luabitop || true
+  - test "$LUA" = "lua5.2" && luarocks install luabitop || true
   - luarocks make
 
 script:
