@@ -1,13 +1,13 @@
-local load, rshift, lshift, band, ok, _
+local l, rshift, lshift, band, ok, _
 
-load = load
+l = load
 if loadstring then
-  load = loadstring
+  l = loadstring
 
-ok, rshift = pcall(load("return function(x,n) return x >> n end"))
+ok, rshift = pcall(l("return function(x,n) return x >> n end"))
 if ok then
-  _, lshift = pcall(load("return function(x,n) return x << n end"))
-  _, band   = pcall(load("return function(a,b) return a & b end"))
+  _, lshift = pcall(l("return function(x,n) return x << n end"))
+  _, band   = pcall(l("return function(a,b) return a & b end"))
 else
   import rshift, lshift, band from require "bit"
 
