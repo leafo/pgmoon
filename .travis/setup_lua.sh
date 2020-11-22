@@ -35,6 +35,10 @@ elif [ "$(expr substr $LUA 1 6)" == "luajit" ]; then
   LUAJIT="yes";
 fi
 
+if [ -z "$LUA_32BITS" ] ; then
+  LUA_32BITS="no"
+fi
+
 mkdir -p "$LUA_HOME_DIR"
 
 if [ "$LUAJIT" == "yes" ]; then
@@ -77,7 +81,12 @@ else
   fi
 
   # Build Lua without backwards compatibility for testing
-  perl -i -pe 's/-DLUA_COMPAT_(ALL|5_2)//' src/Makefile
+  perl -i -pe 's/-DLUA_COMPAT_(ALL|5_2|5_3)//' src/Makefile
+
+  # build with 32-bit integers if requested
+  if [ "$LUA_32BITS" = "yes" ] ; then
+    perl -i -pe '$_ = "#define LUA_32BITS" if $_ =~ m/define LUA_32BITS/' src/luaconf.h
+  fi
   make $PLATFORM
   make INSTALL_TOP="$LUA_HOME_DIR" install;
 
