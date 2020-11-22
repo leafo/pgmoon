@@ -9,16 +9,15 @@ env:
   global:
     - LUAROCKS=3.4.0
     - LUACJSON=f8e36f8
-    - LUA_32BITS=no
   matrix:
-    - LUA=lua5.1
-    - LUA=lua5.2
-    - LUA=lua5.3
-    - LUA=lua5.4
-    - LUA=lua5.3 LUA_32BITS=yes
-    - LUA=lua5.4 LUA_32BITS=yes
-    - LUA=luajit2.0
-    - LUA=luajit2.1
+    - LUA=lua5.1    LUA_32BITS=no
+    - LUA=lua5.2    LUA_32BITS=no
+    - LUA=lua5.3    LUA_32BITS=no
+    - LUA=lua5.4    LUA_32BITS=no
+    - LUA=lua5.3    LUA_32BITS=yes
+    - LUA=lua5.4    LUA_32BITS=yes
+    - LUA=luajit2.0 LUA_32BITS=no
+    - LUA=luajit2.1 LUA_32BITS=no
 
 before_install:
   - source .travis/setenv_lua.sh
