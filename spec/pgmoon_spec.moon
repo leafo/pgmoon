@@ -116,16 +116,10 @@ describe "pgmoon with server", ->
 
       setup ->
         r = { os.execute "dropdb -h '#{HOST}' -p '#{PORT}' --if-exists -U '#{USER}' '#{DB}'" }
-        if #r == 1 then
-          assert 0 == r[1]
-        else
-          assert 0 == r[3]
+        assert 0 == r[#r]
 
         r = { os.execute "createdb -h '#{HOST}' -p '#{PORT}' -U '#{USER}' '#{DB}'" }
-        if #r == 1 then
-          assert 0 == r[1]
-        else
-          assert 0 == r[3]
+        assert 0 == r[#r]
 
         pg = Postgres {
           database: DB
