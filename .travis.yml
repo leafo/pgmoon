@@ -9,6 +9,7 @@ env:
   global:
     - LUAROCKS=3.4.0
     - LUACJSON=f8e36f8
+    - LUA_32BITS=no
   matrix:
     - LUA=lua5.1
     - LUA=lua5.2
