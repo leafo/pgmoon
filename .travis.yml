@@ -14,14 +14,15 @@ env:
     - LUA=lua5.2
     - LUA=lua5.3
     - LUA=lua5.4
+    - LUA=luajit2.0
     - LUA=luajit2.1
 
 before_install:
   - source .travis/setenv_lua.sh
-  - mkdir -p .lua-cjson
-  - curl -R -L https://github.com/openresty/lua-cjson/archive/${LUACJSON}.tar.gz | tar xzf - --strip-components=1 -C .lua-cjson
 
 install:
+  - mkdir -p .lua-cjson
+  - curl -R -L https://github.com/openresty/lua-cjson/archive/${LUACJSON}.tar.gz | tar xzf - --strip-components=1 -C .lua-cjson
   - luarocks install busted
   - luarocks install luasocket
   - luarocks install luasec
@@ -30,8 +31,8 @@ install:
   - luarocks install cqueues
   - test "$LUA" = "lua5.1" && luarocks install luabitop || true
   - test "$LUA" = "lua5.2" && luarocks install luabitop || true
-  - luarocks make
 
 script:
+  - luarocks make
   - busted
 
