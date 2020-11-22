@@ -61,6 +61,7 @@ ENV PATH "/usr/lib/postgresql/9.4/bin:$PATH"
 
 ENV TRAVIS_BUILD_DIR /home/builder
 ARG LUA=lua5.1
+ARG LUA_32BITS=no
 RUN /opt/install_deps.sh
 
 COPY . /home/builder/pgmoon
