@@ -1,0 +1,57 @@
+version: '3'
+
+# usage
+# docker-compose build [lua5.1 lua5.2 etc]
+# docker-compuse run [lua5.1 lua5.2 etc]
+
+services:
+  lua5.1:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.1"
+    image: pgmoon:lua5.1
+  lua5.2:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.2"
+    image: pgmoon:lua5.2
+  lua5.3:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.3"
+    image: pgmoon:lua5.3
+  lua5.4:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.4"
+    image: pgmoon:lua5.4
+  lua5.3-32bits:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.3"
+        LUA_32BITS: "yes"
+    image: pgmoon:lua5.3-32bits
+  lua5.4-32bits:
+    build:
+      context: ./
+      args:
+        LUA: "lua5.4"
+        LUA_32BITS: "yes"
+    image: pgmoon:lua5.4-32bits
+  luajit2.0:
+    build:
+      context: ./
+      args:
+        LUA: "luajit2.0"
+    image: pgmoon:luajit2.0
+  luajit2.1:
+    build:
+      context: ./
+      args:
+        LUA: "luajit2.1"
+    image: pgmoon:luajit2.1
