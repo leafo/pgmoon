@@ -23,8 +23,11 @@ describe "pgmoon with server", ->
       local pg
 
       setup ->
-        assert 0 == os.execute "dropdb -h '#{HOST}' -p '#{PORT}' --if-exists -U '#{USER}' '#{DB}'"
-        assert 0 == os.execute "createdb -h '#{HOST}' -p '#{PORT}' -U '#{USER}' '#{DB}'"
+        r = { os.execute "dropdb -h '#{HOST}' -p '#{PORT}' --if-exists -U '#{USER}' '#{DB}'" }
+        assert 0 == r[#r]
+
+        r = { os.execute "createdb -h '#{HOST}' -p '#{PORT}' -U '#{USER}' '#{DB}'" }
+        assert 0 == r[#r]
 
         pg = Postgres {
           database: DB
