@@ -7,25 +7,34 @@ addons:
 
 env:
   global:
-    - LUAROCKS=2.3.0
+    - LUAROCKS=3.4.0
+    - LUACJSON=f8e36f8
   matrix:
-    - LUA=lua5.1
-    - LUA=lua5.2
-    - LUA=lua5.3
-    - LUA=luajit2.1
+    - LUA=lua5.1    LUA_32BITS=no
+    - LUA=lua5.2    LUA_32BITS=no
+    - LUA=lua5.3    LUA_32BITS=no
+    - LUA=lua5.4    LUA_32BITS=no
+    - LUA=lua5.3    LUA_32BITS=yes
+    - LUA=lua5.4    LUA_32BITS=yes
+    - LUA=luajit2.0 LUA_32BITS=no
+    - LUA=luajit2.1 LUA_32BITS=no
 
 before_install:
   - source .travis/setenv_lua.sh
 
 install:
+  - mkdir -p .lua-cjson
+  - curl -R -L https://github.com/openresty/lua-cjson/archive/${LUACJSON}.tar.gz | tar xzf - --strip-components=1 -C .lua-cjson
   - luarocks install busted
   - luarocks install luasocket
   - luarocks install luasec
   - luarocks install moonscript
-  - luarocks install lua-cjson
+  - pushd .lua-cjson && luarocks make && popd
   - luarocks install cqueues
-  - luarocks make
+  - test "$LUA" = "lua5.1" && luarocks install luabitop || true
+  - test "$LUA" = "lua5.2" && luarocks install luabitop || true
 
 script:
+  - luarocks make
   - busted
 
