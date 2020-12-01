@@ -12,7 +12,12 @@
 of the [cosocket
 api](https://github.com/openresty/lua-nginx-module#ngxsockettcp) to provide
 asynchronous queries but it also works in the regular any Lua environment where
-[LuaSocket][] or [cqueues][] is available.
+[LuaSocket][] or [cqueues][] is available. pgmoon optionally requires:
+
+- [LuaCrypto][2] for authentication with MD5
+- [LuaSec][6] for SSL connections
+
+For authentication with SCRAM-SHA-256 (without channel binding support) pgmoon requires [luaossl](https://luarocks.org/modules/daurnimator/luaossl) only. For authentication with SCRAM-SHA-256-PLUS (with channel binding support) it requires [LuaSec][6] for the socket type `luasocket` and [lua-resty-openssl](https://luarocks.org/modules/fffonion/lua-resty-openssl) for the socket type `nginx`.
 
 It's a perfect candidate for running your queries both inside OpenResty's
 environment and on the command line (eg. tests) in web frameworks like [Lapis][].
