@@ -3,6 +3,8 @@
 pgroot=$(pwd)/pgdata
 port=9999
 
+postgres_version=${DOCKER_POSTGRES_VERSION:-latest}
+
 function makecerts {
   # https://www.postgresql.org/docs/9.5/static/ssl-tcp.html
   (
@@ -17,7 +19,7 @@ function makecerts {
 }
 
 function start {
-	docker run --rm --name pgmoon-test -p 127.0.0.1:$port:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres > /dev/null
+	docker run --rm --name pgmoon-test -p 127.0.0.1:$port:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres:$postgres_version > /dev/null
 	until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
 }
 
