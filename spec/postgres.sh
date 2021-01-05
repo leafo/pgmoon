@@ -17,8 +17,8 @@ function makecerts {
 }
 
 function start {
-	docker run --rm --name pgmoon-test -p 127.0.0.1:9999:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres > /dev/null
-	until (PGHOST=127.0.0.1 PGPORT=9999 PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
+	docker run --rm --name pgmoon-test -p 127.0.0.1:$port:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres > /dev/null
+	until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
 }
 
 function stop {
