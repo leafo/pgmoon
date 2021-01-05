@@ -3,16 +3,7 @@ import Postgres from require "pgmoon"
 
 unpack = table.unpack or unpack
 
-HOST = "127.0.0.1"
-PORT = "9999"
-USER = "postgres"
-PASSWORD = "pgmoon"
-DB = "pgmoon_test"
-
-shell_escape = (str) -> str\gsub "'", "'\\''"
-
-psql = (query) ->
-  os.execute "PGHOST='#{shell_escape HOST}' PGPORT='#{shell_escape PORT}' PGUSER='#{shell_escape USER}' PGPASSWORD='#{shell_escape PASSWORD}' psql -c '#{query}'"
+import psql, HOST, PORT, USER, PASSWORD, DB from require "spec.util"
 
 describe "bit library compatibility", ->
   import band, lshift, rshift from require "pgmoon.bit"
@@ -202,7 +193,7 @@ describe "pgmoon with server", ->
         }
 
         status, err = ssl_pg\connect!
-        assert.falsy status
+        assert.falsy status, "connection should fail if it could not establish ssl"
         assert.same [[the server does not support SSL connections]], err
 
       describe "with table", ->

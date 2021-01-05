@@ -1,4 +1,5 @@
 #!/bin/bash
+set -eo pipefail
 
 pgroot=$(pwd)/pgdata
 port=9999
@@ -19,12 +20,30 @@ function makecerts {
 }
 
 function start {
-	docker run --rm --name pgmoon-test -p 127.0.0.1:$port:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres:$postgres_version > /dev/null
-	until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
+  INIT_SCRIPT=""
+
+  if [ "$1" = "ssl" ]; then
+    INIT_SCRIPT="-v $(pwd)/spec/docker_enable_ssl.sh:/docker-entrypoint-initdb.d/docker_enable_ssl.sh"
+  fi
+
+  echo "$(tput setaf 4)Starting postgresql $postgres_version (docker run) $1 $(tput sgr0)"
+  docker run --rm --name pgmoon-test \
+    -p 127.0.0.1:$port:5432/tcp \
+    -e POSTGRES_PASSWORD=pgmoon \
+    $INIT_SCRIPT \
+    -d \
+    postgres:$postgres_version > /dev/null
+
+
+  # -v "$pgroot:/var/lib/postgresql/data" \ # this can be used to inspect logs since we'll have the server data dir available after the sever stops
+
+  echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
+  until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
+  echo "$(tput setaf 4)Sever is ready$(tput sgr0)"
 }
 
 function stop {
-	docker stop pgmoon-test 2> /dev/null
+  docker stop pgmoon-test 2> /dev/null
 }
 
 function start_legacy {

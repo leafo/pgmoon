@@ -1,15 +1,18 @@
 import Postgres from require "pgmoon"
 
-HOST = "127.0.0.1"
-PORT = "9999"
-USER = "postgres"
-DB = "pgmoon_test"
+import psql, HOST, PORT, USER, PASSWORD, DB from require "spec.util"
 
 describe "pgmoon with server", ->
   local pg
 
   setup ->
     os.execute "spec/postgres.sh start ssl"
+
+    r = { psql "drop database if exists #{DB}" }
+    assert 0 == r[#r], "failed to execute psql: drop database"
+
+    r = { psql "create database #{DB}" }
+    assert 0 == r[#r], "failed to execute psql: create database"
 
   teardown ->
     os.execute "spec/postgres.sh stop"
@@ -19,6 +22,7 @@ describe "pgmoon with server", ->
       database: DB
       port: PORT
       user: USER
+      password: PASSWORD
       host: HOST
     }
     assert pg\connect!
@@ -30,6 +34,7 @@ describe "pgmoon with server", ->
       database: DB
       port: PORT
       user: USER
+      password: PASSWORD
       host: HOST
       ssl: true
       ssl_required: true
@@ -44,6 +49,7 @@ describe "pgmoon with server", ->
       database: DB
       port: PORT
       user: USER
+      password: PASSWORD
       host: HOST
       ssl: true
       ssl_required: true
@@ -59,6 +65,7 @@ describe "pgmoon with server", ->
       database: DB
       port: PORT
       user: USER
+      password: PASSWORD
       host: HOST
       ssl: true
       ssl_required: true
