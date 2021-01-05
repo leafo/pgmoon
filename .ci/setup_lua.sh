@@ -8,30 +8,20 @@
 
 set -eufo pipefail
 
+BUILD_DIR=.lua
+
+mkdir -p "$BUILD_DIR"
+
 LUAJIT_VERSION="2.0.4"
 LUAJIT_BASE="LuaJIT-$LUAJIT_VERSION"
-
-source .travis/platform.sh
 
 LUA_HOME_DIR=$TRAVIS_BUILD_DIR/install/lua
 
 LR_HOME_DIR=$TRAVIS_BUILD_DIR/install/luarocks
 
-mkdir $HOME/.lua
-
 LUAJIT="no"
 
-if [ "$PLATFORM" == "macosx" ]; then
-  if [ "$LUA" == "luajit" ]; then
-    LUAJIT="yes";
-  fi
-  if [ "$LUA" == "luajit2.0" ]; then
-    LUAJIT="yes";
-  fi
-  if [ "$LUA" == "luajit2.1" ]; then
-    LUAJIT="yes";
-  fi;
-elif [ "$(expr substr $LUA 1 6)" == "luajit" ]; then
+if [ "$(expr substr $LUA 1 6)" == "luajit" ]; then
   LUAJIT="yes";
 fi
 
