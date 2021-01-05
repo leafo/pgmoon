@@ -6,10 +6,13 @@ unpack = table.unpack or unpack
 HOST = "127.0.0.1"
 PORT = "9999"
 USER = "postgres"
+PASSWORD = "pgmoon"
 DB = "pgmoon_test"
 
-psql = ->
-  os.execute "psql -h '#{HOST}' -p '#{PORT}' -U '#{USER}'"
+shell_escape = (str) -> str\gsub "'", "'\\''"
+
+psql = (query) ->
+  os.execute "PGHOST='#{shell_escape HOST}' PGPORT='#{shell_escape PORT}' PGUSER='#{shell_escape USER}' PGPASSWORD='#{shell_escape PASSWORD}' psql -c '#{query}'"
 
 describe "bit library compatibility", ->
   import band, lshift, rshift from require "pgmoon.bit"
@@ -115,15 +118,16 @@ describe "pgmoon with server", ->
       local pg
 
       setup ->
-        r = { os.execute "dropdb -h '#{HOST}' -p '#{PORT}' --if-exists -U '#{USER}' '#{DB}'" }
-        assert 0 == r[#r]
+        r = { psql "drop database if exists #{DB}" }
+        assert 0 == r[#r], "failed to execute psql: drop database"
 
-        r = { os.execute "createdb -h '#{HOST}' -p '#{PORT}' -U '#{USER}' '#{DB}'" }
-        assert 0 == r[#r]
+        r = { psql "create database #{DB}" }
+        assert 0 == r[#r], "failed to execute psql: create database"
 
         pg = Postgres {
           database: DB
           user: USER
+          password: PASSWORD
           host: HOST
           port: PORT
           :socket_type
@@ -173,6 +177,7 @@ describe "pgmoon with server", ->
         ssl_pg = Postgres {
           database: DB
           user: USER
+          password: PASSWORD
           host: HOST
           port: PORT
           ssl: true
@@ -188,6 +193,7 @@ describe "pgmoon with server", ->
         ssl_pg = Postgres {
           database: DB
           user: USER
+          password: PASSWORD
           host: HOST
           port: PORT
           ssl: true
@@ -765,6 +771,7 @@ describe "pgmoon with server", ->
         pg2 = Postgres {
           database: "doesnotexist"
           user: USER
+          password: PASSWORD
           host: HOST
           port: PORT
           :socket_type

@@ -17,6 +17,15 @@ function makecerts {
 }
 
 function start {
+	docker run --rm --name pgmoon-test -p 127.0.0.1:9999:5432/tcp -e POSTGRES_PASSWORD=pgmoon -d postgres > /dev/null
+	until (PGHOST=127.0.0.1 PGPORT=9999 PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
+}
+
+function stop {
+	docker stop pgmoon-test 2> /dev/null
+}
+
+function start_legacy {
   [ -d "${pgroot}" ] && rm -rf $pgroot
   initdb --locale 'en_US.UTF-8' -E 'UTF8' -A 'trust' -D $pgroot
 
@@ -39,7 +48,7 @@ ssl_key_file = '${pgroot}/server.key'
   createdb -h localhost -p $port -U postgres pgmoon_test
 }
 
-function stop {
+function stop_legacy {
   pg_ctl -s -D $pgroot stop -m fast
 }
 
