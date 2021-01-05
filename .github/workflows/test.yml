@@ -42,6 +42,7 @@ jobs:
         luarocks install moonscript
         luarocks install lua-cjson
         luarocks install cqueues
+        [[ "${{ matrix.luaVersion }}" =~ ^5\.[12]$ ]] && luarocks install luabitop
 
     - name: build
       run: |
