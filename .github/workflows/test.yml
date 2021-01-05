@@ -1,0 +1,52 @@
+name: "test"
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        postgresVersion: ["12"]
+        luaVersion: ["5.1", "5.2", "5.3", "5.4", "luajit-openresty"]
+
+    env:
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGHOST: 127.0.0.1
+
+    services:
+      postgres:
+        image: postgres:${{ matrix.postgresVersion }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    - uses: actions/checkout@master
+    - uses: leafo/gh-actions-lua@master
+      with:
+        luaVersion: ${{ matrix.luaVersion }}
+
+    - uses: leafo/gh-actions-luarocks@master
+
+    - name: dependencies
+      run: |
+        luarocks install busted
+        luarocks install luasocket
+        luarocks install luasec
+        luarocks install moonscript
+        luarocks install lua-cjson
+        luarocks install cqueues
+
+    - name: build
+      run: |
+        luarocks make
+
+    - name: test
+      run: |
+        busted -o utfTerminal
+
