@@ -20,6 +20,46 @@ environment and on the command line (eg. tests) in web frameworks like [Lapis][3
 $ luarocks install pgmoon
 ```
 
+### Dependencies
+
+pgmoon supports a wide range of environments and libraries, so it may be
+necessary to install additional dependencies depending on how you intend to
+communicate with the database:
+
+> Tip: If you're using OpenResty then no additional dependencies are needed
+
+Some socket library **is required**, depending on the environment you can chose one:
+
+* [OpenResty](https://openresty.org/en/) &mdash; The built in socket is used, so additional dependencies necessary
+* [LuaSocket](http://w3.impa.br/~diego/software/luasocket/) &mdash; Suitable for command line database access, has the highest platform compatibility `luarocks install luasocket`
+* [cqueues](https://github.com/wahern/cqueues) &mdash; `luarocks install cqueues`
+
+If you're on PUC Lua 5.1 or 5.2 then you will need a bit libray (not needed for LuaJIT):
+
+```bash
+$ luarocks install luabitop
+```
+
+If you want to use JSON types you will need lua-cjson
+
+```bash
+$ luarocks install lua-cjson
+```
+
+If you want to use SSL connections with LuaSocket then you will need LuaSec:
+(OpenResty and cqueues come with their own SSL implementations)
+
+
+```bash
+$ luarocks install luasec
+```
+
+If you want to use password authentication then you will need a crypto library:
+
+* [OpenResty](https://openresty.org/en/) &mdash; Built in function will be used, no additional dependencies necessary
+* [luaossl](https://github.com/wahern/luaossl) &mdash; Recommended `luarocks install luaossl`
+* [luacrypto](https://github.com/starius/luacrypto) &mdash; Deprecated library, not recommended
+
 ## Example
 
 ```lua
@@ -353,8 +393,10 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
-* 1.11.0 — 2020-03-26 - allow for TLS v1.2 when using LuaSec (Miles Elam)
-* 1.10.0 — 2019-04-15 - support luaossl for crypto functions, added better error when missing crypto library
+
+* 1.12.0 — 2021-01-06 - Lua pattern compatibility fix. Support for Lua 5.1 through 5.4, Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec
+* 1.11.0 — 2020-03-26 - Allow for TLS v1.2 when using LuaSec (Miles Elam)
+* 1.10.0 — 2019-04-15 - Support luaossl for crypto functions, added better error when missing crypto library
 * 1.9.0 — 2018-04-02 - nginx pool name includes user, connection reports name as `pgmoon`
 * 1.8.0 — 2016-11-07 — Add cqueues support, SSL calling fix for Nginx cosocket (@thibaultCha)
 * 1.7.0 — 2016-09-21 — Add to opm, add support for openresty pool, better default pool, support for hstore (@edan)
@@ -369,7 +411,7 @@ Homepage: <http://leafo.net>
 
 ## License (MIT)
 
-Copyright (C) 2016 by Leaf Corcoran
+Copyright (C) 2021 by Leaf Corcoran
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
