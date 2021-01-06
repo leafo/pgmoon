@@ -77,3 +77,18 @@ describe "pgmoon with server", ->
     pg\disconnect!
 
 
+  it "connects with ssl using cqueues", ->
+    pg = Postgres {
+      database: DB
+      port: PORT
+      user: USER
+      password: PASSWORD
+      host: HOST
+      ssl: true
+      socket_type: "cqueues"
+    }
+
+    assert pg\connect!
+    assert pg\query "select * from information_schema.tables"
+    pg\disconnect!
+
