@@ -2,6 +2,10 @@
 
 ![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)
 
+> **Note!** Are you using the latest version of OpenResty? You must update to
+> pgmoon 1.12 or above, due to a change in Lua pattern compatibility, any query
+> that returns affected number of rows will return the expected value.
+
 pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 
 pgmoon was originally designed for use in [OpenResty][5] to take advantage of
@@ -393,8 +397,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
-
-* 1.12.0 — 2021-01-06 - Lua pattern compatibility fix. Support for Lua 5.1 through 5.4, Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec
+* 1.12.0 — 2021-01-06 - Lua pattern compatibility fix, Support for Lua 5.1 through 5.4 (@jprjr). Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec. Luabitop is no longer automatically installed as a dependency. New test suite.
 * 1.11.0 — 2020-03-26 - Allow for TLS v1.2 when using LuaSec (Miles Elam)
 * 1.10.0 — 2019-04-15 - Support luaossl for crypto functions, added better error when missing crypto library
 * 1.9.0 — 2018-04-02 - nginx pool name includes user, connection reports name as `pgmoon`
