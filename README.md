@@ -219,7 +219,7 @@ local pg = pgmoon.new({
   ssl = true, -- enable SSL
   ssl_verify = true, -- verify server certificate
   ssl_required = true, -- abort if the server does not support SSL connections
-  ssl_version = "tlsv1", -- e.g., "tlsv1_2"; defaults to TLS v1.0 (LuaSec only)
+  ssl_version = "tlsv1_2", -- e.g., defaults to TLS v1.1 (LuaSec only)
   cafile = "...", -- certificate authority (LuaSec only)
   cert = "...", -- client certificate (LuaSec only)
   key = "...", -- client key (LuaSec only)
@@ -227,6 +227,10 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 ```
+
+> Note: In Postgres 12 and above, the minium SSL version accepted by client
+> connections is 1.2. When using LuaSec to connect to an SSL server, if you
+> don't specify an `ssl_version` then `tlsv1_2` is used.
 
 In OpenResty, make sure to configure the [lua_ssl_trusted_certificate][7]
 directive if you wish to verify the server certificate, as the LuaSec-only

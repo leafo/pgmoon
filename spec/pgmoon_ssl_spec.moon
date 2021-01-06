@@ -29,7 +29,7 @@ describe "pgmoon with server", ->
     assert pg\query "select * from information_schema.tables"
     pg\disconnect!
 
-  it "connects with ssl on ssl server (defaults to TLS v1.0)", ->
+  it "connects with ssl on ssl server (defaults to TLS v1.2)", ->
     pg = Postgres {
       database: DB
       port: PORT

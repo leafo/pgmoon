@@ -688,7 +688,7 @@ do
           key = opts.key,
           cert = opts.cert,
           cafile = opts.cafile,
-          ssl_version = opts.ssl_version
+          ssl_version = opts.ssl_version or "tlsv1_2"
         }
       end
     end,
