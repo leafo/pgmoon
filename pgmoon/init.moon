@@ -5,7 +5,7 @@ import rshift, lshift, band from require "pgmoon.bit"
 
 unpack = table.unpack or unpack
 
-VERSION = "1.11.0"
+VERSION = "1.12.0"
 
 _len = (thing, t=type(thing)) ->
   switch t
