@@ -6,8 +6,12 @@ do
   local _obj_0 = require("pgmoon.bit")
   rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
 end
-local pl_file = require("pl.file")
-local ssl = require("ngx.ssl")
+local pl_file
+local ssl
+if ngx then
+  pl_file = require("pl.file")
+  ssl = require("ngx.ssl")
+end
 local unpack = table.unpack or unpack
 local VERSION = "1.12.0"
 local _len
@@ -697,8 +701,8 @@ do
           cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
         end
         self.luasec_opts = {
-          key = opts.key,
-          cert = opts.cert,
+          key = key,
+          cert = cert,
           cafile = opts.cafile,
           ssl_version = opts.ssl_version or "tlsv1_2"
         }
