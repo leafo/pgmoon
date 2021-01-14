@@ -2,8 +2,13 @@ socket = require "pgmoon.socket"
 import insert from table
 
 import rshift, lshift, band, bxor from require "pgmoon.bit"
-pl_file = require "pl.file"
-ssl = require "ngx.ssl"
+
+local pl_file
+local ssl
+
+if ngx
+  pl_file = require "pl.file"
+  ssl = require "ngx.ssl"
 
 unpack = table.unpack or unpack
 
