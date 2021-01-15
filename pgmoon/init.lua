@@ -14,7 +14,7 @@ if ngx then
   ssl = require("ngx.ssl")
 end
 local unpack = table.unpack or unpack
-local VERSION = "1.12.0"
+local VERSION = "2.2.0"
 local _len
 _len = function(thing, t)
   if t == nil then

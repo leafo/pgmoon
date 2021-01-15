@@ -1,15 +1,16 @@
 package = "pgmoon"
-version = "dev-1"
+version = "2.2.0-1"
 
 source = {
-  url = "git://github.com/leafo/pgmoon.git"
+  url = "git://github.com/Kong/pgmoon.git",
+  tag = "2.2.0"
 }
 
 description = {
   summary = "Postgres driver for OpenResty and Lua",
   detailed = [[PostgreSQL driver written in pure Lua for use with OpenResty's cosocket API. Can also be used in regular Lua with LuaSocket and LuaCrypto.]],
-  homepage = "https://github.com/leafo/pgmoon",
-  maintainer = "Leaf Corcoran <leafot@gmail.com>",
+  homepage = "https://github.com/Kong/pgmoon",
+  maintainer = "Kong Inc",
   license = "MIT"
 }
 
