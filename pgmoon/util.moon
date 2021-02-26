@@ -5,6 +5,8 @@ flatten = do
     switch type(t)
       when "string"
         buffer[#buffer + 1] = t
+      when "number"
+        buffer[#buffer + 1] = t
       when "table"
         for thing in *t
           __flatten thing, buffer

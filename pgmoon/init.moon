@@ -170,7 +170,8 @@ class Postgres
         key: opts.key
         cert: opts.cert
         cafile: opts.cafile
-        ssl_version: opts.ssl_version or "tlsv1_2"
+        ssl_version: opts.ssl_version or "any"
+        options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
       }
 
   connect: =>

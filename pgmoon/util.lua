@@ -5,6 +5,8 @@ do
     local _exp_0 = type(t)
     if "string" == _exp_0 then
       buffer[#buffer + 1] = t
+    elseif "number" == _exp_0 then
+      buffer[#buffer + 1] = tostring(t)
     elseif "table" == _exp_0 then
       for _index_0 = 1, #t do
         local thing = t[_index_0]
