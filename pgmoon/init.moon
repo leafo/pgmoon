@@ -268,7 +268,9 @@ class Postgres
       certificate: cert
       cafile: @config.cafile
       protocol: @config.ssl_version
-      verify: @config.ssl_verify and "peer" or "none"
+      verify: @config.ssl_verify and "peer" or "none",
+      ssl_version: opts.ssl_version or "any"
+      options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
     }
 
 
