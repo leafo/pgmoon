@@ -29,7 +29,7 @@ describe "pgmoon with server", ->
     assert pg\query "select * from information_schema.tables"
     pg\disconnect!
 
-  it "connects with ssl on ssl server (defaults to TLS v1.2)", ->
+  it "connects with ssl on ssl server (defaults to highest available, TLSv1.3)", ->
     pg = Postgres {
       database: DB
       port: PORT
@@ -41,26 +41,11 @@ describe "pgmoon with server", ->
     }
 
     assert pg\connect!
-    assert pg\query "select * from information_schema.tables"
+    res = assert pg\query [[SELECT version FROM pg_stat_ssl WHERE pid=pg_backend_pid()]]
+    assert.same 'TLSv1.3', res[1].version
     pg\disconnect!
 
-  it "connects with TLS v1.0 on ssl server", ->
-    pg = Postgres {
-      database: DB
-      port: PORT
-      user: USER
-      password: PASSWORD
-      host: HOST
-      ssl: true
-      ssl_required: true
-      ssl_version: "tlsv1"
-    }
-
-    assert pg\connect!
-    assert pg\query "select * from information_schema.tables"
-    pg\disconnect!
-
-  it "connects with TLS v1.2 on ssl server", ->
+  it "connects with TLSv1.2 on ssl server", ->
     pg = Postgres {
       database: DB
       port: PORT
@@ -73,7 +58,25 @@ describe "pgmoon with server", ->
     }
 
     assert pg\connect!
-    assert pg\query "select * from information_schema.tables"
+    res = assert pg\query [[SELECT version FROM pg_stat_ssl WHERE pid=pg_backend_pid()]]
+    assert.same 'TLSv1.2', res[1].version
+    pg\disconnect!
+
+  it "connects with TLSv1.3 on ssl server", ->
+    pg = Postgres {
+      database: DB
+      port: PORT
+      user: USER
+      password: PASSWORD
+      host: HOST
+      ssl: true
+      ssl_required: true
+      ssl_version: "tlsv1_3"
+    }
+
+    assert pg\connect!
+    res = assert pg\query [[SELECT version FROM pg_stat_ssl WHERE pid=pg_backend_pid()]]
+    assert.same 'TLSv1.3', res[1].version
     pg\disconnect!
 
 

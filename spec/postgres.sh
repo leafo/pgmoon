@@ -38,7 +38,7 @@ function start {
   # -v "$pgroot:/var/lib/postgresql/data" \ # this can be used to inspect logs since we'll have the server data dir available after the sever stops
 
   echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
-  until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c '' 2> /dev/null); do :; done
+  until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' 2> /dev/null); do :; done
   echo "$(tput setaf 4)Sever is ready$(tput sgr0)"
 }
 
