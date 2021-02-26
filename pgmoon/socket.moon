@@ -38,12 +38,12 @@ luasocket = do
           ssl = require "ssl"
           params = {
             mode: "client"
-            protocol: opts.ssl_version or "tlsv1"
+            protocol: opts.ssl_version or "any"
             key: opts.key
             certificate: opts.cert
             cafile: opts.cafile
             verify: verify and "peer" or "none"
-            options: "all"
+            options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
           }
 
           sec_sock, err = ssl.wrap @sock, params
