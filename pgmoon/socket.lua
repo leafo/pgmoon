@@ -54,7 +54,12 @@ do
             certificate = opts.cert,
             cafile = opts.cafile,
             verify = verify and "peer" or "none",
-            options = { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
+            options = {
+              "all",
+              "no_sslv2",
+              "no_sslv3",
+              "no_tlsv1"
+            }
           }
           local sec_sock, err = ssl.wrap(self.sock, params)
           if not (sec_sock) then

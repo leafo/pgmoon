@@ -6,7 +6,7 @@ flatten = do
       when "string"
         buffer[#buffer + 1] = t
       when "number"
-        buffer[#buffer + 1] = t
+        buffer[#buffer + 1] = tostring t
       when "table"
         for thing in *t
           __flatten thing, buffer
