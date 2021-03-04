@@ -1,4 +1,4 @@
-local rshift, lshift, band, ok, _
+local rshift, lshift, band, bxor, ok, _
 local string_loader
 string_loader = function(str)
   local sent = false
@@ -46,10 +46,12 @@ else
   do
     local _obj_0 = require("bit")
     rshift, lshift, band = _obj_0.rshift, _obj_0.lshift, _obj_0.band
+    bxor = _obj_0.bxor
   end
 end
 return {
   rshift = rshift,
   lshift = lshift,
-  band = band
+  band = band,
+  bxor = bxor
 }
