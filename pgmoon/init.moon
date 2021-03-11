@@ -203,14 +203,13 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
-    sock = @sock
-    @sock = nil
-    sock\close!
+    @sock\close!
 
   keepalive: (...) =>
-    sock = @sock
-    @sock = nil
-    sock\setkeepalive ...
+    if @sock.setkeepalive
+      return @sock\setkeepalive ...
+    else
+      error "socket implementation #{@sock_type} does not support keepalive"
 
   auth: =>
     t, msg = @receive_message!
