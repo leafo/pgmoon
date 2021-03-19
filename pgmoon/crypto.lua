@@ -5,7 +5,7 @@ if ngx then
 end
 local md5
 pcall(function()
-  local digest = require("openssl.digest")
+  local digest = require("openssl").digest or require("openssl.digest")
   local hex_char
   hex_char = function(c)
     return string.format("%02x", string.byte(c))
