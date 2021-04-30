@@ -188,7 +188,9 @@ do
       local opts
       if self.sock_type == "nginx" then
         opts = {
-          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user)
+          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user),
+          pool_size = self.pool_size,
+          backlog = self.backlog
         }
       end
       local ok, err = self.sock:connect(self.host, self.port, opts)
@@ -684,6 +686,8 @@ do
         self.ssl_verify = opts.ssl_verify
         self.ssl_required = opts.ssl_required
         self.pool_name = opts.pool
+        self.pool_size = opts.pool_size
+        self.backlog = opts.backlog
         self.luasec_opts = {
           key = opts.key,
           cert = opts.cert,
