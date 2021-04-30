@@ -106,6 +106,13 @@ of options. The table can have the following keys:
 * `"ssl_verify"`: verify server certificate (default: `nil`)
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
 * `"pool"`: optional name of pool to use when using OpenResty cosocket (defaults to `"#{host}:#{port}:#{database}"`)
+* `"pool_size"`: optional size of pool to use when using OpenResty cosocket (default size equal to the value of the `lua_socket_pool_size` directive)
+* `"backlog"`: optional size of backlog to use when using OpenResty cosocket.
+    If specified, this module will limit the total number of opened connections
+       for this pool. No more connections than `pool_size` can be opened
+       for this pool at any time. If the connection pool is full, subsequent
+       connect operations will be queued into a queue equal to this option's
+       value (the "backlog" queue).
 * `"socket_type"`: optional, the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
 * `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
 
