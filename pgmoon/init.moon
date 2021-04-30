@@ -166,6 +166,8 @@ class Postgres
       @ssl_verify = opts.ssl_verify
       @ssl_required = opts.ssl_required
       @pool_name = opts.pool
+      @pool_size = opts.pool_size
+      @backlog = opts.backlog
       @luasec_opts = {
         key: opts.key
         cert: opts.cert
@@ -178,6 +180,8 @@ class Postgres
     opts = if @sock_type == "nginx"
       {
         pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
+        pool_size: @pool_size
+        backlog: @backlog
       }
 
     ok, err = @sock\connect @host, @port, opts
