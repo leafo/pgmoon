@@ -176,6 +176,7 @@ class Postgres
         ssl_version: opts.ssl_version or "any"
         options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
       }
+      @application_name = opts.application_name or "pgmoon"
 
   connect: =>
     opts = if @sock_type == "nginx"
@@ -692,7 +693,7 @@ class Postgres
       "database", NULL
       @database, NULL
       "application_name", NULL
-      "pgmoon", NULL
+      @application_name, NULL
       NULL
     }
 
