@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        postgresVersion: ["13"]
+        postgresVersion: ["13", "14"]
         luaVersion: ["5.1", "5.2", "5.3", "5.4", "luajit-openresty"]
 
     env:
