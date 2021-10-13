@@ -2,9 +2,9 @@
 
 ![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)
 
-> **Note!** Are you using the latest version of OpenResty? You must update to
-> pgmoon 1.12 or above, due to a change in Lua pattern compatibility, any query
-> that returns affected number of rows will return the expected value.
+> **Note:** Have you updated from an older version of OpenResty? You must update to
+> pgmoon 1.12 or above, due to a change in Lua pattern compatibility to avoid incorrect 
+> results from queries that return affected rows.
 
 pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
 
