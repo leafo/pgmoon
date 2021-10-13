@@ -294,26 +294,26 @@ class Postgres
       mechanism_name = "SCRAM-SHA-256-PLUS" .. NULL
 
       cbind_data = do
-        local pem
-
-        pem, signature = if @sock_type == "luasocket"
-          server_cert = @sock\getpeercertificate()
-          server_cert\pem!, server_cert\getsignaturename!
+        if @sock_type == "cqueues"
+          openssl_x509 = @sock\getpeercertificate!
+          openssl_x509\digest "sha256", "s"
         else
-          ssl = require("resty.openssl.ssl").from_socket(@sock)
-          server_cert = ssl\get_peer_certificate()
+          pem, signature = if @sock_type == "nginx"
+            ssl = require("resty.openssl.ssl").from_socket(@sock)
+            server_cert = ssl\get_peer_certificate()
+            server_cert\to_PEM!, server_cert\get_signature_name!
+          else
+            server_cert = @sock\getpeercertificate()
+            server_cert\pem!, server_cert\getsignaturename!
 
-          server_cert\to_PEM!, server_cert\get_signature_name!
+          signature = signature\lower!
 
-        signature = signature\lower!
+          -- upgrade the signature if necessary
+          if signature\match("^md5") or signature\match("^sha1")
+            signature = "sha256"
 
-        if signature\match("md5") or signature\match("sha1") then
-          signature = "sha256"
-
-        openssl_x509 = require("openssl.x509").new(pem, "PEM")
-        openssl_x509_digest = assert openssl_x509\digest(signature, "s")
-
-        openssl_x509_digest
+          openssl_x509 = require("openssl.x509").new(pem, "PEM")
+          assert openssl_x509\digest(signature, "s")
 
       cbind_input = gs2_header .. cbind_data
 
@@ -321,7 +321,7 @@ class Postgres
 
     @send_message MSG_TYPE.password, {
       mechanism_name
-      self\encode_int(#client_first_message)
+      @encode_int #client_first_message
       client_first_message
     }
 

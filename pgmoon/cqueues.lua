@@ -24,6 +24,10 @@ do
     sslhandshake = function(self)
       return self.sock:starttls()
     end,
+    getpeercertificate = function(self)
+      local ssl = assert(self.sock:checktls())
+      return assert(ssl:getPeerCertificate(), "no peer certificate available")
+    end,
     send = function(self, ...)
       return self.sock:write(flatten(...))
     end,

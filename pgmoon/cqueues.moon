@@ -24,6 +24,11 @@ class CqueuesSocket
   sslhandshake: =>
     @sock\starttls!
 
+  -- returns openssl.x509 object
+  getpeercertificate: =>
+    ssl = assert @sock\checktls!
+    assert ssl\getPeerCertificate!, "no peer certificate available"
+
   send: (...) =>
     @sock\write flatten ...
 

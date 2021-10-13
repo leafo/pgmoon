@@ -302,23 +302,26 @@ do
         mechanism_name = "SCRAM-SHA-256-PLUS" .. NULL
         local cbind_data
         do
-          local pem
-          local signature
-          if self.sock_type == "luasocket" then
-            local server_cert = self.sock:getpeercertificate()
-            pem, signature = server_cert:pem(), server_cert:getsignaturename()
+          if self.sock_type == "cqueues" then
+            local openssl_x509 = self.sock:getpeercertificate()
+            cbind_data = openssl_x509:digest("sha256", "s")
           else
-            local ssl = require("resty.openssl.ssl").from_socket(self.sock)
-            local server_cert = ssl:get_peer_certificate()
-            pem, signature = server_cert:to_PEM(), server_cert:get_signature_name()
+            local pem, signature
+            if self.sock_type == "nginx" then
+              local ssl = require("resty.openssl.ssl").from_socket(self.sock)
+              local server_cert = ssl:get_peer_certificate()
+              pem, signature = server_cert:to_PEM(), server_cert:get_signature_name()
+            else
+              local server_cert = self.sock:getpeercertificate()
+              pem, signature = server_cert:pem(), server_cert:getsignaturename()
+            end
+            signature = signature:lower()
+            if signature:match("^md5") or signature:match("^sha1") then
+              signature = "sha256"
+            end
+            local openssl_x509 = require("openssl.x509").new(pem, "PEM")
+            cbind_data = assert(openssl_x509:digest(signature, "s"))
           end
-          signature = signature:lower()
-          if signature:match("md5") or signature:match("sha1") then
-            signature = "sha256"
-          end
-          local openssl_x509 = require("openssl.x509").new(pem, "PEM")
-          local openssl_x509_digest = assert(openssl_x509:digest(signature, "s"))
-          cbind_data = openssl_x509_digest
         end
         cbind_input = gs2_header .. cbind_data
       end
