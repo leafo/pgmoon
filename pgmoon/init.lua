@@ -7,7 +7,7 @@ do
   rshift, lshift, band, bxor = _obj_0.rshift, _obj_0.lshift, _obj_0.band, _obj_0.bxor
 end
 local unpack = table.unpack or unpack
-local VERSION = "1.12.0"
+local VERSION = "1.13.0"
 local _len
 _len = function(thing, t)
   if t == nil then

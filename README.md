@@ -94,22 +94,25 @@ Functions in table returned by `require("pgmoon")`:
 
 ### `new(options={})`
 
-Creates a new `Postgres` object. Does not connect automatically. Takes a table
-of options. The table can have the following keys:
+Creates a new `Postgres` object from a configuration object. All options are
+optinal unless otherwise stated. The newly created object will not
+automatically connect, you must call `conect` after creating the object.
 
+Available options:
+
+* `"database"`: the database name to connect to **required**
 * `"host"`: the host to connect to (default: `"127.0.0.1"`)
 * `"port"`: the port to connect to (default: `"5432"`)
 * `"user"`: the database username to authenticate (default: `"postgres"`)
-* `"database"`: the database name to connect to **required**
-* `"password"`: password for authentication, optional depending on server configuration
+* `"password"`: password for authentication, may be required depending on server configuration
 * `"ssl"`: enable ssl (default: `false`)
 * `"ssl_verify"`: verify server certificate (default: `nil`)
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
-* `"socket_type"`: optional, the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
 * `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
-* `"pool"`: (OpenResty only) **optional** name of pool to use when using OpenResty cosocket (default: `"#{host}:#{port}:#{database}"`)
-* `"pool_size"`: (OpenResty only) **optional** Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
-* `"backlog"`: (OpenResty only) **optional** Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `"pool"`: (OpenResty only) name of pool to use when using OpenResty cosocket (default: `"#{host}:#{port}:#{database}"`)
+* `"pool_size"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `"backlog"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
 
 Methods on the `Postgres` object returned by `new`:
 
@@ -122,9 +125,8 @@ message.
 
 ### postgres:settimeout(time)
 
-Sets the timeout value (in milliseconds) for all socket operations (connect,
-write, receive). This function does not have any return values.
-
+Sets the timeout value (in milliseconds) for all subsequent socket operations
+(connect, write, receive). This function does not have any return values.
 
 ### success, err = postgres:disconnect()
 
@@ -255,9 +257,9 @@ Returns string representation of current state of `Postgres` object.
 ## SSL connections
 
 pgmoon can establish an SSL connection to a Postgres server. It can also refuse
-to connect to it if the server does not support SSL.
-Just as pgmoon depends on LuaSocket for usage outside of OpenResty, it depends
-on LuaSec for SSL connections in such contexts.
+to connect to it if the server does not support SSL.  Just as pgmoon depends on
+LuaSocket for usage outside of OpenResty, it depends on luaossl/LuaSec for SSL
+connections in such contexts.
 
 ```lua
 local pgmoon = require("pgmoon")
@@ -400,6 +402,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.13.0 — 2021-10-13 - Add support for scram_sha_256_auth (@murillopaula), 'backlog' and 'pool_size' options while using ngx.socket (@xiaocang), update LuaSec ssl_protocol default options (@jeremymv2), `application_name` option (@mecampbellsoup)
 * 1.12.0 — 2021-01-06 - Lua pattern compatibility fix, Support for Lua 5.1 through 5.4 (@jprjr). Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec. Luabitop is no longer automatically installed as a dependency. New test suite.
 * 1.11.0 — 2020-03-26 - Allow for TLS v1.2 when using LuaSec (Miles Elam)
 * 1.10.0 — 2019-04-15 - Support luaossl for crypto functions, added better error when missing crypto library
