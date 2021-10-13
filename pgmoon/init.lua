@@ -728,7 +728,7 @@ do
         NULL,
         "application_name",
         NULL,
-        "pgmoon",
+        self.application_name,
         NULL,
         NULL
       }
@@ -864,6 +864,7 @@ do
             "no_tlsv1"
           }
         }
+        self.application_name = opts.application_name or "pgmoon"
       end
     end,
     __base = _base_0,
