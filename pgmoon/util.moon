@@ -16,4 +16,13 @@ flatten = do
     __flatten t, buffer
     table.concat buffer
 
-{:flatten}
+local encode_base64, decode_base64
+
+if ngx
+  {:encode_base64, :decode_base64} = ngx
+else
+  { :b64, :unb64 } = require "mime" -- provided by luasocket
+  encode_base64 = (...) -> (b64 ...)
+  decode_base64 = (...) -> (unb64 ...)
+
+{:flatten, :encode_base64, :decode_base64}

@@ -41,8 +41,28 @@ digest_sha256 = function(str)
   digest:update(str)
   return assert(digest:final())
 end
+local kdf_derive_sha256
+kdf_derive_sha256 = function(str, salt, i)
+  local openssl_kdf = require("openssl.kdf")
+  local decode_base64
+  decode_base64 = require("pgmoon.util").decode_base64
+  salt = decode_base64(salt)
+  local key, err = openssl_kdf.derive({
+    type = "PBKDF2",
+    md = "sha256",
+    salt = salt,
+    iter = i,
+    pass = str,
+    outlen = 32
+  })
+  if not (key) then
+    return nil, "failed to derive pbkdf2 key: " .. tostring(err)
+  end
+  return key
+end
 return {
   md5 = md5,
   hmac_sha256 = hmac_sha256,
-  digest_sha256 = digest_sha256
+  digest_sha256 = digest_sha256,
+  kdf_derive_sha256 = kdf_derive_sha256
 }

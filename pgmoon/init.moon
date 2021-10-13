@@ -1,9 +1,12 @@
 socket = require "pgmoon.socket"
 import insert from table
 
-import rshift, lshift, band from require "pgmoon.bit"
+import rshift, lshift, band, bxor from require "pgmoon.bit"
 
 unpack = table.unpack or unpack
+
+-- Protocol documentation:
+-- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
 VERSION = "1.12.0"
 
@@ -232,6 +235,8 @@ class Postgres
         @cleartext_auth msg
       when 5 -- md5 password
         @md5_auth msg
+      when 10 -- AuthenticationSASL
+        @scram_sha_256_auth msg
       else
         error "don't know how to auth: #{auth_type}"
 
@@ -242,6 +247,183 @@ class Postgres
       @password
       NULL
     }
+
+    @check_auth!
+
+  -- https://www.postgresql.org/docs/current/sasl-authentication.html#SASL-SCRAM-SHA-256
+  scram_sha_256_auth: (msg) =>
+    assert @password, "missing password, required for connect"
+
+    openssl_rand = require "openssl.rand"
+
+    -- '18' is the number set by postgres on the server side
+    rand_bytes  = assert openssl_rand.bytes 18
+
+    import encode_base64 from require "pgmoon.util"
+
+    c_nonce = encode_base64 rand_bytes
+    nonce = "r=" .. c_nonce
+    saslname = ""
+    username = "n=" .. saslname
+    client_first_message_bare = username .. "," .. nonce
+
+    plus = false
+    bare = false
+
+    if msg\match "SCRAM%-SHA%-256%-PLUS"
+      plus = true
+    elseif msg\match "SCRAM%-SHA%-256"
+      bare = true
+    else
+      error "unsupported SCRAM mechanism name: " .. tostring(msg)
+
+    local gs2_cbind_flag
+    local gs2_header
+    local cbind_input
+    local mechanism_name
+
+    if bare
+      gs2_cbind_flag = "n"
+      gs2_header = gs2_cbind_flag .. ",,"
+      cbind_input = gs2_header
+      mechanism_name = "SCRAM-SHA-256" .. NULL
+    elseif plus
+      cb_name = "tls-server-end-point"
+      gs2_cbind_flag = "p=" .. cb_name
+      gs2_header = gs2_cbind_flag .. ",,"
+      mechanism_name = "SCRAM-SHA-256-PLUS" .. NULL
+
+      cbind_data = do
+        local pem
+
+        pem, signature = if @sock_type == "luasocket"
+          server_cert = @sock\getpeercertificate()
+          server_cert\pem!, server_cert\getsignaturename!
+        else
+          ssl = require("resty.openssl.ssl").from_socket(@sock)
+          server_cert = ssl\get_peer_certificate()
+
+          server_cert\to_PEM!, server_cert\get_signature_name!
+
+        signature = signature\lower!
+
+        if signature\match("md5") or signature\match("sha1") then
+          signature = "sha256"
+
+        openssl_x509 = require("openssl.x509").new(pem, "PEM")
+        openssl_x509_digest = assert openssl_x509\digest(signature, "s")
+
+        openssl_x509_digest
+
+      cbind_input = gs2_header .. cbind_data
+
+    client_first_message = gs2_header .. client_first_message_bare
+
+    @send_message MSG_TYPE.password, {
+      mechanism_name
+      self\encode_int(#client_first_message)
+      client_first_message
+    }
+
+    t, msg = @receive_message()
+
+    unless t
+      return nil, msg
+
+    server_first_message = msg\sub 5
+    int32 = @decode_int msg, 4
+
+    if int32 == nil or int32 != 11
+      return nil, "server_first_message error: " .. msg
+
+    channel_binding = "c=" .. encode_base64 cbind_input
+    nonce = server_first_message\match "([^,]+)"
+
+    unless nonce
+      return nil, "malformed server message (nonce)"
+
+    client_final_message_without_proof = channel_binding .. "," .. nonce
+
+    xor = (a, b) ->
+      result = for i=1,#a
+        x = a\byte i
+        y = b\byte i
+
+        unless x and y
+          return nil
+
+        string.char bxor x, y
+
+      table.concat result
+
+    salt = server_first_message\match ",s=([^,]+)"
+
+    unless salt
+      return nil, "malformed server message (salt)"
+
+    i = server_first_message\match ",i=(.+)"
+
+    unless i
+      return nil, "malformed server message (iteraton count)"
+
+    if tonumber(i) < 4096
+      return nil, "the iteration-count sent by the server is less than 4096"
+
+    import kdf_derive_sha256, hmac_sha256, digest_sha256 from require "pgmoon.crypto"
+    salted_password, err = kdf_derive_sha256 @password, salt, tonumber i
+
+    unless salted_password
+      return nil, err
+
+    client_key, err = hmac_sha256 salted_password, "Client Key"
+
+    unless client_key
+      return nil, err
+
+    stored_key, err = digest_sha256 client_key
+
+    unless stored_key
+      return nil, err
+
+    auth_message = "#{client_first_message_bare },#{server_first_message },#{client_final_message_without_proof}"
+
+    client_signature, err = hmac_sha256 stored_key, auth_message
+
+    unless client_signature
+      return nil, err
+
+    proof = xor client_key, client_signature
+
+    unless proof
+      return nil, "failed to generate the client proof"
+
+    client_final_message = "#{client_final_message_without_proof },p=#{encode_base64 proof}"
+
+    @send_message MSG_TYPE.password, {
+      client_final_message
+    }
+
+    t, msg = @receive_message()
+
+    unless t
+      return nil, msg
+
+    server_key, err = hmac_sha256 salted_password, "Server Key"
+
+    unless server_key
+      return nil, err
+
+    server_signature, err = hmac_sha256 server_key, auth_message
+
+    unless server_signature
+      return nil, err
+
+
+    server_signature = encode_base64 server_signature
+    sent_server_signature = msg\match "v=([^,]+)"
+
+    if server_signature != sent_server_signature then
+      return nil, "authentication exchange unsuccessful"
 
     @check_auth!
 
