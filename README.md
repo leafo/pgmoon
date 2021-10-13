@@ -58,11 +58,11 @@ If you want to use SSL connections with LuaSocket then you will need LuaSec:
 $ luarocks install luasec
 ```
 
-If you want to use password authentication then you will need a crypto library:
+Password authentication or SSL connections will require a crypto library:
 
-* [OpenResty](https://openresty.org/en/) &mdash; Built in function will be used, no additional dependencies necessary
 * [luaossl](https://github.com/wahern/luaossl) &mdash; Recommended `luarocks install luaossl`
-* [luacrypto](https://github.com/starius/luacrypto) &mdash; Deprecated library, not recommended
+* [OpenResty](https://openresty.org/en/) &mdash; Built in function will be used if possible, otherwise `luaossl` is necessary
+* [luacrypto](https://github.com/starius/luacrypto) &mdash; Deprecated library, not recommended, but will be used with LuaSocket if available
 
 ## Example
 
@@ -107,6 +107,7 @@ of options. The table can have the following keys:
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
 * `"pool"`: optional name of pool to use when using OpenResty cosocket (defaults to `"#{host}:#{port}:#{database}"`)
 * `"socket_type"`: optional, the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
 
 Methods on the `Postgres` object returned by `new`:
 
