@@ -324,6 +324,22 @@ local my_array = {1,2,3,4,5}
 pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
 ```
 
+### Empty Arrays
+
+When trying to encode an empty array an error will be thrown. Postgres requires
+a type when using an array. When there are values in the array Postgres can
+infer the type, but with no values in the array no type can be inferred. This
+is illustrated in the erorr provided by Postgres:
+
+
+```
+postgres=# select ARRAY[];
+ERROR:  cannot determine type of empty array
+LINE 1: select ARRAY[];
+               ^
+HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
+```
+
 ## Handling JSON
 
 `json` and `jsonb` types are automatically decoded when they are returned from
