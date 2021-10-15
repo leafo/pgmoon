@@ -181,6 +181,9 @@ class Postgres
       @application_name = opts.application_name or "pgmoon"
 
   connect: =>
+    unless @sock
+      @sock = socket.new @sock_type
+
     opts = if @sock_type == "nginx"
       {
         pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
