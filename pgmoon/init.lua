@@ -187,22 +187,6 @@ do
       assert(res, "hstore oid not found")
       return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
-    create_cqueues_openssl_context = function(self)
-      if self.config.ssl_verify == nil then
-        return 
-      end
-      local context = require("openssl.ssl.context").new()
-      return context
-    end,
-    create_luasec_opts = function(self)
-      return {
-        key = self.config.key,
-        certificate = self.config.cert,
-        cafile = self.config.cafile,
-        protocol = self.config.ssl_version,
-        verify = self.config.ssl_verify and "peer" or "none"
-      }
-    end,
     connect = function(self)
       if not (self.sock) then
         self.sock = socket.new(self.sock_type)
@@ -256,6 +240,35 @@ do
       local sock = self.sock
       self.sock = nil
       return sock:setkeepalive(...)
+    end,
+    create_cqueues_openssl_context = function(self)
+      if not (self.config.ssl_verify ~= nil or self.config.cert or self.config.key or self.config.ssl_version) then
+        return 
+      end
+      local ssl_context = require("openssl.ssl.context")
+      local out = ssl_context.new(self.config.ssl_version)
+      if self.config.ssl_verify == true then
+        out:setVerify(ssl_context.VERIFY_PEER)
+      end
+      if self.config.ssl_verify == false then
+        out:setVerify(ssl_context.VERIFY_NONE)
+      end
+      if self.config.cert then
+        out:setCertificate(self.config.cert)
+      end
+      if self.config.key then
+        out:setPrivateKey(self.config.key)
+      end
+      return out
+    end,
+    create_luasec_opts = function(self)
+      return {
+        key = self.config.key,
+        certificate = self.config.cert,
+        cafile = self.config.cafile,
+        protocol = self.config.ssl_version,
+        verify = self.config.ssl_verify and "peer" or "none"
+      }
     end,
     auth = function(self)
       local t, msg = self:receive_message()

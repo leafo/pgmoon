@@ -168,7 +168,7 @@ class Postgres
   -- application_name: name assigned to connection to server
   -- socket_type: type of socket to use (nginx, luasocket, cqueues)
   -- ssl: enable ssl connections
-  -- ssl_verify: enable ssl connections
+  -- ssl_verify: verify the certificate
   -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
   -- luasec_opts: manually created options for LuaSocket ssl connections
   new: (@config={}) =>
@@ -178,21 +178,6 @@ class Postgres
     setmetatable @config, __index: @default_config
 
     @sock, @sock_type = socket.new @config.socket_type
-
-  create_cqueues_openssl_context: =>
-    return if @config.ssl_verify == nil
-
-    context = require("openssl.ssl.context").new!
-    context
-
-  create_luasec_opts: =>
-    {
-      key: @config.key
-      certificate: @config.cert
-      cafile: @config.cafile
-      protocol: @config.ssl_version
-      verify: @config.ssl_verify and "peer" or "none"
-    }
 
   connect: =>
     unless @sock
@@ -237,6 +222,38 @@ class Postgres
     sock = @sock
     @sock = nil
     sock\setkeepalive ...
+
+  -- see: http://25thandclement.com/~william/projects/luaossl.pdf
+  create_cqueues_openssl_context: =>
+    return unless @config.ssl_verify != nil or @config.cert or @config.key or @config.ssl_version
+
+    ssl_context = require("openssl.ssl.context")
+
+    out = ssl_context.new @config.ssl_version
+
+    if @config.ssl_verify == true
+      out\setVerify ssl_context.VERIFY_PEER
+
+    if @config.ssl_verify == false
+      out\setVerify ssl_context.VERIFY_NONE
+
+    if @config.cert
+      out\setCertificate @config.cert
+
+    if @config.key
+      out\setPrivateKey @config.key
+
+    out
+
+  create_luasec_opts: =>
+    {
+      key: @config.key
+      certificate: @config.cert
+      cafile: @config.cafile
+      protocol: @config.ssl_version
+      verify: @config.ssl_verify and "peer" or "none"
+    }
+
 
   auth: =>
     t, msg = @receive_message!
