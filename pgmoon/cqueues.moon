@@ -21,8 +21,9 @@ class CqueuesSocket
 
     true
 
-  sslhandshake: =>
-    @sock\starttls!
+  -- args: [context][, timeout]
+  starttls: (...) =>
+    @sock\starttls ...
 
   -- returns openssl.x509 object
   getpeercertificate: =>

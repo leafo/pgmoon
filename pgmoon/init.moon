@@ -109,10 +109,13 @@ class Postgres
   NULL: {"NULL"}
   :PG_TYPES
 
-  user: "postgres"
-  host: "127.0.0.1"
-  port: "5432"
-  ssl: false
+  default_config: {
+    application_name: "pgmoon"
+    user: "postgres"
+    host: "127.0.0.1"
+    port: "5432"
+    ssl: false
+  }
 
   -- custom types supplementing PG_TYPES
   type_deserializers: {
@@ -156,46 +159,58 @@ class Postgres
     assert res, "hstore oid not found"
     @set_type_oid tonumber(res.oid), "hstore"
 
-  new: (opts) =>
-    @sock, @sock_type = socket.new opts and opts.socket_type
+  -- config={}
+  -- host: server hostname
+  -- port: server port
+  -- user: the username to authenticate with
+  -- password: the username to authenticate with
+  -- database: database to connect to
+  -- application_name: name assigned to connection to server
+  -- socket_type: type of socket to use (nginx, luasocket, cqueues)
+  -- ssl: enable ssl connections
+  -- ssl_verify: enable ssl connections
+  -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
+  -- luasec_opts: manually created options for LuaSocket ssl connections
+  new: (@config={}) =>
+    assert not getmetatable(@config),
+      "options argument must not have a metatable to allow default configuration to be inherited"
 
-    if opts
-      @user = opts.user
-      @host = opts.host
-      @database = opts.database
-      @port = opts.port
-      @password = opts.password
-      @ssl = opts.ssl
-      @ssl_verify = opts.ssl_verify
-      @ssl_required = opts.ssl_required
-      @pool_name = opts.pool
-      @pool_size = opts.pool_size
-      @backlog = opts.backlog
-      @luasec_opts = {
-        key: opts.key
-        cert: opts.cert
-        cafile: opts.cafile
-        ssl_version: opts.ssl_version or "any"
-        options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
-      }
-      @application_name = opts.application_name or "pgmoon"
+    setmetatable @config, __index: @default_config
+
+    @sock, @sock_type = socket.new @config.socket_type
+
+  create_cqueues_openssl_context: =>
+    return if @config.ssl_verify == nil
+
+    context = require("openssl.ssl.context").new!
+    context
+
+  create_luasec_opts: =>
+    {
+      key: @config.key
+      certificate: @config.cert
+      cafile: @config.cafile
+      protocol: @config.ssl_version
+      verify: @config.ssl_verify and "peer" or "none"
+    }
 
   connect: =>
     unless @sock
       @sock = socket.new @sock_type
 
-    opts = if @sock_type == "nginx"
-      {
-        pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
-        pool_size: @pool_size
-        backlog: @backlog
-      }
+    connect_opts = switch @sock_type
+      when "nginx"
+        {
+          pool: @config.pool_name or "#{@config.host}:#{@config.port}:#{@config.database}:#{@config.user}"
+          pool_size: @config.pool_size
+          backlog: @config.backlog
+        }
 
-    ok, err = @sock\connect @host, @port, opts
+    ok, err = @sock\connect @config.host, @config.port, connect_opts
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0
-      if @ssl
+      if @config.ssl
         success, err = @send_ssl_message!
         return nil, err unless success
 
@@ -249,10 +264,10 @@ class Postgres
         error "don't know how to auth: #{auth_type}"
 
   cleartext_auth: (msg) =>
-    assert @password, "missing password, required for connect"
+    assert @config.password, "missing password, required for connect"
 
     @send_message MSG_TYPE.password, {
-      @password
+      @config.password
       NULL
     }
 
@@ -260,7 +275,7 @@ class Postgres
 
   -- https://www.postgresql.org/docs/current/sasl-authentication.html#SASL-SCRAM-SHA-256
   scram_sha_256_auth: (msg) =>
-    assert @password, "missing password, required for connect"
+    assert @config.password, "missing password, required for connect"
 
     openssl_rand = require "openssl.rand"
 
@@ -378,7 +393,7 @@ class Postgres
       return nil, "the iteration-count sent by the server is less than 4096"
 
     import kdf_derive_sha256, hmac_sha256, digest_sha256 from require "pgmoon.crypto"
-    salted_password, err = kdf_derive_sha256 @password, salt, tonumber i
+    salted_password, err = kdf_derive_sha256 @config.password, salt, tonumber i
 
     unless salted_password
       return nil, err
@@ -438,11 +453,11 @@ class Postgres
   md5_auth: (msg) =>
     import md5 from require "pgmoon.crypto"
     salt = msg\sub 5, 8
-    assert @password, "missing password, required for connect"
+    assert @config.password, "missing password, required for connect"
 
     @send_message MSG_TYPE.password, {
       "md5"
-      md5 md5(@password .. @user) .. salt
+      md5 md5(@config.password .. @config.user) .. salt
       NULL
     }
 
@@ -690,17 +705,17 @@ class Postgres
     t, msg
 
   send_startup_message: =>
-    assert @user, "missing user for connect"
-    assert @database, "missing database for connect"
+    assert @config.user, "missing user for connect"
+    assert @config.database, "missing database for connect"
 
     data = {
       @encode_int 196608
       "user", NULL
-      @user, NULL
+      @config.user, NULL
       "database", NULL
-      @database, NULL
+      @config.database, NULL
       "application_name", NULL
-      @application_name, NULL
+      @config.application_name, NULL
       NULL
     }
 
@@ -720,11 +735,16 @@ class Postgres
     return nil, err unless t
 
     if t == MSG_TYPE.status
-      if @sock_type == "nginx"
-        @sock\sslhandshake false, nil, @ssl_verify
-      else
-        @sock\sslhandshake @ssl_verify, @luasec_opts
-    elseif t == MSG_TYPE.error or @ssl_required
+      switch @sock_type
+        when "nginx"
+          @sock\sslhandshake false, nil, @config.ssl_verify
+        when "luasocket"
+          @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
+        when "cqueues"
+          @sock\starttls @config.cqueues_openssl_context or @create_cqueues_openssl_context!
+        else
+          error "don't know how to do ssl handshake for socket type: #{@sock_type}"
+    elseif t == MSG_TYPE.error or @config.ssl_required
       @disconnect!
       nil, "the server does not support SSL connections"
     else

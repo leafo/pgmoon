@@ -34,17 +34,18 @@ luasocket = do
           if t
             t = t/1000
           @sock\settimeout t
-        sslhandshake: (verify, opts={}) =>
+
+        sslhandshake: (opts={}) =>
           ssl = require "ssl"
           params = {
             mode: "client"
-            protocol: opts.ssl_version or "any"
-            key: opts.key
-            certificate: opts.cert
-            cafile: opts.cafile
-            verify: verify and "peer" or "none"
+            protocol: "any"
+            verify: "none"
             options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
           }
+
+          for k,v in pairs opts
+            params[k] = v
 
           sec_sock, err = ssl.wrap @sock, params
           return false, err unless sec_sock

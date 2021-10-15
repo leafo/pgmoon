@@ -126,10 +126,13 @@ do
       "NULL"
     },
     PG_TYPES = PG_TYPES,
-    user = "postgres",
-    host = "127.0.0.1",
-    port = "5432",
-    ssl = false,
+    default_config = {
+      application_name = "pgmoon",
+      user = "postgres",
+      host = "127.0.0.1",
+      port = "5432",
+      ssl = false
+    },
     type_deserializers = {
       json = function(self, val, name)
         local decode_json
@@ -184,24 +187,41 @@ do
       assert(res, "hstore oid not found")
       return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
+    create_cqueues_openssl_context = function(self)
+      if self.config.ssl_verify == nil then
+        return 
+      end
+      local context = require("openssl.ssl.context").new()
+      return context
+    end,
+    create_luasec_opts = function(self)
+      return {
+        key = self.config.key,
+        certificate = self.config.cert,
+        cafile = self.config.cafile,
+        protocol = self.config.ssl_version,
+        verify = self.config.ssl_verify and "peer" or "none"
+      }
+    end,
     connect = function(self)
       if not (self.sock) then
         self.sock = socket.new(self.sock_type)
       end
-      local opts
-      if self.sock_type == "nginx" then
-        opts = {
-          pool = self.pool_name or tostring(self.host) .. ":" .. tostring(self.port) .. ":" .. tostring(self.database) .. ":" .. tostring(self.user),
-          pool_size = self.pool_size,
-          backlog = self.backlog
+      local connect_opts
+      local _exp_0 = self.sock_type
+      if "nginx" == _exp_0 then
+        connect_opts = {
+          pool = self.config.pool_name or tostring(self.config.host) .. ":" .. tostring(self.config.port) .. ":" .. tostring(self.config.database) .. ":" .. tostring(self.config.user),
+          pool_size = self.config.pool_size,
+          backlog = self.config.backlog
         }
       end
-      local ok, err = self.sock:connect(self.host, self.port, opts)
+      local ok, err = self.sock:connect(self.config.host, self.config.port, connect_opts)
       if not (ok) then
         return nil, err
       end
       if self.sock:getreusedtimes() == 0 then
-        if self.ssl then
+        if self.config.ssl then
           local success
           success, err = self:send_ssl_message()
           if not (success) then
@@ -264,15 +284,15 @@ do
       end
     end,
     cleartext_auth = function(self, msg)
-      assert(self.password, "missing password, required for connect")
+      assert(self.config.password, "missing password, required for connect")
       self:send_message(MSG_TYPE.password, {
-        self.password,
+        self.config.password,
         NULL
       })
       return self:check_auth()
     end,
     scram_sha_256_auth = function(self, msg)
-      assert(self.password, "missing password, required for connect")
+      assert(self.config.password, "missing password, required for connect")
       local openssl_rand = require("openssl.rand")
       local rand_bytes = assert(openssl_rand.bytes(18))
       local encode_base64
@@ -388,7 +408,7 @@ do
         local _obj_0 = require("pgmoon.crypto")
         kdf_derive_sha256, hmac_sha256, digest_sha256 = _obj_0.kdf_derive_sha256, _obj_0.hmac_sha256, _obj_0.digest_sha256
       end
-      local salted_password, err = kdf_derive_sha256(self.password, salt, tonumber(i))
+      local salted_password, err = kdf_derive_sha256(self.config.password, salt, tonumber(i))
       if not (salted_password) then
         return nil, err
       end
@@ -441,10 +461,10 @@ do
       local md5
       md5 = require("pgmoon.crypto").md5
       local salt = msg:sub(5, 8)
-      assert(self.password, "missing password, required for connect")
+      assert(self.config.password, "missing password, required for connect")
       self:send_message(MSG_TYPE.password, {
         "md5",
-        md5(md5(self.password .. self.user) .. salt),
+        md5(md5(self.config.password .. self.config.user) .. salt),
         NULL
       })
       return self:check_auth()
@@ -719,21 +739,21 @@ do
       return t, msg
     end,
     send_startup_message = function(self)
-      assert(self.user, "missing user for connect")
-      assert(self.database, "missing database for connect")
+      assert(self.config.user, "missing user for connect")
+      assert(self.config.database, "missing database for connect")
       local data = {
         self:encode_int(196608),
         "user",
         NULL,
-        self.user,
+        self.config.user,
         NULL,
         "database",
         NULL,
-        self.database,
+        self.config.database,
         NULL,
         "application_name",
         NULL,
-        self.application_name,
+        self.config.application_name,
         NULL,
         NULL
       }
@@ -756,12 +776,17 @@ do
         return nil, err
       end
       if t == MSG_TYPE.status then
-        if self.sock_type == "nginx" then
-          return self.sock:sslhandshake(false, nil, self.ssl_verify)
+        local _exp_0 = self.sock_type
+        if "nginx" == _exp_0 then
+          return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+        elseif "luasocket" == _exp_0 then
+          return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
+        elseif "cqueues" == _exp_0 then
+          return self.sock:starttls(self.config.cqueues_openssl_context or self:create_cqueues_openssl_context())
         else
-          return self.sock:sslhandshake(self.ssl_verify, self.luasec_opts)
+          return error("don't know how to do ssl handshake for socket type: " .. tostring(self.sock_type))
         end
-      elseif t == MSG_TYPE.error or self.ssl_required then
+      elseif t == MSG_TYPE.error or self.config.ssl_required then
         self:disconnect()
         return nil, "the server does not support SSL connections"
       else
@@ -845,34 +870,16 @@ do
   }
   _base_0.__index = _base_0
   _class_0 = setmetatable({
-    __init = function(self, opts)
-      self.sock, self.sock_type = socket.new(opts and opts.socket_type)
-      if opts then
-        self.user = opts.user
-        self.host = opts.host
-        self.database = opts.database
-        self.port = opts.port
-        self.password = opts.password
-        self.ssl = opts.ssl
-        self.ssl_verify = opts.ssl_verify
-        self.ssl_required = opts.ssl_required
-        self.pool_name = opts.pool
-        self.pool_size = opts.pool_size
-        self.backlog = opts.backlog
-        self.luasec_opts = {
-          key = opts.key,
-          cert = opts.cert,
-          cafile = opts.cafile,
-          ssl_version = opts.ssl_version or "any",
-          options = {
-            "all",
-            "no_sslv2",
-            "no_sslv3",
-            "no_tlsv1"
-          }
-        }
-        self.application_name = opts.application_name or "pgmoon"
+    __init = function(self, config)
+      if config == nil then
+        config = { }
       end
+      self.config = config
+      assert(not getmetatable(self.config), "options argument must not have a metatable to allow default configuration to be inherited")
+      setmetatable(self.config, {
+        __index = self.default_config
+      })
+      self.sock, self.sock_type = socket.new(self.config.socket_type)
     end,
     __base = _base_0,
     __name = "Postgres"

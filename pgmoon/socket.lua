@@ -42,18 +42,15 @@ do
           end
           return self.sock:settimeout(t)
         end,
-        sslhandshake = function(self, verify, opts)
+        sslhandshake = function(self, opts)
           if opts == nil then
             opts = { }
           end
           local ssl = require("ssl")
           local params = {
             mode = "client",
-            protocol = opts.ssl_version or "any",
-            key = opts.key,
-            certificate = opts.cert,
-            cafile = opts.cafile,
-            verify = verify and "peer" or "none",
+            protocol = "any",
+            verify = "none",
             options = {
               "all",
               "no_sslv2",
@@ -61,6 +58,9 @@ do
               "no_tlsv1"
             }
           }
+          for k, v in pairs(opts) do
+            params[k] = v
+          end
           local sec_sock, err = ssl.wrap(self.sock, params)
           if not (sec_sock) then
             return false, err

@@ -21,8 +21,8 @@ do
       end
       return true
     end,
-    sslhandshake = function(self)
-      return self.sock:starttls()
+    starttls = function(self, ...)
+      return self.sock:starttls(...)
     end,
     getpeercertificate = function(self)
       local ssl = assert(self.sock:checktls())
