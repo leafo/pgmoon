@@ -25,7 +25,11 @@ $ luarocks install pgmoon
 
 <details>
 
-<summary>Using [OpenResty's OPM](https://opm.openresty.org/):</summary>
+<summary>
+
+Using [OpenResty's OPM](https://opm.openresty.org/):
+
+</summary>
 
 ```bash
 $ opm get leafo/pgmoon
