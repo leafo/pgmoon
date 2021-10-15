@@ -24,12 +24,7 @@ $ luarocks install pgmoon
 ```
 
 <details>
-
-<summary>
-
-Using [OpenResty's OPM](https://opm.openresty.org/):
-
-</summary>
+<summary>Using <a href="https://opm.openresty.org/">OpenResty's OPM</a></summary>
 
 ```bash
 $ opm get leafo/pgmoon
@@ -81,7 +76,7 @@ $ luarocks install luaossl
 
 > **Note:** [LuaCrypto][] can be used as a fallback, but the library is abandoned and not recommended for use
 
-> **Note:** Use within [OpenResty][] will prioritize an build in functions if possible
+> **Note:** Use within [OpenResty][] will prioritize built  in functions if possible
 
 ## Example
 
