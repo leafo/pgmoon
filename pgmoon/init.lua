@@ -883,14 +883,20 @@ do
   }
   _base_0.__index = _base_0
   _class_0 = setmetatable({
-    __init = function(self, config)
-      if config == nil then
-        config = { }
+    __init = function(self, _config)
+      if _config == nil then
+        _config = { }
       end
-      self.config = config
-      assert(not getmetatable(self.config), "options argument must not have a metatable to allow default configuration to be inherited")
-      setmetatable(self.config, {
-        __index = self.default_config
+      self._config = _config
+      self.config = setmetatable({ }, {
+        __index = function(t, key)
+          local value = self._config[key]
+          if value == nil then
+            return self.default_config[key]
+          else
+            return value
+          end
+        end
       })
       self.sock, self.sock_type = socket.new(self.config.socket_type)
     end,

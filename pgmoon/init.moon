@@ -171,11 +171,15 @@ class Postgres
   -- ssl_verify: verify the certificate
   -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
   -- luasec_opts: manually created options for LuaSocket ssl connections
-  new: (@config={}) =>
-    assert not getmetatable(@config),
-      "options argument must not have a metatable to allow default configuration to be inherited"
-
-    setmetatable @config, __index: @default_config
+  new: (@_config={}) =>
+    @config = setmetatable {}, {
+      __index: (t, key) ->
+        value = @_config[key]
+        if value == nil
+          @default_config[key]
+        else
+          value
+    }
 
     @sock, @sock_type = socket.new @config.socket_type
 
