@@ -23,9 +23,13 @@ luasocket = do
   }
 
   {
-    tcp: (...) ->
-      socket = require "socket"
-      sock = socket.tcp ...
+    tcp: (socket_type, ...) ->
+      local sock
+      if socket_type == "haproxy"
+        sock = core.tcp ...
+      else
+        socket = require "socket"
+        sock = socket.tcp ...
       proxy = setmetatable {
         :sock
         send: (...) => @sock\send flatten ...
@@ -80,6 +84,8 @@ luasocket = do
         ngx.socket.tcp!
       when "luasocket"
         luasocket.tcp!
+      when "haproxy"
+        luasocket.tcp(socket_type)
       when "cqueues"
         require("pgmoon.cqueues").CqueuesSocket!
       else

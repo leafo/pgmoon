@@ -25,9 +25,14 @@ do
     settimeout = true
   }
   luasocket = {
-    tcp = function(...)
-      local socket = require("socket")
-      local sock = socket.tcp(...)
+    tcp = function(socket_type, ...)
+      local sock
+      if socket_type == "haproxy" then
+        sock = core.tcp(...)
+      else
+        local socket = require("socket")
+        sock = socket.tcp(...)
+      end
       local proxy = setmetatable({
         sock = sock,
         send = function(self, ...)
@@ -98,6 +103,8 @@ return {
       socket = ngx.socket.tcp()
     elseif "luasocket" == _exp_0 then
       socket = luasocket.tcp()
+    elseif "haproxy" == _exp_0 then
+      socket = luasocket.tcp(socket_type)
     elseif "cqueues" == _exp_0 then
       socket = require("pgmoon.cqueues").CqueuesSocket()
     else
