@@ -53,10 +53,34 @@ else
   end
 end
 local digest_sha256
-digest_sha256 = function(str)
-  local digest = assert(require("openssl.digest").new("sha256"))
-  digest:update(str)
-  return assert(digest:final())
+if pcall(function()
+  return require("openssl.digest")
+end) then
+  digest_sha256 = function(str)
+    local digest = assert(require("openssl.digest").new("sha256"))
+    digest:update(str)
+    return assert(digest:final())
+  end
+elseif pcall(function()
+  return require("resty.sha256")
+end) then
+  digest_sha256 = function(str)
+    local digest = assert(require("resty.sha256"):new())
+    digest:update(str)
+    return assert(digest:final())
+  end
+elseif pcall(function()
+  return require("resty.openssl.digest")
+end) then
+  digest_sha256 = function(str)
+    local digest = assert(require("resty.openssl.digest").new("sha256"))
+    digest:update(str)
+    return assert(digest:final())
+  end
+else
+  digest_sha256 = function()
+    return error("Either luaossl or resty.openssl is required to calculate sha256 digest")
+  end
 end
 local kdf_derive_sha256
 if pcall(function()
