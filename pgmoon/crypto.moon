@@ -13,12 +13,24 @@ elseif pcall -> require "crypto"
 else
   -> error "Either luaossl (recommended) or LuaCrypto is required to calculate md5"
 
-hmac_sha256 = (key, str) ->
-  openssl_hmac = require("openssl.hmac")
-  hmac = assert openssl_hmac.new(key, "sha256")
 
-  hmac\update str
-  assert hmac\final!
+hmac_sha256 = if pcall -> require "openssl.hmac"
+  (key, str) ->
+    openssl_hmac = require("openssl.hmac")
+    hmac = assert openssl_hmac.new(key, "sha256")
+
+    hmac\update str
+    assert hmac\final!
+elseif pcall -> require "resty.openssl.hmac"
+  (key, str) ->
+    openssl_hmac = require("resty.openssl.hmac")
+    hmac = assert openssl_hmac.new(key, "sha256")
+
+    hmac\update str
+    assert hmac\final!
+else
+  -> error "Either luaossl or resty.openssl is required to calculate hmac sha256 digest"
+
 
 digest_sha256 = (str) ->
   digest = assert require("openssl.digest").new("sha256")

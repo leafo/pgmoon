@@ -29,11 +29,28 @@ else
   end
 end
 local hmac_sha256
-hmac_sha256 = function(key, str)
-  local openssl_hmac = require("openssl.hmac")
-  local hmac = assert(openssl_hmac.new(key, "sha256"))
-  hmac:update(str)
-  return assert(hmac:final())
+if pcall(function()
+  return require("openssl.hmac")
+end) then
+  hmac_sha256 = function(key, str)
+    local openssl_hmac = require("openssl.hmac")
+    local hmac = assert(openssl_hmac.new(key, "sha256"))
+    hmac:update(str)
+    return assert(hmac:final())
+  end
+elseif pcall(function()
+  return require("resty.openssl.hmac")
+end) then
+  hmac_sha256 = function(key, str)
+    local openssl_hmac = require("resty.openssl.hmac")
+    local hmac = assert(openssl_hmac.new(key, "sha256"))
+    hmac:update(str)
+    return assert(hmac:final())
+  end
+else
+  hmac_sha256 = function()
+    return error("Either luaossl or resty.openssl is required to calculate hmac sha256 digest")
+  end
 end
 local digest_sha256
 digest_sha256 = function(str)
