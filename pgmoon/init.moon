@@ -298,7 +298,7 @@ class Postgres
   scram_sha_256_auth: (msg) =>
     assert @config.password, "missing password, required for connect"
 
-    import random_bytes from require "pgmoon.crypto"
+    import random_bytes, x509_digest from require "pgmoon.crypto"
 
     -- '18' is the number set by postgres on the server side
     rand_bytes  = assert random_bytes 18
@@ -356,8 +356,7 @@ class Postgres
           if signature\match("^md5") or signature\match("^sha1")
             signature = "sha256"
 
-          openssl_x509 = require("openssl.x509").new(pem, "PEM")
-          assert openssl_x509\digest(signature, "s")
+          assert x509_digest(pem, signature)
 
       cbind_input = gs2_header .. cbind_data
 

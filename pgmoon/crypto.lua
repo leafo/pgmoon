@@ -78,10 +78,31 @@ else
     return error("Either luaossl or resty.openssl is required to generate random bytes")
   end
 end
+local x509_digest
+if pcall(function()
+  return require("openssl.x509")
+end) then
+  local x509 = require("openssl.x509")
+  x509_digest = function(pem, hash_type)
+    return x509.new(pem, "PEM"):digest(hash_type, "s")
+  end
+elseif pcall(function()
+  return require("resty.openssl.x509")
+end) then
+  local x509 = require("resty.openssl.x509")
+  x509_digest = function(pem, hash_type)
+    return x509.new(pem, "PEM"):digest(hash_type)
+  end
+else
+  x509_digest = function()
+    return error("Either luaossl or resty.openssl is required to calculate x509 digest")
+  end
+end
 return {
   md5 = md5,
   hmac_sha256 = hmac_sha256,
   digest_sha256 = digest_sha256,
   kdf_derive_sha256 = kdf_derive_sha256,
-  random_bytes = random_bytes
+  random_bytes = random_bytes,
+  x509_digest = x509_digest
 }
