@@ -46,4 +46,15 @@ kdf_derive_sha256 = (str, salt, i) ->
 
   key
 
-{ :md5, :hmac_sha256, :digest_sha256, :kdf_derive_sha256 }
+
+random_bytes = if pcall -> require "openssl.rand"
+  require("openssl.rand").bytes
+elseif pcall -> require "resty.random"
+  require("resty.random").bytes
+elseif pcall -> require "resty.openssl.rand"
+  require("resty.openssl.rand").bytes
+else
+  -> error "Either luaossl or resty.openssl is required to generate random bytes"
+
+
+{ :md5, :hmac_sha256, :digest_sha256, :kdf_derive_sha256, :random_bytes }

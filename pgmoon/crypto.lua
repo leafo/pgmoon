@@ -60,9 +60,28 @@ kdf_derive_sha256 = function(str, salt, i)
   end
   return key
 end
+local random_bytes
+if pcall(function()
+  return require("openssl.rand")
+end) then
+  random_bytes = require("openssl.rand").bytes
+elseif pcall(function()
+  return require("resty.random")
+end) then
+  random_bytes = require("resty.random").bytes
+elseif pcall(function()
+  return require("resty.openssl.rand")
+end) then
+  random_bytes = require("resty.openssl.rand").bytes
+else
+  random_bytes = function()
+    return error("Either luaossl or resty.openssl is required to generate random bytes")
+  end
+end
 return {
   md5 = md5,
   hmac_sha256 = hmac_sha256,
   digest_sha256 = digest_sha256,
-  kdf_derive_sha256 = kdf_derive_sha256
+  kdf_derive_sha256 = kdf_derive_sha256,
+  random_bytes = random_bytes
 }

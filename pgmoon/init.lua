@@ -306,8 +306,9 @@ do
     end,
     scram_sha_256_auth = function(self, msg)
       assert(self.config.password, "missing password, required for connect")
-      local openssl_rand = require("openssl.rand")
-      local rand_bytes = assert(openssl_rand.bytes(18))
+      local random_bytes
+      random_bytes = require("pgmoon.crypto").random_bytes
+      local rand_bytes = assert(random_bytes(18))
       local encode_base64
       encode_base64 = require("pgmoon.util").encode_base64
       local c_nonce = encode_base64(rand_bytes)
