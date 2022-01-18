@@ -298,10 +298,10 @@ class Postgres
   scram_sha_256_auth: (msg) =>
     assert @config.password, "missing password, required for connect"
 
-    openssl_rand = require "openssl.rand"
+    import random_bytes from require "pgmoon.crypto"
 
     -- '18' is the number set by postgres on the server side
-    rand_bytes  = assert openssl_rand.bytes 18
+    rand_bytes  = assert random_bytes 18
 
     import encode_base64 from require "pgmoon.util"
 
