@@ -42,23 +42,52 @@ digest_sha256 = function(str)
   return assert(digest:final())
 end
 local kdf_derive_sha256
-kdf_derive_sha256 = function(str, salt, i)
-  local openssl_kdf = require("openssl.kdf")
-  local decode_base64
-  decode_base64 = require("pgmoon.util").decode_base64
-  salt = decode_base64(salt)
-  local key, err = openssl_kdf.derive({
-    type = "PBKDF2",
-    md = "sha256",
-    salt = salt,
-    iter = i,
-    pass = str,
-    outlen = 32
-  })
-  if not (key) then
-    return nil, "failed to derive pbkdf2 key: " .. tostring(err)
+if pcall(function()
+  return require("openssl.kdf")
+end) then
+  kdf_derive_sha256 = function(str, salt, i)
+    local openssl_kdf = require("openssl.kdf")
+    local decode_base64
+    decode_base64 = require("pgmoon.util").decode_base64
+    salt = decode_base64(salt)
+    local key, err = openssl_kdf.derive({
+      type = "PBKDF2",
+      md = "sha256",
+      salt = salt,
+      iter = i,
+      pass = str,
+      outlen = 32
+    })
+    if not (key) then
+      return nil, "failed to derive pbkdf2 key: " .. tostring(err)
+    end
+    return key
   end
-  return key
+elseif pcall(function()
+  return require("resty.openssl.kdf")
+end) then
+  kdf_derive_sha256 = function(str, salt, i)
+    local openssl_kdf = require("resty.openssl.kdf")
+    local decode_base64
+    decode_base64 = require("pgmoon.util").decode_base64
+    salt = decode_base64(salt)
+    local key, err = openssl_kdf.derive({
+      type = openssl_kdf.PBKDF2,
+      md = "sha256",
+      salt = salt,
+      pbkdf2_iter = i,
+      pass = str,
+      outlen = 32
+    })
+    if not (key) then
+      return nil, "failed to derive pbkdf2 key: " .. tostring(err)
+    end
+    return key
+  end
+else
+  kdf_derive_sha256 = function()
+    return error("Either luaossl or resty.openssl is required to derive pbkdf2 key")
+  end
 end
 local random_bytes
 if pcall(function()
