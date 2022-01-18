@@ -26,25 +26,48 @@ digest_sha256 = (str) ->
   assert digest\final!
 
 
-kdf_derive_sha256 = (str, salt, i) ->
-  openssl_kdf = require "openssl.kdf"
-  import decode_base64 from require "pgmoon.util"
+kdf_derive_sha256 = if pcall -> require "openssl.kdf"
+  (str, salt, i) ->
+    openssl_kdf = require "openssl.kdf"
+    import decode_base64 from require "pgmoon.util"
 
-  salt = decode_base64 salt
+    salt = decode_base64 salt
 
-  key, err = openssl_kdf.derive {
-    type: "PBKDF2"
-    md: "sha256"
-    salt: salt
-    iter: i
-    pass: str
-    outlen: 32 -- our H() produces a 32 byte hash value (SHA-256)
-  }
+    key, err = openssl_kdf.derive {
+      type: "PBKDF2"
+      md: "sha256"
+      salt: salt
+      iter: i
+      pass: str
+      outlen: 32 -- our H() produces a 32 byte hash value (SHA-256)
+    }
 
-  unless key
-    return nil, "failed to derive pbkdf2 key: #{err}"
+    unless key
+      return nil, "failed to derive pbkdf2 key: #{err}"
 
-  key
+    key
+elseif pcall -> require "resty.openssl.kdf"
+  (str, salt, i) ->
+    openssl_kdf = require "resty.openssl.kdf"
+    import decode_base64 from require "pgmoon.util"
+
+    salt = decode_base64 salt
+
+    key, err = openssl_kdf.derive {
+      type: openssl_kdf.PBKDF2
+      md: "sha256"
+      salt: salt
+      pbkdf2_iter: i
+      pass: str
+      outlen: 32 -- our H() produces a 32 byte hash value (SHA-256)
+    }
+
+    unless key
+      return nil, "failed to derive pbkdf2 key: #{err}"
+
+    key
+else
+  -> error "Either luaossl or resty.openssl is required to derive pbkdf2 key"
 
 
 random_bytes = if pcall -> require "openssl.rand"
