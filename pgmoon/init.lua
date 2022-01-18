@@ -306,8 +306,11 @@ do
     end,
     scram_sha_256_auth = function(self, msg)
       assert(self.config.password, "missing password, required for connect")
-      local random_bytes
-      random_bytes = require("pgmoon.crypto").random_bytes
+      local random_bytes, x509_digest
+      do
+        local _obj_0 = require("pgmoon.crypto")
+        random_bytes, x509_digest = _obj_0.random_bytes, _obj_0.x509_digest
+      end
       local rand_bytes = assert(random_bytes(18))
       local encode_base64
       encode_base64 = require("pgmoon.util").encode_base64
@@ -358,8 +361,7 @@ do
             if signature:match("^md5") or signature:match("^sha1") then
               signature = "sha256"
             end
-            local openssl_x509 = require("openssl.x509").new(pem, "PEM")
-            cbind_data = assert(openssl_x509:digest(signature, "s"))
+            cbind_data = assert(x509_digest(pem, signature))
           end
         end
         cbind_input = gs2_header .. cbind_data

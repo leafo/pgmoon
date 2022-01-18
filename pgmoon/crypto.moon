@@ -57,4 +57,14 @@ else
   -> error "Either luaossl or resty.openssl is required to generate random bytes"
 
 
-{ :md5, :hmac_sha256, :digest_sha256, :kdf_derive_sha256, :random_bytes }
+x509_digest = if pcall -> require "openssl.x509"
+  x509 = require "openssl.x509"
+  (pem, hash_type) -> x509.new(pem, "PEM")\digest(hash_type, "s")
+elseif pcall -> require "resty.openssl.x509"
+  x509 = require "resty.openssl.x509"
+  (pem, hash_type) -> x509.new(pem, "PEM")\digest(hash_type)
+else
+  -> error "Either luaossl or resty.openssl is required to calculate x509 digest"
+
+
+{ :md5, :hmac_sha256, :digest_sha256, :kdf_derive_sha256, :random_bytes, :x509_digest }
