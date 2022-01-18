@@ -32,10 +32,23 @@ else
   -> error "Either luaossl or resty.openssl is required to calculate hmac sha256 digest"
 
 
-digest_sha256 = (str) ->
-  digest = assert require("openssl.digest").new("sha256")
-  digest\update str
-  assert digest\final!
+digest_sha256 = if pcall -> require "openssl.digest"
+  (str) ->
+    digest = assert require("openssl.digest").new("sha256")
+    digest\update str
+    assert digest\final!
+elseif pcall -> require "resty.sha256"
+  (str) ->
+    digest = assert require("resty.sha256")\new()
+    digest\update str
+    assert digest\final!
+elseif pcall -> require "resty.openssl.digest"
+  (str) ->
+    digest = assert require("resty.openssl.digest").new("sha256")
+    digest\update str
+    assert digest\final!
+else
+  -> error "Either luaossl or resty.openssl is required to calculate sha256 digest"
 
 
 kdf_derive_sha256 = if pcall -> require "openssl.kdf"
