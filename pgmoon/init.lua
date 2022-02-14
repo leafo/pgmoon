@@ -500,7 +500,7 @@ do
     scram_sha_256_auth = function(self, msg)
       assert(self.password, "missing password, required for connect")
 
-      local openssl_rand = require("openssl.rand")
+      local openssl_rand = require("resty.openssl.rand")
 
       -- '18' is the number set by postgres on the server side
       local rand_bytes, err = openssl_rand.bytes(18)
@@ -567,7 +567,7 @@ do
             signature = "sha256"
           end
 
-          local openssl_x509 = require("openssl.x509").new(pem, "PEM")
+          local openssl_x509 = require("resty.openssl.x509").new(pem, "PEM")
 
           local openssl_x509_digest, err = openssl_x509:digest(signature, "s")
 
@@ -616,7 +616,7 @@ do
       local client_final_message_without_proof = channel_binding .. "," .. nonce
 
       local function hmac(key, str)
-        local openssl_hmac = require("openssl.hmac")
+        local openssl_hmac = require("resty.openssl.hmac")
         local hmac, err = openssl_hmac.new(key, "sha256")
 
         if not (hmac) then
@@ -635,7 +635,7 @@ do
       end
 
       local function h(str)
-        local openssl_digest, err = require("openssl.digest").new("sha256")
+        local openssl_digest, err = require("resty.openssl.digest").new("sha256")
 
         if not (openssl_digest) then
           return nil, tostring(err)
@@ -670,15 +670,15 @@ do
       end
 
       local function hi(str, salt, i)
-        local openssl_kdf = require("openssl.kdf")
+        local openssl_kdf = require("resty.openssl.kdf")
 
         salt = ngx.decode_base64(salt)
 
         local key, err = openssl_kdf.derive({
-          type = "PBKDF2",
+          type = openssl_kdf.PBKDF2,
           md = "sha256",
           salt = salt,
-          iter = i,
+          pbkdf2_iter = i,
           pass = str,
           outlen = 32 -- our H() produces a 32 byte hash value (SHA-256)
         })
