@@ -8,7 +8,7 @@ unpack = table.unpack or unpack
 -- Protocol documentation:
 -- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
-VERSION = "1.13.0"
+VERSION = "1.14.0"
 
 _len = (thing, t=type(thing)) ->
   switch t
