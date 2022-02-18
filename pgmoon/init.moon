@@ -12,7 +12,7 @@ if ngx
 
 unpack = table.unpack or unpack
 
-VERSION = "2.2.0"
+VERSION = "2.2.1"
 
 _len = (thing, t=type(thing)) ->
   switch t
