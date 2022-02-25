@@ -276,7 +276,7 @@ class Postgres
       cafile: @config.cafile
       protocol: @config.ssl_version
       verify: @config.ssl_verify and "peer" or "none",
-      ssl_version: opts.ssl_version or "any"
+      ssl_version: @config.ssl_version or "any"
       options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
     }
 
