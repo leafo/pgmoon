@@ -264,8 +264,8 @@ class Postgres
     out
 
   create_luasec_opts: =>
-    local key = @config.key
-    local cert = @config.cert
+    key = @config.key
+    cert = @config.cert
 
     if @config.sock_type == "nginx" and key and cert
       key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
@@ -779,8 +779,8 @@ class Postgres
     if t == MSG_TYPE.status
       switch @sock_type
         when "nginx"
-          local luasec_opts = @config.luasec_opts or @create_luasec_opts!
-	        @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
+          luasec_opts = @config.luasec_opts or @create_luasec_opts!
+          @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"
