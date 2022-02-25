@@ -10,6 +10,13 @@ if ngx
   pl_file = require "pl.file"
   ssl = require "ngx.ssl"
 
+local pl_file
+local ssl
+
+if ngx
+  pl_file = require "pl.file"
+  ssl = require "ngx.ssl"
+
 unpack = table.unpack or unpack
 
 -- Protocol documentation:
@@ -773,7 +780,7 @@ class Postgres
       switch @sock_type
         when "nginx"
           local luasec_opts = @config.luasec_opts or @create_luasec_opts!
-	  @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
+	        @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"
