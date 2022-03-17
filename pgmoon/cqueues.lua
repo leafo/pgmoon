@@ -49,6 +49,9 @@ do
     end,
     getreusedtimes = function(self)
       return 0
+    end,
+    setkeepalive = function(self)
+      return error("You attempted to call setkeepalive on a cqueues.socket. This method is only available for the ngx cosocket API for connection pooling")
     end
   }
   _base_0.__index = _base_0
