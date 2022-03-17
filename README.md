@@ -284,10 +284,10 @@ local pg = pgmoon.new({
   ssl = true, -- enable SSL
   ssl_verify = true, -- verify server certificate
   ssl_required = true, -- abort if the server does not support SSL connections
-  ssl_version = "tlsv1_2", -- e.g., defaults to highest available, no less than TLS v1.1 (LuaSec only)
+  ssl_version = "tlsv1_2", -- e.g., defaults to highest available, no less than TLS v1.1
   cafile = "...", -- certificate authority (LuaSec only)
-  cert = "...", -- client certificate (LuaSec only)
-  key = "...", -- client key (LuaSec only)
+  cert = "...", -- client certificate
+  key = "...", -- client key
 })
 
 assert(pg:connect())
@@ -304,7 +304,7 @@ directive if you wish to verify the server certificate.
 ## Authentication types
 
 Postgres has a handful of authentication types. pgmoon currently supports
-Trust and MD5 authentication.
+trust, peer and password authentication with scram-sha-256-auth or md5.
 
 ## Type conversion
 
