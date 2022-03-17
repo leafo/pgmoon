@@ -30,7 +30,7 @@ create_luasocket = do
       @sock\settimeout t
 
     setkeepalive: =>
-      error "You attempted to call setkeepalive on a LuaSocket socket. This method is only available for the ngx cosocket API for connection pooling"
+      error "You attempted to call setkeepalive on a LuaSocket socket. This method is only available for the ngx cosocket API for releasing a socket back into the connection pool"
 
     -- there is no compatible interface here, always return 0 to suggest the
     -- socket is connecting for the first time

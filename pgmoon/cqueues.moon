@@ -54,7 +54,7 @@ class CqueuesSocket
   getreusedtimes: => 0
 
   setkeepalive: =>
-    error "You attempted to call setkeepalive on a cqueues.socket. This method is only available for the ngx cosocket API for connection pooling"
+    error "You attempted to call setkeepalive on a cqueues.socket. This method is only available for the ngx cosocket API for releasing a socket back into the connection pool"
 
 { :CqueuesSocket }
 
