@@ -188,9 +188,6 @@ do
       return self:set_type_oid(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
-      if not (self.sock) then
-        self.sock = socket.new(self.sock_type)
-      end
       local connect_opts
       local _exp_0 = self.sock_type
       if "nginx" == _exp_0 then

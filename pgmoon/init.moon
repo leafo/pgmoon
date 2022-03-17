@@ -184,9 +184,6 @@ class Postgres
     @sock, @sock_type = socket.new @config.socket_type
 
   connect: =>
-    unless @sock
-      @sock = socket.new @sock_type
-
     connect_opts = switch @sock_type
       when "nginx"
         {
