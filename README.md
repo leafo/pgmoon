@@ -73,10 +73,11 @@ Password authentication may require a crypto library, [luaossl][].
 ```bash
 $ luarocks install luaossl
 ```
-
 > **Note:** [LuaCrypto][] can be used as a fallback, but the library is abandoned and not recommended for use
 
 > **Note:** Use within [OpenResty][] will prioritize built  in functions if possible
+
+Parsing complex types like Arrays and HStore requires `lpeg` to be installed.
 
 ## Example
 
@@ -354,6 +355,15 @@ ERROR:  cannot determine type of empty array
 LINE 1: select ARRAY[];
                ^
 HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
+```
+
+You can work around this error by always including a typecast with any value
+you use, to allow you to pass in an empty array and continue to work with an
+array of values assuming the types match.
+
+```lua
+local empty_tags = {}
+pg:query("update posts set tags = " .. encode_array(empty_tags) .. "::text[]")
 ```
 
 ## Handling JSON
