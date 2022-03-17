@@ -218,16 +218,10 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
-    if @sock
-      sock = @sock
-      @sock = nil
-      sock\close!
+    @sock\close!
 
   keepalive: (...) =>
-    if @sock
-      sock = @sock
-      @sock = nil
-      sock\setkeepalive ...
+    @sock\keepalive ...
 
   -- see: http://25thandclement.com/~william/projects/luaossl.pdf
   create_cqueues_openssl_context: =>
