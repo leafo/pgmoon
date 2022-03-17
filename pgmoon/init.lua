@@ -232,14 +232,18 @@ do
       return self.sock:settimeout(...)
     end,
     disconnect = function(self)
-      local sock = self.sock
-      self.sock = nil
-      return sock:close()
+      if self.sock then
+        local sock = self.sock
+        self.sock = nil
+        return sock:close()
+      end
     end,
     keepalive = function(self, ...)
-      local sock = self.sock
-      self.sock = nil
-      return sock:setkeepalive(...)
+      if self.sock then
+        local sock = self.sock
+        self.sock = nil
+        return sock:setkeepalive(...)
+      end
     end,
     create_cqueues_openssl_context = function(self)
       if not (self.config.ssl_verify ~= nil or self.config.cert or self.config.key or self.config.ssl_version) then
