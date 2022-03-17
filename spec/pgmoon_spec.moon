@@ -104,7 +104,12 @@ describe "pgmoon with server", ->
   teardown ->
     os.execute "spec/postgres.sh stop"
 
-  for socket_type in *{"luasocket", "cqueues"}
+  for socket_type in *{"luasocket", "cqueues", "nginx"}
+    if ngx
+      continue unless socket_type == "nginx"
+    else
+      continue if socket_type == "nginx"
+
     describe "socket(#{socket_type})", ->
       local pg
 
