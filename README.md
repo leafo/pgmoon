@@ -358,19 +358,24 @@ HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
 
 ## Handling JSON
 
-`json` and `jsonb` types are automatically decoded when they are returned from
-a query.
+`json` and `jsonb` values are automatically decoded as Lua tables in a query
+result (using the `cjson` library if available).
 
-Use `encode_json` to encode a Lua table to the JSON syntax for a query:
+To send JSON in a query you must first convert it into a string literal, then
+interpolate it into your query. Ensure that you treat it like any other
+paramter, and call `escape_literal` on the string to make it suitable to be
+safely parsed as a value to PostgreSQL.
 
 ```lua
 local pgmoon = require("pgmoon")
 local pg = pgmoon.new(auth)
-pg:connect()
+assert(pg:connect())
 
-local encode_json = require("pgmoon.json").encode_json
-local my_tbl = {hello = "world"}
-pg:query("insert into some_table (some_json_col) values(" .. encode_json(my_tbl) .. ")")
+local my_tbl = { hello = "world" }
+
+local json = require "cjson"
+
+pg:query("update my_table set data = " .. db.escape_literal(json.encode(my_tbl)) .. " where id = 124"
 ```
 
 ## Handling hstore
@@ -386,8 +391,12 @@ pg:connect()
 pg:setup_hstore()
 ```
 
-Use `encode_hstore` to encode a Lua table into hstore syntax when updating and
-inserting:
+Use `encode_hstore` to encode a Lua table into hstore syntax suitable for
+interpolating into a query.
+
+> Note: The result of `encode_hstore` is a valid Postgres SQL fragment, it is
+> not necessary to call escape_literal on it. It can safely be inserted
+> directly into the query
 
 ```lua
 local encode_hstore = require("pgmoon.hstore").encode_hstore
