@@ -16,6 +16,14 @@ description = {
 dependencies = {
   "lua >= 5.1",
   "lpeg",
+
+  -- "luasocket",
+  -- "luasec",
+  --
+  -- "cqueues",
+  -- "luaossl"
+  --
+  -- "lua-resty-openssl",
 }
 
 build = {

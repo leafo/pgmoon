@@ -106,9 +106,13 @@ describe "pgmoon with server", ->
 
   for socket_type in *{"luasocket", "cqueues", "nginx"}
     if ngx
-      continue unless socket_type == "nginx"
+      unless socket_type == "nginx"
+        it "(disabled)", -> pending "skipping #{socket_type} in nginx testing mode"
+        continue
     else
-      continue if socket_type == "nginx"
+      if socket_type == "nginx"
+        it "(disabled)", -> pending "Skipping nginx tests, no ngx global available"
+        continue
 
     describe "socket(#{socket_type})", ->
       local pg

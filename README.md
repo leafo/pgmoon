@@ -64,7 +64,7 @@ $ luarocks install lua-cjson
 
 SSL connections may require an additional dependency:
 
-* OpenResty &mdash; No additional dependencies required
+* OpenResty &mdash; `luarocks install lua-resty-openssl`
 * LuaSocket &mdash; `luarocks install luasec`
 * cqueues &mdash; `luarocks install luaossl`
 
