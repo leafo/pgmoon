@@ -7,6 +7,7 @@ do
   rshift, lshift, band, bxor = _obj_0.rshift, _obj_0.lshift, _obj_0.band, _obj_0.bxor
 end
 local unpack = table.unpack or unpack
+local DEBUG = false
 local VERSION = "1.14.0"
 local _len
 _len = function(thing, t)
@@ -73,6 +74,29 @@ local MSG_TYPE = flipped({
   password = "p",
   row_description = "T",
   data_row = "D",
+  command_complete = "C",
+  parse = "P",
+  bind = "B",
+  sync = "S",
+  parse_complete = "1",
+  bind_complete = "2",
+  error = "E"
+})
+local MSG_TYPE_F = flipped({
+  query = "Q",
+  parse = "P",
+  bind = "B",
+  describe = "D",
+  execute = "E",
+  close = "C",
+  sync = "S"
+})
+local MSG_TYPE_B = flipped({
+  backend_key = "K",
+  ready_for_query = "Z",
+  parse_complete = "1",
+  bind_complete = "2",
+  close_complete = "3",
   command_complete = "C",
   error = "E"
 })
@@ -500,6 +524,41 @@ do
         q,
         NULL
       })
+      return self:receive_query_result()
+    end,
+    extended_query = function(self, q, ...)
+      if q:find(NULL) then
+        return nil, "invalid null byte in query"
+      end
+      self:send_message(MSG_TYPE_F.parse, {
+        NULL,
+        q,
+        NULL,
+        self:encode_int(0, 2)
+      })
+      self:send_message(MSG_TYPE_F.bind, {
+        NULL,
+        NULL,
+        self:encode_int(0, 2),
+        self:encode_int(0, 2),
+        self:encode_int(0, 2)
+      })
+      self:send_message(MSG_TYPE_F.describe, {
+        "P",
+        NULL
+      })
+      self:send_message(MSG_TYPE_F.execute, {
+        NULL,
+        self:encode_int(0)
+      })
+      self:send_message(MSG_TYPE_F.describe, {
+        "P",
+        NULL
+      })
+      self:send_message(MSG_TYPE_F.sync, { })
+      return self:receive_query_result()
+    end,
+    receive_query_result = function(self)
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications, notices
       local num_queries = 0
@@ -545,6 +604,12 @@ do
             notifications = { }
           end
           insert(notifications, self:parse_notification(msg))
+        elseif MSG_TYPE_B.parse_complete == _exp_0 or MSG_TYPE_B.bind_complete == _exp_0 or MSG_TYPE_B.close_complete == _exp_0 then
+          local _ = nil
+        else
+          if DEBUG then
+            print("Unhandled message in query result: " .. tostring(t))
+          end
         end
       end
       if err_msg then
@@ -843,6 +908,10 @@ do
         local c = band(rshift(n, 16), 0xff)
         local d = band(rshift(n, 24), 0xff)
         return string.char(d, c, b, a)
+      elseif 2 == _exp_0 then
+        local a = band(n, 0xff)
+        local b = band(rshift(n, 8), 0xff)
+        return string.char(b, a)
       else
         return error("don't know how to encode " .. tostring(bytes) .. " byte(s)")
       end

@@ -8,6 +8,7 @@ unpack = table.unpack or unpack
 -- Protocol documentation:
 -- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
+DEBUG = false
 VERSION = "1.14.0"
 
 _len = (thing, t=type(thing)) ->
@@ -36,6 +37,8 @@ flipped = (t) ->
     t[t[key]] = key
   t
 
+-- TODO: split this between backend and frontend, since they
+-- can share identifying characters
 MSG_TYPE = flipped {
   status: "S"
   auth: "R"
@@ -49,6 +52,40 @@ MSG_TYPE = flipped {
 
   row_description: "T"
   data_row: "D"
+  command_complete: "C"
+
+  parse: "P"
+  bind: "B"
+  sync: "S"
+
+  parse_complete: "1"
+  bind_complete: "2"
+
+  error: "E"
+}
+
+-- frontend message types (sent)
+MSG_TYPE_F = flipped {
+  query: "Q"
+
+  parse: "P"
+  bind: "B"
+  describe: "D"
+  execute: "E"
+  close: "C"
+  sync: "S"
+
+}
+
+-- backend message types (recieved)
+MSG_TYPE_B = flipped {
+  backend_key: "K"
+  ready_for_query: "Z"
+
+  parse_complete: "1"
+  bind_complete: "2"
+  close_complete: "3"
+
   command_complete: "C"
 
   error: "E"
@@ -488,11 +525,64 @@ class Postgres
       else
         error "unknown response from auth"
 
+  -- query using the "simple" query protocol
+  -- supports multiple queries, but no parameters
   query: (q) =>
     if q\find NULL
       return nil, "invalid null byte in query"
 
     @send_message MSG_TYPE.query, {q, NULL}
+    @receive_query_result!
+
+
+  -- query using the "extended" query protocol
+  -- supports only a single query, and parameters
+  -- order of operations: Parse, Bind, portal Describe, Execute, Close, Sync
+  extended_query: (q, ...) =>
+    if q\find NULL
+      return nil, "invalid null byte in query"
+
+    @send_message MSG_TYPE_F.parse, {
+      NULL -- empty string, store query in unnamed prepared statement
+      q, NULL
+      @encode_int(0, 2) -- 0 parameter types will be specified (all will be inferred as strings)
+    }
+
+    @send_message MSG_TYPE_F.bind, {
+      NULL -- empty string, destination is unamed portal
+      NULL -- empty string, source is unamed statement
+
+      @encode_int(0, 2) -- number of parameter format codes, 0 to default to all text
+      -- format codes can go here
+
+      @encode_int(0, 2) -- number of parameters, 0
+      -- parameter values go here
+
+      @encode_int(0, 2) -- number of result format codes, 0 to default to all text
+      -- result format codes can go here
+    }
+
+    @send_message  MSG_TYPE_F.describe, {
+      "P" -- describe a portal
+      NULL -- empty string, describe unnamed portal
+    }
+
+    @send_message MSG_TYPE_F.execute, {
+      NULL -- empty string, use unamed portal
+      @encode_int(0) -- unlimited rows to return
+    }
+
+    @send_message  MSG_TYPE_F.describe, {
+      "P" -- close a portal
+      NULL -- empty string, close unnamed portal
+    }
+
+    @send_message MSG_TYPE_F.sync, { }
+
+    @receive_query_result!
+
+  -- NOTE: this is called for both the simple query and the extended query protocol
+  receive_query_result: =>
     local row_desc, data_rows, command_complete, err_msg
 
     local result, notifications, notices
@@ -531,6 +621,12 @@ class Postgres
         when MSG_TYPE.notification
           notifications = {} unless notifications
           insert notifications, @parse_notification(msg)
+        -- these responsees only come from the extended query protocol
+        when MSG_TYPE_B.parse_complete, MSG_TYPE_B.bind_complete, MSG_TYPE_B.close_complete
+          nil
+        else
+          if DEBUG
+            print "Unhandled message in query result: #{t}"
 
     if err_msg
       return nil, @parse_error(err_msg), result, num_queries, notifications
@@ -699,6 +795,7 @@ class Postgres
 
     true
 
+  -- NOTE: timeout of 0 would cause this clinet to disconnect if it's not ready
   receive_message: =>
     t, err = @sock\receive 1
     unless t
@@ -792,6 +889,10 @@ class Postgres
         c = band rshift(n, 16), 0xff
         d = band rshift(n, 24), 0xff
         string.char d, c, b, a
+      when 2
+        a = band n, 0xff
+        b = band rshift(n, 8), 0xff
+        string.char b, a
       else
         error "don't know how to encode #{bytes} byte(s)"
 
