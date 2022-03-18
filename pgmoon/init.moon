@@ -492,7 +492,7 @@ class Postgres
     if q\find NULL
       return nil, "invalid null byte in query"
 
-    @post q
+    @send_message MSG_TYPE.query, {q, NULL}
     local row_desc, data_rows, command_complete, err_msg
 
     local result, notifications
@@ -534,9 +534,6 @@ class Postgres
       return nil, @parse_error(err_msg), result, num_queries, notifications
 
     result, num_queries, notifications
-
-  post: (q) =>
-    @send_message MSG_TYPE.query, {q, NULL}
 
   wait_for_notification: =>
     while true

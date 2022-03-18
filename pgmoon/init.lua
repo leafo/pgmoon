@@ -496,7 +496,10 @@ do
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end
-      self:post(q)
+      self:send_message(MSG_TYPE.query, {
+        q,
+        NULL
+      })
       local row_desc, data_rows, command_complete, err_msg
       local result, notifications
       local num_queries = 0
@@ -541,12 +544,6 @@ do
         return nil, self:parse_error(err_msg), result, num_queries, notifications
       end
       return result, num_queries, notifications
-    end,
-    post = function(self, q)
-      return self:send_message(MSG_TYPE.query, {
-        q,
-        NULL
-      })
     end,
     wait_for_notification = function(self)
       while true do
