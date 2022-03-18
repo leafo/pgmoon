@@ -501,7 +501,7 @@ do
         NULL
       })
       local row_desc, data_rows, command_complete, err_msg
-      local result, notifications
+      local result, notifications, notices
       local num_queries = 0
       while true do
         local t, msg = self:receive_message()
@@ -510,12 +510,19 @@ do
         end
         local _exp_0 = t
         if MSG_TYPE.data_row == _exp_0 then
-          data_rows = data_rows or { }
+          if not (data_rows) then
+            data_rows = { }
+          end
           insert(data_rows, msg)
         elseif MSG_TYPE.row_description == _exp_0 then
           row_desc = msg
         elseif MSG_TYPE.error == _exp_0 then
           err_msg = msg
+        elseif MSG_TYPE.notice == _exp_0 then
+          if not (notices) then
+            notices = { }
+          end
+          insert(notices, (self:parse_error(msg)))
         elseif MSG_TYPE.command_complete == _exp_0 then
           command_complete = msg
           local next_result = self:format_query_result(row_desc, data_rows, command_complete)
@@ -543,7 +550,7 @@ do
       if err_msg then
         return nil, self:parse_error(err_msg), result, num_queries, notifications
       end
-      return result, num_queries, notifications
+      return result, num_queries, notifications, notices
     end,
     wait_for_notification = function(self)
       while true do

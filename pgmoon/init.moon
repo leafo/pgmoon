@@ -495,7 +495,7 @@ class Postgres
     @send_message MSG_TYPE.query, {q, NULL}
     local row_desc, data_rows, command_complete, err_msg
 
-    local result, notifications
+    local result, notifications, notices
     num_queries = 0
 
     while true
@@ -503,12 +503,16 @@ class Postgres
       return nil, msg unless t
       switch t
         when MSG_TYPE.data_row
-          data_rows or= {}
+          data_rows = {} unless data_rows
           insert data_rows, msg
         when MSG_TYPE.row_description
           row_desc = msg
         when MSG_TYPE.error
           err_msg = msg
+        when MSG_TYPE.notice
+          notices = {} unless notices
+          -- a notice is encoded the same as an error, but does not mean we should abort with failure
+          insert notices, (@parse_error(msg))
         when MSG_TYPE.command_complete
           command_complete = msg
           next_result = @format_query_result row_desc, data_rows, command_complete
@@ -527,13 +531,11 @@ class Postgres
         when MSG_TYPE.notification
           notifications = {} unless notifications
           insert notifications, @parse_notification(msg)
-        -- when MSG_TYPE.notice
-        -- TODO: do something with notices
 
     if err_msg
       return nil, @parse_error(err_msg), result, num_queries, notifications
 
-    result, num_queries, notifications
+    result, num_queries, notifications, notices
 
   wait_for_notification: =>
     while true
