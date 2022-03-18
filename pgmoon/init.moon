@@ -532,19 +532,31 @@ class Postgres
       @encode_int(0, 2) -- 0 parameter types will be specified (all will be inferred as strings)
     }
 
-    @send_message MSG_TYPE_F.bind, {
+    bind_data = {
       NULL -- empty string, destination is unamed portal
       NULL -- empty string, source is unamed statement
 
       @encode_int(0, 2) -- number of parameter format codes, 0 to default to all text
-      -- format codes can go here
-
-      @encode_int(0, 2) -- number of parameters, 0
-      -- parameter values go here
-
-      @encode_int(0, 2) -- number of result format codes, 0 to default to all text
-      -- result format codes can go here
     }
+
+    -- format codes can be inserted here, unspecified means all string
+
+    num_params = select "#", ...
+    insert bind_data, @encode_int(num_params, 2)
+
+    for idx=1,num_params -- NOTE: handle nil values at end of array won't work
+      v = select idx, ...
+      if v == @NULL
+        insert bind_data, @encode_int -1
+      else
+        value_bytes = "#{v}"
+        insert bind_data, @encode_int #value_bytes
+        insert bind_data, value_bytes
+
+
+    insert bind_data, @encode_int(0, 2) -- number of result format codes, 0 to default to all text
+
+    @send_message MSG_TYPE_F.bind, bind_data
 
     @send_message  MSG_TYPE_F.describe, {
       "P" -- describe a portal

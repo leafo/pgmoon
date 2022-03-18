@@ -524,13 +524,25 @@ do
         NULL,
         self:encode_int(0, 2)
       })
-      self:send_message(MSG_TYPE_F.bind, {
+      local bind_data = {
         NULL,
         NULL,
-        self:encode_int(0, 2),
-        self:encode_int(0, 2),
         self:encode_int(0, 2)
-      })
+      }
+      local num_params = select("#", ...)
+      insert(bind_data, self:encode_int(num_params, 2))
+      for idx = 1, num_params do
+        local v = select(idx, ...)
+        if v == self.NULL then
+          insert(bind_data, self:encode_int(-1))
+        else
+          local value_bytes = tostring(v)
+          insert(bind_data, self:encode_int(#value_bytes))
+          insert(bind_data, value_bytes)
+        end
+      end
+      insert(bind_data, self:encode_int(0, 2))
+      self:send_message(MSG_TYPE_F.bind, bind_data)
       self:send_message(MSG_TYPE_F.describe, {
         "P",
         NULL
