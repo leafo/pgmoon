@@ -63,26 +63,8 @@ flipped = function(t)
   end
   return t
 end
-local MSG_TYPE = flipped({
-  status = "S",
-  auth = "R",
-  backend_key = "K",
-  ready_for_query = "Z",
-  query = "Q",
-  notice = "N",
-  notification = "A",
-  password = "p",
-  row_description = "T",
-  data_row = "D",
-  command_complete = "C",
-  parse = "P",
-  bind = "B",
-  sync = "S",
-  parse_complete = "1",
-  bind_complete = "2",
-  error = "E"
-})
 local MSG_TYPE_F = flipped({
+  password = "p",
   query = "Q",
   parse = "P",
   bind = "B",
@@ -92,13 +74,19 @@ local MSG_TYPE_F = flipped({
   sync = "S"
 })
 local MSG_TYPE_B = flipped({
+  auth = "R",
+  parameter_status = "S",
   backend_key = "K",
   ready_for_query = "Z",
   parse_complete = "1",
   bind_complete = "2",
   close_complete = "3",
+  row_description = "T",
+  data_row = "D",
   command_complete = "C",
-  error = "E"
+  error = "E",
+  notice = "N",
+  notification = "A"
 })
 local ERROR_TYPES = flipped({
   severity = "S",
@@ -292,9 +280,9 @@ do
       if not (t) then
         return nil, msg
       end
-      if not (MSG_TYPE.auth == t) then
+      if not (MSG_TYPE_B.auth == t) then
         self:disconnect()
-        if MSG_TYPE.error == t then
+        if MSG_TYPE_B.error == t then
           return nil, self:parse_error(msg)
         end
         error("unexpected message during auth: " .. tostring(t))
@@ -315,7 +303,7 @@ do
     end,
     cleartext_auth = function(self, msg)
       assert(self.config.password, "missing password, required for connect")
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         self.config.password,
         NULL
       })
@@ -384,7 +372,7 @@ do
         cbind_input = gs2_header .. cbind_data
       end
       local client_first_message = gs2_header .. client_first_message_bare
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         mechanism_name,
         self:encode_int(#client_first_message),
         client_first_message
@@ -466,7 +454,7 @@ do
         return nil, "failed to generate the client proof"
       end
       local client_final_message = tostring(client_final_message_without_proof) .. ",p=" .. tostring(encode_base64(proof))
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         client_final_message
       })
       t, msg = self:receive_message()
@@ -495,7 +483,7 @@ do
       md5 = require("pgmoon.crypto").md5
       local salt = msg:sub(5, 8)
       assert(self.config.password, "missing password, required for connect")
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         "md5",
         md5(md5(self.config.password .. self.config.user) .. salt),
         NULL
@@ -508,9 +496,9 @@ do
         return nil, msg
       end
       local _exp_0 = t
-      if MSG_TYPE.error == _exp_0 then
+      if MSG_TYPE_B.error == _exp_0 then
         return nil, self:parse_error(msg)
-      elseif MSG_TYPE.auth == _exp_0 then
+      elseif MSG_TYPE_B.auth == _exp_0 then
         return true
       else
         return error("unknown response from auth")
@@ -520,7 +508,7 @@ do
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end
-      self:send_message(MSG_TYPE.query, {
+      self:send_message(MSG_TYPE_F.query, {
         q,
         NULL
       })
@@ -568,21 +556,21 @@ do
           return nil, msg
         end
         local _exp_0 = t
-        if MSG_TYPE.data_row == _exp_0 then
+        if MSG_TYPE_B.data_row == _exp_0 then
           if not (data_rows) then
             data_rows = { }
           end
           insert(data_rows, msg)
-        elseif MSG_TYPE.row_description == _exp_0 then
+        elseif MSG_TYPE_B.row_description == _exp_0 then
           row_desc = msg
-        elseif MSG_TYPE.error == _exp_0 then
+        elseif MSG_TYPE_B.error == _exp_0 then
           err_msg = msg
-        elseif MSG_TYPE.notice == _exp_0 then
+        elseif MSG_TYPE_B.notice == _exp_0 then
           if not (notices) then
             notices = { }
           end
           insert(notices, (self:parse_error(msg)))
-        elseif MSG_TYPE.command_complete == _exp_0 then
+        elseif MSG_TYPE_B.command_complete == _exp_0 then
           command_complete = msg
           local next_result = self:format_query_result(row_desc, data_rows, command_complete)
           num_queries = num_queries + 1
@@ -597,9 +585,9 @@ do
             insert(result, next_result)
           end
           row_desc, data_rows, command_complete = nil
-        elseif MSG_TYPE.ready_for_query == _exp_0 then
+        elseif MSG_TYPE_B.ready_for_query == _exp_0 then
           break
-        elseif MSG_TYPE.notification == _exp_0 then
+        elseif MSG_TYPE_B.notification == _exp_0 then
           if not (notifications) then
             notifications = { }
           end
@@ -624,7 +612,7 @@ do
           return nil, msg
         end
         local _exp_0 = t
-        if MSG_TYPE.notification == _exp_0 then
+        if MSG_TYPE_B.notification == _exp_0 then
           return self:parse_notification(msg)
         end
       end
@@ -789,11 +777,11 @@ do
         if not (t) then
           return nil, msg
         end
-        if MSG_TYPE.error == t then
+        if MSG_TYPE_B.error == t then
           self:disconnect()
           return nil, self:parse_error(msg)
         end
-        if MSG_TYPE.ready_for_query == t then
+        if MSG_TYPE_B.ready_for_query == t then
           break
         end
       end
@@ -853,7 +841,7 @@ do
       if not (t) then
         return nil, err
       end
-      if t == MSG_TYPE.status then
+      if t == MSG_TYPE_B.parameter_status then
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
           return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
@@ -864,7 +852,7 @@ do
         else
           return error("don't know how to do ssl handshake for socket type: " .. tostring(self.sock_type))
         end
-      elseif t == MSG_TYPE.error or self.config.ssl_required then
+      elseif t == MSG_TYPE_B.error or self.config.ssl_required then
         self:disconnect()
         return nil, "the server does not support SSL connections"
       else

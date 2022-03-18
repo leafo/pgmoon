@@ -35,37 +35,13 @@ flipped = (t) ->
   keys = [k for k in pairs t]
   for key in *keys
     t[t[key]] = key
+
   t
-
--- TODO: split this between backend and frontend, since they
--- can share identifying characters
-MSG_TYPE = flipped {
-  status: "S"
-  auth: "R"
-  backend_key: "K"
-  ready_for_query: "Z"
-  query: "Q"
-  notice: "N"
-  notification: "A"
-
-  password: "p"
-
-  row_description: "T"
-  data_row: "D"
-  command_complete: "C"
-
-  parse: "P"
-  bind: "B"
-  sync: "S"
-
-  parse_complete: "1"
-  bind_complete: "2"
-
-  error: "E"
-}
 
 -- frontend message types (sent)
 MSG_TYPE_F = flipped {
+  password: "p"
+
   query: "Q"
 
   parse: "P"
@@ -79,6 +55,9 @@ MSG_TYPE_F = flipped {
 
 -- backend message types (recieved)
 MSG_TYPE_B = flipped {
+  auth: "R"
+  parameter_status: "S"
+
   backend_key: "K"
   ready_for_query: "Z"
 
@@ -86,9 +65,14 @@ MSG_TYPE_B = flipped {
   bind_complete: "2"
   close_complete: "3"
 
+  row_description: "T"
+  data_row: "D"
+
   command_complete: "C"
 
   error: "E"
+  notice: "N"
+  notification: "A"
 }
 
 ERROR_TYPES = flipped {
@@ -293,10 +277,10 @@ class Postgres
     t, msg = @receive_message!
     return nil, msg unless t
 
-    unless MSG_TYPE.auth == t
+    unless MSG_TYPE_B.auth == t
       @disconnect!
 
-      if MSG_TYPE.error == t
+      if MSG_TYPE_B.error == t
         return nil, @parse_error msg
 
       error "unexpected message during auth: #{t}"
@@ -317,7 +301,7 @@ class Postgres
   cleartext_auth: (msg) =>
     assert @config.password, "missing password, required for connect"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       @config.password
       NULL
     }
@@ -392,7 +376,7 @@ class Postgres
 
     client_first_message = gs2_header .. client_first_message_bare
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       mechanism_name
       @encode_int #client_first_message
       client_first_message
@@ -472,7 +456,7 @@ class Postgres
 
     client_final_message = "#{client_final_message_without_proof },p=#{encode_base64 proof}"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       client_final_message
     }
 
@@ -505,7 +489,7 @@ class Postgres
     salt = msg\sub 5, 8
     assert @config.password, "missing password, required for connect"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       "md5"
       md5 md5(@config.password .. @config.user) .. salt
       NULL
@@ -518,9 +502,9 @@ class Postgres
     return nil, msg unless t
 
     switch t
-      when MSG_TYPE.error
+      when MSG_TYPE_B.error
         nil, @parse_error msg
-      when MSG_TYPE.auth
+      when MSG_TYPE_B.auth
         true
       else
         error "unknown response from auth"
@@ -531,7 +515,7 @@ class Postgres
     if q\find NULL
       return nil, "invalid null byte in query"
 
-    @send_message MSG_TYPE.query, {q, NULL}
+    @send_message MSG_TYPE_F.query, {q, NULL}
     @receive_query_result!
 
 
@@ -592,18 +576,18 @@ class Postgres
       t, msg = @receive_message!
       return nil, msg unless t
       switch t
-        when MSG_TYPE.data_row
+        when MSG_TYPE_B.data_row
           data_rows = {} unless data_rows
           insert data_rows, msg
-        when MSG_TYPE.row_description
+        when MSG_TYPE_B.row_description
           row_desc = msg
-        when MSG_TYPE.error
+        when MSG_TYPE_B.error
           err_msg = msg
-        when MSG_TYPE.notice
+        when MSG_TYPE_B.notice
           notices = {} unless notices
           -- a notice is encoded the same as an error, but does not mean we should abort with failure
           insert notices, (@parse_error(msg))
-        when MSG_TYPE.command_complete
+        when MSG_TYPE_B.command_complete
           command_complete = msg
           next_result = @format_query_result row_desc, data_rows, command_complete
           num_queries += 1
@@ -616,9 +600,9 @@ class Postgres
             insert result, next_result
 
           row_desc, data_rows, command_complete = nil
-        when MSG_TYPE.ready_for_query
+        when MSG_TYPE_B.ready_for_query
           break
-        when MSG_TYPE.notification
+        when MSG_TYPE_B.notification
           notifications = {} unless notifications
           insert notifications, @parse_notification(msg)
         -- these responsees only come from the extended query protocol
@@ -638,7 +622,7 @@ class Postgres
       t, msg = @receive_message!
       return nil, msg unless t
       switch t
-        when MSG_TYPE.notification
+        when MSG_TYPE_B.notification
           return @parse_notification(msg)
 
   format_query_result: (row_desc, data_rows, command_complete) =>
@@ -787,11 +771,11 @@ class Postgres
       t, msg = @receive_message!
       return nil, msg unless t
 
-      if MSG_TYPE.error == t
+      if MSG_TYPE_B.error == t
         @disconnect!
         return nil, @parse_error(msg)
 
-      break if MSG_TYPE.ready_for_query == t
+      break if MSG_TYPE_B.ready_for_query == t
 
     true
 
@@ -843,7 +827,7 @@ class Postgres
     t, err = @sock\receive 1
     return nil, err unless t
 
-    if t == MSG_TYPE.status
+    if t == MSG_TYPE_B.parameter_status
       switch @sock_type
         when "nginx"
           @sock\sslhandshake false, nil, @config.ssl_verify
@@ -853,7 +837,7 @@ class Postgres
           @sock\starttls @config.cqueues_openssl_context or @create_cqueues_openssl_context!
         else
           error "don't know how to do ssl handshake for socket type: #{@sock_type}"
-    elseif t == MSG_TYPE.error or @config.ssl_required
+    elseif t == MSG_TYPE_B.error or @config.ssl_required
       @disconnect!
       nil, "the server does not support SSL connections"
     else
