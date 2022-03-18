@@ -172,6 +172,14 @@ describe "pgmoon with server", ->
 
         assert.true errors[err]
 
+      it "keepalive()", ->
+        if socket_type != "nginx"
+          return pending "only available in nginx"
+
+        assert pg\keepalive! -- put socket back into pool
+        assert pg\connect! -- reconnect using same socket object
+        assert pg\query "select 1"
+
       it "tries to connect with SSL", ->
         -- we expect a server with ssl = off
         ssl_pg = Postgres {

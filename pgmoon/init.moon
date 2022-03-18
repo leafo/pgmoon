@@ -239,7 +239,7 @@ class Postgres
     @sock\close!
 
   keepalive: (...) =>
-    @sock\keepalive ...
+    @sock\setkeepalive ...
 
   -- see: http://25thandclement.com/~william/projects/luaossl.pdf
   create_cqueues_openssl_context: =>

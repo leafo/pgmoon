@@ -244,7 +244,7 @@ do
       return self.sock:close()
     end,
     keepalive = function(self, ...)
-      return self.sock:keepalive(...)
+      return self.sock:setkeepalive(...)
     end,
     create_cqueues_openssl_context = function(self)
       if not (self.config.ssl_verify ~= nil or self.config.cert or self.config.key or self.config.ssl_version) then
