@@ -103,6 +103,20 @@ after you are done with it so it can be reused in future requests:
 pg:keepalive()
 ```
 
+## Considerations
+
+PostgreSQL allows for results to use the same field name multiple times.
+Because results are extracted into Lua tables, repeated fields will be
+overwritten and previous values will be unavailable:
+
+```lua
+pg:query("select 1 as dog, 'hello' as dog") --> { { dog = "hello" } }
+```
+
+There is currently no way around this limitation. If this is something you need
+then open an [[issue](https://github.com/leafo/pgmoon/issues).
+
+
 ## Reference
 
 Functions in table returned by `require("pgmoon")`:
