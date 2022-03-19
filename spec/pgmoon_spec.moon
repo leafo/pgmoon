@@ -137,6 +137,12 @@ describe "pgmoon with server", ->
       teardown ->
         pg\disconnect!
 
+      -- issue another query to make sure that the connection is stil valid
+      sanity_check = ->
+        assert.same {
+          { one: 1 }
+        }, pg\query "select 1 as one"
+
       it "creates and drop table", ->
         res = assert pg\query [[
           create table hello_world (
@@ -261,6 +267,7 @@ describe "pgmoon with server", ->
           res, err = pg\extended_query "select $1 as hi"
           assert.nil res
           assert.same [[ERROR: bind message supplies 0 parameters, but prepared statement "" requires 1]], err
+          sanity_check!
 
           -- TODO: test that we are ready to process a new query
 
@@ -338,6 +345,7 @@ describe "pgmoon with server", ->
 
           assert.nil res
           assert.same [[ERROR: invalid input syntax for type numeric: "hello"]], err
+          sanity_check!
 
 
         it "fails on table with no serializer", ->
