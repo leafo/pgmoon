@@ -114,7 +114,7 @@ pg:query("select 1 as dog, 'hello' as dog") --> { { dog = "hello" } }
 ```
 
 There is currently no way around this limitation. If this is something you need
-then open an [[issue](https://github.com/leafo/pgmoon/issues).
+then open an [issue](https://github.com/leafo/pgmoon/issues).
 
 
 ## Reference
