@@ -437,6 +437,51 @@ local res = pg:query("select * from some_table")
 local hstore_tbl = decode_hstore(res[1].hstore_col)
 ```
 
+## Custom type deserializer
+
+PostgreSQL has a rich set of types. When reading a query's results pgmoon must
+attempt to interpret the types from postgres and map them to something usable
+in Lua. By default implementations are included for primitives like numbers,
+booleans, strings, and JSON.
+
+You can provie you own type deserializer if you want to add custom behavior for
+certain types of values returned by PostgreSQL.
+
+You must have some knowledge of types and type OIDs. Every type in PostgreSQL
+is stored in the `pg_type` catalog table. Each type has an OID (stored as a 32
+bit positive integer) to uniquely identify it. The core types provided by
+Postgres have fixed type OIDs (for example, boolean is always 16), but
+third-party types may be added without fixed OIDs.
+
+Also note that any composite versions of existing types have their own OID, for
+example, while a single boolean value has type OID 16, an array of boolean
+values has type OID 1000. Arrays are homogeneous and must contain the same type
+for every value.
+
+Adding support for a new type in pgmoon can be done using the
+`set_type_deserializer(oid, type_name, [deserializer])` method:
+
+```lua
+local pgmoon = require("pgmoon")
+local pg = pgmoon.new(config)
+
+-- in this example we create a new deserializer called bignumber and provide
+-- the function to deserialize (type OID 20 is an 8 byte integer)
+pg:set_type_deserializer(20, "bignumber", function(val)
+	return "HUGENUMBER:" .. val
+end)
+
+-- in this example we point another OID to the "bignumber" deserializer we
+-- provided above (type OID 701 is a 8 byte floating point number)
+pg:set_type_deserializer(701, "bignumber")
+```
+
+The arguments are as follows:
+
+* `oid` The OID from `pg_type` that will be handled
+* `name` The local name of the type. This is a name that points to an existing deserializer or will be used to register a new one if the `deserializer` argument is 
+* `deserializer` A function that takes the raw string value from Postgres and converts it into something more useful (optional). Any existing deserializer function with the same name will be overwritten
+
 ## Converting `NULL`s
 
 By default `NULL`s in Postgres are converted to `nil`, meaning they aren't

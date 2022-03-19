@@ -156,6 +156,7 @@ class Postgres
   }
 
   -- custom types supplementing PG_TYPES
+  -- new ones can be added by using set_type_deserializer
   type_deserializers: {
     json: (val, name) =>
       import decode_json from require "pgmoon.json"
@@ -186,7 +187,12 @@ class Postgres
       decode_hstore val
   }
 
-  set_type_oid: (oid, name, deserializer) =>
+  -- this is the legacy method name, old undocumented api that someone might be using
+  set_type_oid: (a,b) =>
+    print "pgmoon: WARNING: set_type_oid is deprecated for set_type_deserializer"
+    @set_type_deserializer a,b
+
+  set_type_deserializer: (oid, name, deserializer) =>
     -- create a copy specific to this instance if we don't already have one
     unless rawget(@, "PG_TYPES")
       @PG_TYPES = {k,v for k,v in pairs @PG_TYPES}
@@ -202,7 +208,7 @@ class Postgres
   setup_hstore: =>
     res = unpack @query "SELECT oid FROM pg_type WHERE typname = 'hstore'"
     assert res, "hstore oid not found"
-    @set_type_oid tonumber(res.oid), "hstore"
+    @set_type_deserializer tonumber(res.oid), "hstore"
 
   -- config={}
   -- host: server hostname

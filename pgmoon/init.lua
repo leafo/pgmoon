@@ -193,7 +193,11 @@ do
         return decode_hstore(val)
       end
     },
-    set_type_oid = function(self, oid, name, deserializer)
+    set_type_oid = function(self, a, b)
+      print("pgmoon: WARNING: set_type_oid is deprecated for set_type_deserializer")
+      return self:set_type_deserializer(a, b)
+    end,
+    set_type_deserializer = function(self, oid, name, deserializer)
       if not (rawget(self, "PG_TYPES")) then
         do
           local _tbl_0 = { }
@@ -220,7 +224,7 @@ do
     setup_hstore = function(self)
       local res = unpack(self:query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))
       assert(res, "hstore oid not found")
-      return self:set_type_oid(tonumber(res.oid), "hstore")
+      return self:set_type_deserializer(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
       local connect_opts
