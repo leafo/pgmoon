@@ -518,10 +518,25 @@ describe "pgmoon with server", ->
           drop table types_test
         ]]
 
-      it "deserializes row types correctly #ddd", ->
-        pg\query "select 1"
-        pg\query "select row(1, 'hello', 5.999)"
-        pg\query "select (1, 'hello', 5.999)"
+      it "deserializes row types correctly", ->
+        assert.same {
+          {
+            ["?column?"]: 1
+          }
+        }, (pg\query "select 1")
+
+
+        assert.same {
+          {
+            ["row"]: "(1,hello,5.999)" -- we don't have a type deserializer for record type at this time
+          }
+        }, (pg\query "select row(1, 'hello', 5.999)")
+
+        assert.same {
+          {
+            ["row"]: "(1,hello,5.999)" -- we don't have a type deserializer for record type at this time
+          }
+        }, (pg\query "select (1, 'hello', 5.999)")
 
       describe "custom deserializer", ->
         it "deserializes big integer to string", ->
