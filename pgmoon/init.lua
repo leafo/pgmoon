@@ -149,9 +149,6 @@ do
       string = function(self, v)
         return 25, v
       end,
-      ["nil"] = function(self, v)
-        return error("you passed nil as a parameter value, if you wish to send NULL please use pgmoon.NULL")
-      end,
       boolean = function(self, v)
         return 16, v and "t" or "f"
       end,
@@ -547,11 +544,11 @@ do
       }
       for idx = 1, num_params do
         local v = select(idx, ...)
-        local v_type = type(v)
-        if v == self.NULL then
+        if v == self.NULL or v == nil then
           insert(parse_data, self:encode_int(0))
           insert(bind_data, self:encode_int(-1))
         else
+          local v_type = type(v)
           local type_oid, value_bytes
           do
             local fn = self.type_serializers[v_type]

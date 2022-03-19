@@ -213,6 +213,80 @@ describe "pgmoon with server", ->
         assert.falsy status, "connection should fail if it could not establish ssl"
         assert.same [[the server does not support SSL connections]], err
 
+      describe "extended_query", ->
+        it "query with no params", ->
+          res = assert pg\extended_query "select 1 as one"
+          assert.same {
+            {
+              one: 1
+            }
+          }, res
+
+        it "simple string params", ->
+          res = assert pg\extended_query "select $1 a, $2 b, $3 c, $4 d",
+            "one", "two", "three", "four"
+
+          assert.same {
+            {
+              a: "one"
+              b: "two"
+              c: "three"
+              d: "four"
+            }
+          }, res
+
+        it "mixed types", ->
+          res = assert pg\extended_query "select $1 a, $2 b, $3 c, $4 d",
+            true, false, pg.NULL, 44
+
+          assert.same {
+            {
+              a: true
+              b: false
+              c: nil
+              d: 44
+            }
+          }, res
+
+        it "types don't need casting", ->
+          res = assert pg\extended_query "select $1 + $1 as sum", 7
+
+          assert.same {
+            {
+              sum: 14
+            }
+          }, res
+
+        it "handles error when missing params", ->
+          res, err = pg\extended_query "select $1 as hi"
+          assert.nil res
+          assert.same [[ERROR: bind message supplies 0 parameters, but prepared statement "" requires 1]], err
+
+          -- TODO: test that we are ready to process a new query
+
+        it "handles query with excess params", ->
+          -- this does not throw an error
+          res = assert pg\extended_query "select $1 as hi", 1, 2
+
+          assert.same res, {
+            {
+              hi: 1
+            }
+          }
+
+        it "handle passing in nil as parameter value", ->
+          pg.convert_null = true
+          res, err = pg\extended_query "select $1 as hi, $2 as bye", 1, nil
+          pg.convert_null = false
+
+          assert.same {
+            {
+              hi: 1
+              bye: pg.NULL
+            }
+          }, res
+
+
       describe "with table", ->
         before_each ->
           assert pg\query [[

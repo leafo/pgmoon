@@ -147,9 +147,6 @@ class Postgres
     string: (v) =>
       25, v
 
-    nil: (v) =>
-      error "you passed nil as a parameter value, if you wish to send NULL please use pgmoon.NULL"
-
     boolean: (v) =>
       16, v and "t" or "f"
 
@@ -565,12 +562,14 @@ class Postgres
 
     for idx=1,num_params
       v = select idx, ...
-      v_type = type v
 
-      if v == @NULL
+      if v == @NULL or v == nil
         insert parse_data, @encode_int 0 -- OID is unspecified for NULL special case
         insert bind_data, @encode_int -1
+
       else
+        v_type = type v
+
         type_oid, value_bytes = if fn = @type_serializers[v_type]
           fn @, v
 
@@ -585,7 +584,7 @@ class Postgres
         insert bind_data, value_bytes
 
 
-    insert bind_data, @encode_int(0, 2) -- number of result format codes, 0 to default to all text
+    insert bind_data, @encode_int 0, 2 -- number of result format codes, 0 to default to all text
 
     @send_message MSG_TYPE_F.parse, parse_data
 
