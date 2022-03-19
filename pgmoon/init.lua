@@ -145,6 +145,20 @@ do
       port = "5432",
       ssl = false
     },
+    type_serializers = {
+      string = function(self, v)
+        return 25, v
+      end,
+      ["nil"] = function(self, v)
+        return error("you passed nil as a parameter value, if you wish to send NULL please use pgmoon.NULL")
+      end,
+      boolean = function(self, v)
+        return 16, v and "t" or "f"
+      end,
+      number = function(self, v)
+        return 1700, tostring(v)
+      end
+    },
     type_deserializers = {
       json = function(self, val, name)
         local decode_json
@@ -518,30 +532,46 @@ do
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end
-      self:send_message(MSG_TYPE_F.parse, {
+      local num_params = select("#", ...)
+      local parse_data = {
         NULL,
         q,
         NULL,
-        self:encode_int(0, 2)
-      })
+        self:encode_int(num_params, 2)
+      }
       local bind_data = {
         NULL,
         NULL,
-        self:encode_int(0, 2)
+        self:encode_int(0, 2),
+        self:encode_int(num_params, 2)
       }
-      local num_params = select("#", ...)
-      insert(bind_data, self:encode_int(num_params, 2))
       for idx = 1, num_params do
         local v = select(idx, ...)
+        local v_type = type(v)
         if v == self.NULL then
+          insert(parse_data, self:encode_int(0))
           insert(bind_data, self:encode_int(-1))
         else
-          local value_bytes = tostring(v)
+          local type_oid, value_bytes
+          do
+            local fn = self.type_serializers[v_type]
+            if fn then
+              type_oid, value_bytes = fn(self, v)
+            end
+          end
+          if not type_oid then
+            type_oid = 0
+          end
+          if not value_bytes then
+            value_bytes = tostring(v)
+          end
+          insert(parse_data, self:encode_int(type_oid))
           insert(bind_data, self:encode_int(#value_bytes))
           insert(bind_data, value_bytes)
         end
       end
       insert(bind_data, self:encode_int(0, 2))
+      self:send_message(MSG_TYPE_F.parse, parse_data)
       self:send_message(MSG_TYPE_F.bind, bind_data)
       self:send_message(MSG_TYPE_F.describe, {
         "P",
@@ -900,6 +930,14 @@ do
     encode_int = function(self, n, bytes)
       if bytes == nil then
         bytes = 4
+      end
+      if n == 0 then
+        if bytes == 2 then
+          return "\0\0"
+        end
+        if bytes == 4 then
+          return "\0\0\0\0"
+        end
       end
       local _exp_0 = bytes
       if 4 == _exp_0 then

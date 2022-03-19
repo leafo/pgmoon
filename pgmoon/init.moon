@@ -86,6 +86,7 @@ ERROR_TYPES = flipped {
   constraint: "n"
 }
 
+-- maps pg_type.oid -> a name we can reference when converting the type to lua
 PG_TYPES = {
   [16]: "boolean"
   [17]: "bytea"
@@ -136,6 +137,25 @@ class Postgres
     host: "127.0.0.1"
     port: "5432"
     ssl: false
+  }
+
+  -- convert a lua value to pg_type.oid, string representation used for sending
+  -- the value as a parameter in the extended query protocol
+  -- select oid, typname, typcategory from pg_type;
+  -- https://www.postgresql.org/docs/9.0/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE
+  type_serializers: {
+    string: (v) =>
+      25, v
+
+    nil: (v) =>
+      error "you passed nil as a parameter value, if you wish to send NULL please use pgmoon.NULL"
+
+    boolean: (v) =>
+      16, v and "t" or "f"
+
+    -- converts all numbers to numeric
+    number: (v) =>
+      1700, tostring v
   }
 
   -- custom types supplementing PG_TYPES
@@ -522,14 +542,17 @@ class Postgres
   -- query using the "extended" query protocol
   -- supports only a single query, and parameters
   -- order of operations: Parse, Bind, portal Describe, Execute, Close, Sync
+  -- NOTE: due to the additional steps, this protocol comes with a performance penalty
   extended_query: (q, ...) =>
     if q\find NULL
       return nil, "invalid null byte in query"
 
-    @send_message MSG_TYPE_F.parse, {
+    num_params = select "#", ...
+
+    parse_data = {
       NULL -- empty string, store query in unnamed prepared statement
       q, NULL
-      @encode_int(0, 2) -- 0 parameter types will be specified (all will be inferred as strings)
+      @encode_int(num_params, 2) -- parameter type OIDs will follow
     }
 
     bind_data = {
@@ -537,38 +560,48 @@ class Postgres
       NULL -- empty string, source is unamed statement
 
       @encode_int(0, 2) -- number of parameter format codes, 0 to default to all text
+      @encode_int(num_params, 2) -- parameter values follow
     }
 
-    -- format codes can be inserted here, unspecified means all string
-
-    num_params = select "#", ...
-    insert bind_data, @encode_int(num_params, 2)
-
-    for idx=1,num_params -- NOTE: handle nil values at end of array won't work
+    for idx=1,num_params
       v = select idx, ...
+      v_type = type v
+
       if v == @NULL
+        insert parse_data, @encode_int 0 -- OID is unspecified for NULL special case
         insert bind_data, @encode_int -1
       else
-        value_bytes = "#{v}"
+        type_oid, value_bytes = if fn = @type_serializers[v_type]
+          fn @, v
+
+        if not type_oid
+          type_oid = 0
+
+        if not value_bytes
+          value_bytes = "#{v}"
+
+        insert parse_data, @encode_int type_oid
         insert bind_data, @encode_int #value_bytes
         insert bind_data, value_bytes
 
 
     insert bind_data, @encode_int(0, 2) -- number of result format codes, 0 to default to all text
 
+    @send_message MSG_TYPE_F.parse, parse_data
+
     @send_message MSG_TYPE_F.bind, bind_data
 
     @send_message  MSG_TYPE_F.describe, {
       "P" -- describe a portal
-      NULL -- empty string, describe unnamed portal
+      NULL -- empty string, use the unnamed portal
     }
 
     @send_message MSG_TYPE_F.execute, {
       NULL -- empty string, use unamed portal
-      @encode_int(0) -- unlimited rows to return
+      @encode_int(0) -- 0, do not limit number of returned rows
     }
 
-    @send_message  MSG_TYPE_F.describe, {
+    @send_message MSG_TYPE_F.describe, {
       "P" -- close a portal
       NULL -- empty string, close unnamed portal
     }
@@ -878,6 +911,13 @@ class Postgres
 
   -- create big endian binary string of number
   encode_int: (n, bytes=4) =>
+    -- make sending 0 faster
+    if n == 0
+      if bytes == 2
+        return "\0\0"
+      if bytes == 4
+        return "\0\0\0\0"
+
     switch bytes
       when 4
         a = band n, 0xff
