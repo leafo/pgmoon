@@ -580,10 +580,13 @@ do
           do
             local fn = self.type_serializers[v_type]
             if fn then
-              local _oid, _value_or_err = fn(self, v)
+              local _oid, _value_or_err, _third = fn(self, v)
               if _oid == nil then
                 local full_error = "pgmoon: param " .. tostring(idx) .. ": " .. tostring(_value_or_err or "failed to serialize type: " .. tostring(v_type))
                 return nil, full_error
+              end
+              if _third ~= nil then
+                return nil, "pgmoon: param " .. tostring(idx) .. ": please do not return a third value from serializer function, we may use this value in the future for binary formats"
               end
               type_oid, value_bytes = _oid, _value_or_err
             else

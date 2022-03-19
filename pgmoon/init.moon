@@ -591,10 +591,14 @@ class Postgres
         v_type = type v
 
         type_oid, value_bytes = if fn = @type_serializers[v_type]
-          _oid, _value_or_err = fn @, v
+          _oid, _value_or_err, _third = fn @, v
           if _oid == nil
             full_error = "pgmoon: param #{idx}: #{_value_or_err or "failed to serialize type: #{v_type}"}"
             return nil, full_error
+
+          if _third != nil
+            return nil, "pgmoon: param #{idx}: please do not return a third value from serializer function, we may use this value in the future for binary formats"
+
           _oid, _value_or_err
         else
           0, "#{v}"
