@@ -154,6 +154,17 @@ do
       end,
       number = function(self, v)
         return 1700, tostring(v)
+      end,
+      table = function(self, v)
+        do
+          local v_mt = getmetatable(v)
+          if v_mt then
+            if v_mt.pgmoon_serialize then
+              return v_mt.pgmoon_serialize(v, self)
+            end
+          end
+        end
+        return nil, "table does not implement pgmoon_serialize, can't serialize"
       end
     },
     type_deserializers = {
@@ -569,14 +580,15 @@ do
           do
             local fn = self.type_serializers[v_type]
             if fn then
-              type_oid, value_bytes = fn(self, v)
+              local _oid, _value_or_err = fn(self, v)
+              if _oid == nil then
+                local full_error = "pgmoon: param " .. tostring(idx) .. ": " .. tostring(_value_or_err or "failed to serialize type: " .. tostring(v_type))
+                return nil, full_error
+              end
+              type_oid, value_bytes = _oid, _value_or_err
+            else
+              type_oid, value_bytes = 0, tostring(v)
             end
-          end
-          if not type_oid then
-            type_oid = 0
-          end
-          if not value_bytes then
-            value_bytes = tostring(v)
           end
           insert(parse_data, self:encode_int(type_oid))
           insert(bind_data, self:encode_int(#value_bytes))

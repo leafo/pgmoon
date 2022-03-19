@@ -286,6 +286,64 @@ describe "pgmoon with server", ->
             }
           }, res
 
+        it "json custom serializable value", ->
+          json = require("cjson")
+
+          json_type = (v) ->
+            setmetatable { v }, {
+              pgmoon_serialize: (pgmoon) =>
+                114, (json.encode @[1])
+            }
+
+          res = assert pg\extended_query "select $1 as a, $2 as b",
+            json_type({1,2,json.null,4}), json_type({
+              color: "blue"
+              yes: true
+              more: {"ok"}
+            })
+
+          assert.same {
+            {
+              a: {1,2,json.null,4}
+              b: {
+                color: "blue"
+                yes: true
+                more: {"ok"}
+              }
+            }
+          }, res
+
+        it "array custom serializer", ->
+          numeric_array = (v) ->
+            setmetatable { v }, {
+              pgmoon_serialize: (pgmoon) =>
+                import encode_array from require "pgmoon.arrays"
+                1231, "{#{table.concat @[1], ","}}"
+            }
+
+          res = assert pg\extended_query "select $1 as a, $2 as b",
+            numeric_array({4, 99, 77, -4}), numeric_array({})
+
+          assert.same {
+            {
+              a: {
+                4, 99, 77, -4
+              }
+              b: {}
+            }
+          }, res
+
+          res, err = pg\extended_query "select $1 as a",
+            numeric_array({"hello"})
+
+          assert.nil res
+          assert.same [[ERROR: invalid input syntax for type numeric: "hello"]], err
+
+
+        it "fails on table with no serializer", ->
+          res, err = pg\extended_query "select $1 as a", {"hello", world: 9}
+          assert.nil res
+          assert.same [[pgmoon: param 1: table does not implement pgmoon_serialize, can't serialize]], err
 
       describe "with table", ->
         before_each ->

@@ -153,6 +153,13 @@ class Postgres
     -- converts all numbers to numeric
     number: (v) =>
       1700, tostring v
+
+    table: (v) =>
+      if v_mt = getmetatable(v)
+        if v_mt.pgmoon_serialize
+          return v_mt.pgmoon_serialize v, @
+
+      nil, "table does not implement pgmoon_serialize, can't serialize"
   }
 
   -- custom types supplementing PG_TYPES
@@ -584,13 +591,13 @@ class Postgres
         v_type = type v
 
         type_oid, value_bytes = if fn = @type_serializers[v_type]
-          fn @, v
-
-        if not type_oid
-          type_oid = 0
-
-        if not value_bytes
-          value_bytes = "#{v}"
+          _oid, _value_or_err = fn @, v
+          if _oid == nil
+            full_error = "pgmoon: param #{idx}: #{_value_or_err or "failed to serialize type: #{v_type}"}"
+            return nil, full_error
+          _oid, _value_or_err
+        else
+          0, "#{v}"
 
         insert parse_data, @encode_int type_oid
         insert bind_data, @encode_int #value_bytes
