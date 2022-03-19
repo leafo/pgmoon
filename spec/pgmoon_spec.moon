@@ -552,8 +552,7 @@ describe "pgmoon with server", ->
             insert into bigint_test (largenum) values (default)
           ]]
 
-          pg\set_type_oid 20, "bignumber"
-          pg.type_deserializers.bignumber = (val) => "HUGENUMBER:#{val}"
+          pg\set_type_oid 20, "bignumber", (val) => "HUGENUMBER:#{val}"
           row = unpack pg\query "select * from bigint_test"
 
           assert.same {

@@ -193,7 +193,7 @@ do
         return decode_hstore(val)
       end
     },
-    set_type_oid = function(self, oid, name)
+    set_type_oid = function(self, oid, name, deserializer)
       if not (rawget(self, "PG_TYPES")) then
         do
           local _tbl_0 = { }
@@ -204,6 +204,18 @@ do
         end
       end
       self.PG_TYPES[assert(tonumber(oid))] = name
+      if deserializer then
+        if not (rawget(self, "type_deserializers")) then
+          do
+            local _tbl_0 = { }
+            for k, v in pairs(self.type_deserializers) do
+              _tbl_0[k] = v
+            end
+            self.type_deserializers = _tbl_0
+          end
+        end
+        self.type_deserializers[name] = deserializer
+      end
     end,
     setup_hstore = function(self)
       local res = unpack(self:query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))

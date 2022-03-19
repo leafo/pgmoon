@@ -186,11 +186,18 @@ class Postgres
       decode_hstore val
   }
 
-  set_type_oid: (oid, name) =>
+  set_type_oid: (oid, name, deserializer) =>
+    -- create a copy specific to this instance if we don't already have one
     unless rawget(@, "PG_TYPES")
       @PG_TYPES = {k,v for k,v in pairs @PG_TYPES}
 
     @PG_TYPES[assert tonumber oid] = name
+
+    if deserializer
+      unless rawget(@, "type_deserializers")
+        @type_deserializers = {k,v for k,v in pairs @type_deserializers}
+
+      @type_deserializers[name] = deserializer
 
   setup_hstore: =>
     res = unpack @query "SELECT oid FROM pg_type WHERE typname = 'hstore'"
