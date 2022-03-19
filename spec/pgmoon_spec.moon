@@ -553,12 +553,12 @@ describe "pgmoon with server", ->
           ]]
 
           pg\set_type_oid 20, "bignumber"
-          pg.type_deserializers.bignumber = (val) => val
+          pg.type_deserializers.bignumber = (val) => "HUGENUMBER:#{val}"
           row = unpack pg\query "select * from bigint_test"
 
           assert.same {
             id: 1
-            largenum: "9223372036854775807"
+            largenum: "HUGENUMBER:9223372036854775807"
           }, row
 
       describe "hstore", ->
