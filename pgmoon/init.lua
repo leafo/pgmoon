@@ -179,24 +179,24 @@ do
       array_boolean = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val, tobool)
+        return decode_array(val, tobool, self)
       end,
       array_number = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val, tonumber)
+        return decode_array(val, tonumber, self)
       end,
       array_string = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val)
+        return decode_array(val, nil, self)
       end,
       array_json = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
         local decode_json
         decode_json = require("pgmoon.json").decode_json
-        return decode_array(val, decode_json)
+        return decode_array(val, decode_json, self)
       end,
       hstore = function(self, val, name)
         local decode_hstore

@@ -752,11 +752,9 @@ describe "pgmoon with server", ->
           ]]
 
       describe "arrays", ->
-        import decode_array, encode_array from require "pgmoon.arrays"
+        import decode_array, encode_array, PostgresArray from require "pgmoon.arrays"
 
         it "converts table to array", ->
-          import PostgresArray from require "pgmoon.arrays"
-
           array = PostgresArray {1,2,3}
           assert.same {1,2,3}, array
           assert PostgresArray.__base == getmetatable array
@@ -769,7 +767,6 @@ describe "pgmoon with server", ->
 
         it "decodes empty array value", ->
           assert.same {}, decode_array "{}"
-          import PostgresArray from require "pgmoon.arrays"
           assert PostgresArray.__base == getmetatable decode_array "{}"
 
         it "decodes numeric array", ->
@@ -830,6 +827,68 @@ describe "pgmoon with server", ->
               }
             }
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
+
+        describe "serialize", ->
+          ARRAY_OIDS = {
+            boolean: 1000
+            number: 1231
+            string: 1009
+          }
+
+          serialize_value = (v) ->
+            getmetatable(v).pgmoon_serialize v, pg
+
+          it "serializes empty array", ->
+            assert.same {0, "{}"}, { serialize_value PostgresArray({}) }
+
+          it "serializes null array", ->
+            assert.same {0, "{NULL}"}, { serialize_value PostgresArray({pg.NULL}) }
+
+          it "serializes numeric array", ->
+            assert.same {ARRAY_OIDS.number, "{1,2,3}"}, { serialize_value PostgresArray({1,2,3}) }
+            assert.same {ARRAY_OIDS.number, "{-23892}"}, { serialize_value PostgresArray({-23892}) }
+
+          it "serializes string array", ->
+            assert.same {ARRAY_OIDS.string, '{"hello"}'}, { serialize_value PostgresArray({"hello"}) }
+            assert.same {ARRAY_OIDS.string, '{"hello",NULL,"world"}'}, { serialize_value PostgresArray({"hello", pg.NULL, "world"}) }
+            assert.same {ARRAY_OIDS.string, '{"hello","world"}'}, { serialize_value PostgresArray({"hello", "world"}) }
+            assert.same {ARRAY_OIDS.string, [[{",","f\"f","}{","\""}]]}, { serialize_value PostgresArray({ ",", [[f"f]], "}{", '"' }) }
+
+            res = unpack assert pg\query "select $1 val, pg_typeof($1)", PostgresArray {
+              "hello"
+              pg.NULL
+              "world"
+              ","
+              [[f"f]]
+              "}{"
+              '"'
+            }
+
+            assert.same "text[]", res.pg_typeof
+            assert.same {
+              "hello"
+              pg.NULL
+              "world"
+              ","
+              [[f"f]]
+              "}{"
+              '"'
+            }, res.val
+
+          it "serializes boolean array", ->
+            assert.same {ARRAY_OIDS.boolean, '{t}'}, { serialize_value PostgresArray({true}) }
+            assert.same {ARRAY_OIDS.boolean, '{f,t}'}, { serialize_value PostgresArray({false, true}) }
+            assert.same {ARRAY_OIDS.boolean, '{f,NULL,t}'}, { serialize_value PostgresArray({false, pg.NULL, true}) }
+
+            res = unpack assert pg\query "select $1 val, pg_typeof($1)", PostgresArray { false, pg.NULL, true }
+
+            assert.same "boolean[]", res.pg_typeof
+            assert.same {
+              false
+              pg.NULL
+              true
+            }, res.val
+
 
         describe "with table", ->
           before_each ->

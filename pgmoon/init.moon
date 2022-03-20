@@ -174,20 +174,20 @@ class Postgres
 
     array_boolean: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val, tobool
+      decode_array val, tobool, @
 
     array_number: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val, tonumber
+      decode_array val, tonumber, @
 
     array_string: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val
+      decode_array val, nil, @
 
     array_json: (val, name) =>
       import decode_array from require "pgmoon.arrays"
       import decode_json from require "pgmoon.json"
-      decode_array val, decode_json
+      decode_array val, decode_json, @
 
     hstore: (val, name) =>
       import decode_hstore from require "pgmoon.hstore"

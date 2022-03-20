@@ -1,5 +1,40 @@
 
+OIDS = {
+  boolean: 1000
+  number: 1231
+  string: 1009
+}
+
 class PostgresArray
+  -- the array literal syntax used is different than the "array constructor"
+  -- that is used in encode_array below. This is the same format that is parsed by "decode_array"
+  -- https://www.postgresql.org/docs/current/arrays.html#ARRAYS-INPUT
+  @__base.pgmoon_serialize = (v, pg) ->
+
+    escaped = for val in *v
+      if val == pg.NULL
+        "NULL"
+      else
+        switch type(val)
+          when "number"
+            tostring val
+          when "string"
+            '"' .. val\gsub('"', [[\"]]) .. '"'
+          when "boolean"
+            val and "t" or "f"
+          when "table"
+            -- attempt to serialize recursively
+            local _oid, _value
+            if v_mt = getmetatable(val)
+              if v_mt.pgmoon_serialize
+                _oid, _value = v_mt.pgmoon_serialize val, pg
+
+            if _oid
+              _value
+            else
+              return nil, "table does not implement pgmoon_serialize, can't serialize"
+
+    OIDS[type(v[1])] or 0, "{#{table.concat escaped, ","}}"
 
 getmetatable(PostgresArray).__call = (t) =>
   setmetatable t, @__base
@@ -42,15 +77,21 @@ encode_array = do
       insert buffer, "]"
     concat buffer
 
-convert_values = (array, fn) ->
+convert_values = (array, fn, pg) ->
   for idx, v in ipairs array
     if type(v) == "table"
       convert_values v, fn
     else
-      array[idx] = fn v
+      array[idx] = if v == "NULL"
+        pg.NULL
+      elseif fn
+        fn v
+      else
+        v
 
   array
 
+-- TODO: this should handle null and booleans
 decode_array = do
   import P, R, S, V, Ct, C, Cs from require "lpeg"
   g = P {
@@ -72,14 +113,11 @@ decode_array = do
     close: P"}"
   }
 
-  (str, convert_fn) ->
+  (str, convert_fn, pg) ->
     out = (assert g\match(str), "failed to parse postgresql array")
     setmetatable out, PostgresArray.__base
 
-    if convert_fn
-      convert_values out, convert_fn
-    else
-      out
+    convert_values out, convert_fn, (pg or require("pgmoon").Postgres)
 
 
 
