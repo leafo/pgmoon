@@ -1,4 +1,10 @@
-for st in *{"luasocket", "cqueues"}
+
+sockets = if ngx
+  {"nginx"}
+else
+  {"luasocket", "cqueues"}
+
+for st in *sockets
   pgmoon = require("pgmoon.init").new {
     socket_type: st
     database: "postgres"
