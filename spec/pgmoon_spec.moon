@@ -626,6 +626,17 @@ describe "pgmoon with server", ->
             largenum: "HUGENUMBER:9223372036854775807"
           }, row
 
+      describe "notice", ->
+        it "gets notice from query", ->
+          res, num_queries, notifications, notices = pg\query "drop table if exists farts"
+
+          assert.same true, res
+          assert.same num_queries, 1
+          assert.nil notifications
+          assert.same {
+            [[NOTICE: table "farts" does not exist, skipping]]
+          }, notices
+
       describe "hstore", ->
         import encode_hstore, decode_hstore from require "pgmoon.hstore"
 
