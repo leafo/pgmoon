@@ -953,6 +953,11 @@ class Postgres
     }
 
   decode_int: (str, bytes=#str) =>
+    -- make decoding common case 0 faster
+    switch str
+      when "\0\0", "\0\0\0\0"
+        return 0
+
     switch bytes
       when 4
         d, c, b, a = str\byte 1, 4

@@ -990,11 +990,15 @@ do
       if bytes == nil then
         bytes = #str
       end
-      local _exp_0 = bytes
-      if 4 == _exp_0 then
+      local _exp_0 = str
+      if "\0\0" == _exp_0 or "\0\0\0\0" == _exp_0 then
+        return 0
+      end
+      local _exp_1 = bytes
+      if 4 == _exp_1 then
         local d, c, b, a = str:byte(1, 4)
         return a + lshift(b, 8) + lshift(c, 16) + lshift(d, 24)
-      elseif 2 == _exp_0 then
+      elseif 2 == _exp_1 then
         local b, a = str:byte(1, 2)
         return a + lshift(b, 8)
       else
