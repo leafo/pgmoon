@@ -861,6 +861,7 @@ describe "pgmoon with server", ->
               ","
               [[f"f]]
               "}{"
+              "'"
               '"'
             }
 
@@ -872,6 +873,7 @@ describe "pgmoon with server", ->
               ","
               [[f"f]]
               "}{"
+              "'"
               '"'
             }, res.val
 
