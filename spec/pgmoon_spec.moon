@@ -980,3 +980,225 @@ describe "pgmoon without server", ->
   for {lit, expected} in *escape_literal
     it "escapes literal '#{lit}'", ->
       assert.same expected, pg\escape_literal lit
+
+
+  describe "decode & encode int", ->
+    -- sampling of 2 & 4 byte numbers, generated from:
+
+    -- d = (s, len=#s) ->
+    --   "[string.char(#{table.concat {string.byte s, 1,len}, ", "})]: #{decode_int s, len}"
+
+    -- for i=1,255,13
+    --   print d "#{string.char i}\0\0\0"
+    --   print d "\0#{string.char i}\0\0"
+    --   print d "\0\0#{string.char i}\0"
+    --   print d "\0\0\0#{string.char i}"
+
+    --   print d "\0#{string.char i + 1}\0#{string.char i}"
+    --   print d "#{string.char i + 1}\0#{string.char i}\0"
+
+    -- for i=1,255,13
+    --   print d "#{string.char i}\0"
+    --   print d "\0#{string.char i}"
+    --   print d "#{string.char i + 1}#{string.char i}"
+
+    numbers4 = {
+      [string.char(1, 0, 0, 0)]: 16777216
+      [string.char(0, 1, 0, 0)]: 65536
+      [string.char(0, 0, 1, 0)]: 256
+      [string.char(0, 0, 0, 1)]: 1
+      [string.char(0, 2, 0, 1)]: 131073
+      [string.char(2, 0, 1, 0)]: 33554688
+      [string.char(14, 0, 0, 0)]: 234881024
+      [string.char(0, 14, 0, 0)]: 917504
+      [string.char(0, 0, 14, 0)]: 3584
+      [string.char(0, 0, 0, 14)]: 14
+      [string.char(0, 15, 0, 14)]: 983054
+      [string.char(15, 0, 14, 0)]: 251661824
+      [string.char(27, 0, 0, 0)]: 452984832
+      [string.char(0, 27, 0, 0)]: 1769472
+      [string.char(0, 0, 27, 0)]: 6912
+      [string.char(0, 0, 0, 27)]: 27
+      [string.char(0, 28, 0, 27)]: 1835035
+      [string.char(28, 0, 27, 0)]: 469768960
+      [string.char(40, 0, 0, 0)]: 671088640
+      [string.char(0, 40, 0, 0)]: 2621440
+      [string.char(0, 0, 40, 0)]: 10240
+      [string.char(0, 0, 0, 40)]: 40
+      [string.char(0, 41, 0, 40)]: 2687016
+      [string.char(41, 0, 40, 0)]: 687876096
+      [string.char(53, 0, 0, 0)]: 889192448
+      [string.char(0, 53, 0, 0)]: 3473408
+      [string.char(0, 0, 53, 0)]: 13568
+      [string.char(0, 0, 0, 53)]: 53
+      [string.char(0, 54, 0, 53)]: 3538997
+      [string.char(54, 0, 53, 0)]: 905983232
+      [string.char(66, 0, 0, 0)]: 1107296256
+      [string.char(0, 66, 0, 0)]: 4325376
+      [string.char(0, 0, 66, 0)]: 16896
+      [string.char(0, 0, 0, 66)]: 66
+      [string.char(0, 67, 0, 66)]: 4390978
+      [string.char(67, 0, 66, 0)]: 1124090368
+      [string.char(79, 0, 0, 0)]: 1325400064
+      [string.char(0, 79, 0, 0)]: 5177344
+      [string.char(0, 0, 79, 0)]: 20224
+      [string.char(0, 0, 0, 79)]: 79
+      [string.char(0, 80, 0, 79)]: 5242959
+      [string.char(80, 0, 79, 0)]: 1342197504
+      [string.char(92, 0, 0, 0)]: 1543503872
+      [string.char(0, 92, 0, 0)]: 6029312
+      [string.char(0, 0, 92, 0)]: 23552
+      [string.char(0, 0, 0, 92)]: 92
+      [string.char(0, 93, 0, 92)]: 6094940
+      [string.char(93, 0, 92, 0)]: 1560304640
+      [string.char(105, 0, 0, 0)]: 1761607680
+      [string.char(0, 105, 0, 0)]: 6881280
+      [string.char(0, 0, 105, 0)]: 26880
+      [string.char(0, 0, 0, 105)]: 105
+      [string.char(0, 106, 0, 105)]: 6946921
+      [string.char(106, 0, 105, 0)]: 1778411776
+      [string.char(118, 0, 0, 0)]: 1979711488
+      [string.char(0, 118, 0, 0)]: 7733248
+      [string.char(0, 0, 118, 0)]: 30208
+      [string.char(0, 0, 0, 118)]: 118
+      [string.char(0, 119, 0, 118)]: 7798902
+      [string.char(119, 0, 118, 0)]: 1996518912
+      [string.char(131, 0, 0, 0)]: -2097152000
+      [string.char(0, 131, 0, 0)]: 8585216
+      [string.char(0, 0, 131, 0)]: 33536
+      [string.char(0, 0, 0, 131)]: 131
+      [string.char(0, 132, 0, 131)]: 8650883
+      [string.char(132, 0, 131, 0)]: -2080341248
+      [string.char(144, 0, 0, 0)]: -1879048192
+      [string.char(0, 144, 0, 0)]: 9437184
+      [string.char(0, 0, 144, 0)]: 36864
+      [string.char(0, 0, 0, 144)]: 144
+      [string.char(0, 145, 0, 144)]: 9502864
+      [string.char(145, 0, 144, 0)]: -1862234112
+      [string.char(157, 0, 0, 0)]: -1660944384
+      [string.char(0, 157, 0, 0)]: 10289152
+      [string.char(0, 0, 157, 0)]: 40192
+      [string.char(0, 0, 0, 157)]: 157
+      [string.char(0, 158, 0, 157)]: 10354845
+      [string.char(158, 0, 157, 0)]: -1644126976
+      [string.char(170, 0, 0, 0)]: -1442840576
+      [string.char(0, 170, 0, 0)]: 11141120
+      [string.char(0, 0, 170, 0)]: 43520
+      [string.char(0, 0, 0, 170)]: 170
+      [string.char(0, 171, 0, 170)]: 11206826
+      [string.char(171, 0, 170, 0)]: -1426019840
+      [string.char(183, 0, 0, 0)]: -1224736768
+      [string.char(0, 183, 0, 0)]: 11993088
+      [string.char(0, 0, 183, 0)]: 46848
+      [string.char(0, 0, 0, 183)]: 183
+      [string.char(0, 184, 0, 183)]: 12058807
+      [string.char(184, 0, 183, 0)]: -1207912704
+      [string.char(196, 0, 0, 0)]: -1006632960
+      [string.char(0, 196, 0, 0)]: 12845056
+      [string.char(0, 0, 196, 0)]: 50176
+      [string.char(0, 0, 0, 196)]: 196
+      [string.char(0, 197, 0, 196)]: 12910788
+      [string.char(197, 0, 196, 0)]: -989805568
+      [string.char(209, 0, 0, 0)]: -788529152
+      [string.char(0, 209, 0, 0)]: 13697024
+      [string.char(0, 0, 209, 0)]: 53504
+      [string.char(0, 0, 0, 209)]: 209
+      [string.char(0, 210, 0, 209)]: 13762769
+      [string.char(210, 0, 209, 0)]: -771698432
+      [string.char(222, 0, 0, 0)]: -570425344
+      [string.char(0, 222, 0, 0)]: 14548992
+      [string.char(0, 0, 222, 0)]: 56832
+      [string.char(0, 0, 0, 222)]: 222
+      [string.char(0, 223, 0, 222)]: 14614750
+      [string.char(223, 0, 222, 0)]: -553591296
+      [string.char(235, 0, 0, 0)]: -352321536
+      [string.char(0, 235, 0, 0)]: 15400960
+      [string.char(0, 0, 235, 0)]: 60160
+      [string.char(0, 0, 0, 235)]: 235
+      [string.char(0, 236, 0, 235)]: 15466731
+      [string.char(236, 0, 235, 0)]: -335484160
+      [string.char(248, 0, 0, 0)]: -134217728
+      [string.char(0, 248, 0, 0)]: 16252928
+      [string.char(0, 0, 248, 0)]: 63488
+      [string.char(0, 0, 0, 248)]: 248
+      [string.char(0, 249, 0, 248)]: 16318712
+      [string.char(249, 0, 248, 0)]: -117377024
+
+    }
+
+    numbers2 = {
+      [string.char(1, 0)]: 256
+      [string.char(0, 1)]: 1
+      [string.char(2, 1)]: 513
+      [string.char(14, 0)]: 3584
+      [string.char(0, 14)]: 14
+      [string.char(15, 14)]: 3854
+      [string.char(27, 0)]: 6912
+      [string.char(0, 27)]: 27
+      [string.char(28, 27)]: 7195
+      [string.char(40, 0)]: 10240
+      [string.char(0, 40)]: 40
+      [string.char(41, 40)]: 10536
+      [string.char(53, 0)]: 13568
+      [string.char(0, 53)]: 53
+      [string.char(54, 53)]: 13877
+      [string.char(66, 0)]: 16896
+      [string.char(0, 66)]: 66
+      [string.char(67, 66)]: 17218
+      [string.char(79, 0)]: 20224
+      [string.char(0, 79)]: 79
+      [string.char(80, 79)]: 20559
+      [string.char(92, 0)]: 23552
+      [string.char(0, 92)]: 92
+      [string.char(93, 92)]: 23900
+      [string.char(105, 0)]: 26880
+      [string.char(0, 105)]: 105
+      [string.char(106, 105)]: 27241
+      [string.char(118, 0)]: 30208
+      [string.char(0, 118)]: 118
+      [string.char(119, 118)]: 30582
+      [string.char(131, 0)]: 33536
+      [string.char(0, 131)]: 131
+      [string.char(132, 131)]: 33923
+      [string.char(144, 0)]: 36864
+      [string.char(0, 144)]: 144
+      [string.char(145, 144)]: 37264
+      [string.char(157, 0)]: 40192
+      [string.char(0, 157)]: 157
+      [string.char(158, 157)]: 40605
+      [string.char(170, 0)]: 43520
+      [string.char(0, 170)]: 170
+      [string.char(171, 170)]: 43946
+      [string.char(183, 0)]: 46848
+      [string.char(0, 183)]: 183
+      [string.char(184, 183)]: 47287
+      [string.char(196, 0)]: 50176
+      [string.char(0, 196)]: 196
+      [string.char(197, 196)]: 50628
+      [string.char(209, 0)]: 53504
+      [string.char(0, 209)]: 209
+      [string.char(210, 209)]: 53969
+      [string.char(222, 0)]: 56832
+      [string.char(0, 222)]: 222
+      [string.char(223, 222)]: 57310
+      [string.char(235, 0)]: 60160
+      [string.char(0, 235)]: 235
+      [string.char(236, 235)]: 60651
+      [string.char(248, 0)]: 63488
+      [string.char(0, 248)]: 248
+      [string.char(249, 248)]: 63992
+    }
+
+    it "encodes and decodes 4 bytes", ->
+      for str, num in pairs numbers4
+        en = pg\encode_int num, 4
+        assert.same 4, #en
+        assert.same str, en
+        assert.same num, pg\decode_int en
+
+    it "encodes and decodes 2 bytes", ->
+      for str, num in pairs numbers2
+        en = pg\encode_int num, 2
+        assert.same 2, #en
+        assert.same str, en
+        assert.same num, pg\decode_int en
