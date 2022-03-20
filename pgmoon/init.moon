@@ -864,18 +864,14 @@ class Postgres
 
   -- NOTE: timeout of 0 would cause this clinet to disconnect if it's not ready
   receive_message: =>
-    -- TODO: make this recieve 5 bytes, then split them apart in lua
+    prefix, err = @sock\receive 5
 
-    t, err = @sock\receive 1
-    unless t
+    unless prefix
       @disconnect!
       return nil, "receive_message: failed to get type: #{err}"
 
-    len, err = @sock\receive 4
-
-    unless len
-      @disconnect!
-      return nil, "receive_message: failed to get len: #{err}"
+    t = prefix\sub 1,1
+    len = prefix\sub 2
 
     len = @decode_int len
     len -= 4

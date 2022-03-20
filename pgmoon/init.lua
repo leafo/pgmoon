@@ -885,17 +885,13 @@ do
       return true
     end,
     receive_message = function(self)
-      local t, err = self.sock:receive(1)
-      if not (t) then
+      local prefix, err = self.sock:receive(5)
+      if not (prefix) then
         self:disconnect()
         return nil, "receive_message: failed to get type: " .. tostring(err)
       end
-      local len
-      len, err = self.sock:receive(4)
-      if not (len) then
-        self:disconnect()
-        return nil, "receive_message: failed to get len: " .. tostring(err)
-      end
+      local t = prefix:sub(1, 1)
+      local len = prefix:sub(2)
       len = self:decode_int(len)
       len = len - 4
       local msg = self.sock:receive(len)
