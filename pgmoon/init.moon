@@ -624,7 +624,7 @@ class Postgres
       @encode_int(0) -- 0, do not limit number of returned rows
     }
 
-    @send_message MSG_TYPE_F.describe, {
+    @send_message MSG_TYPE_F.close, {
       "P" -- close a portal
       NULL -- empty string, close unnamed portal
     }

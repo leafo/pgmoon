@@ -609,7 +609,7 @@ do
         NULL,
         self:encode_int(0)
       })
-      self:send_message(MSG_TYPE_F.describe, {
+      self:send_message(MSG_TYPE_F.close, {
         "P",
         NULL
       })
