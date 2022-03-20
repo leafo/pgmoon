@@ -552,6 +552,7 @@ class Postgres
     else
       @simple_query q
 
+
   -- query using the "simple" query protocol
   -- supports multiple queries, but no parameters
   simple_query: (q) =>
@@ -615,26 +616,35 @@ class Postgres
 
     insert bind_data, @encode_int 0, 2 -- number of result format codes, 0 to default to all text
 
-    @send_message MSG_TYPE_F.parse, parse_data
+    @send_messages {
+      { MSG_TYPE_F.parse, parse_data }
+      { MSG_TYPE_F.bind, bind_data }
 
-    @send_message MSG_TYPE_F.bind, bind_data
+      {
+         MSG_TYPE_F.describe, {
+          "P" -- describe a portal
+          NULL -- empty string, use the unnamed portal
+        }
+      }
 
-    @send_message  MSG_TYPE_F.describe, {
-      "P" -- describe a portal
-      NULL -- empty string, use the unnamed portal
+      {
+        MSG_TYPE_F.execute, {
+          NULL -- empty string, use unamed portal
+          @encode_int(0) -- 0, do not limit number of returned rows
+        }
+      }
+
+      {
+        MSG_TYPE_F.close, {
+          "P" -- close a portal
+          NULL -- empty string, close unnamed portal
+        }
+      }
+
+      {
+        MSG_TYPE_F.sync, { }
+      }
     }
-
-    @send_message MSG_TYPE_F.execute, {
-      NULL -- empty string, use unamed portal
-      @encode_int(0) -- 0, do not limit number of returned rows
-    }
-
-    @send_message MSG_TYPE_F.close, {
-      "P" -- close a portal
-      NULL -- empty string, close unnamed portal
-    }
-
-    @send_message MSG_TYPE_F.sync, { }
 
     @receive_query_result!
 
@@ -854,6 +864,8 @@ class Postgres
 
   -- NOTE: timeout of 0 would cause this clinet to disconnect if it's not ready
   receive_message: =>
+    -- TODO: make this recieve 5 bytes, then split them apart in lua
+
     t, err = @sock\receive 1
     unless t
       @disconnect!
@@ -915,6 +927,24 @@ class Postgres
       nil, "the server does not support SSL connections"
     else
       true -- no SSL support, but not required by client
+
+  -- send multiple messages all together. There is a substantial overhead from
+  -- sending messages one at a time, so this should be used if we can safely
+  -- bulk together multiple messages
+  -- format { { message_type, message_data}, ...  }
+  send_messages: (messages) =>
+    data = for {message_type, message_data} in *messages
+      len = _len message_data
+      len += 4 -- includes the length of the length integer
+      {
+        message_type
+        @encode_int len
+        message_data
+
+      }
+
+    @sock\send data
+
 
   send_message: (t, data, len) =>
     len = _len data if len == nil

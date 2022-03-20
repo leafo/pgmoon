@@ -606,21 +606,41 @@ do
         end
       end
       insert(bind_data, self:encode_int(0, 2))
-      self:send_message(MSG_TYPE_F.parse, parse_data)
-      self:send_message(MSG_TYPE_F.bind, bind_data)
-      self:send_message(MSG_TYPE_F.describe, {
-        "P",
-        NULL
+      self:send_messages({
+        {
+          MSG_TYPE_F.parse,
+          parse_data
+        },
+        {
+          MSG_TYPE_F.bind,
+          bind_data
+        },
+        {
+          MSG_TYPE_F.describe,
+          {
+            "P",
+            NULL
+          }
+        },
+        {
+          MSG_TYPE_F.execute,
+          {
+            NULL,
+            self:encode_int(0)
+          }
+        },
+        {
+          MSG_TYPE_F.close,
+          {
+            "P",
+            NULL
+          }
+        },
+        {
+          MSG_TYPE_F.sync,
+          { }
+        }
       })
-      self:send_message(MSG_TYPE_F.execute, {
-        NULL,
-        self:encode_int(0)
-      })
-      self:send_message(MSG_TYPE_F.close, {
-        "P",
-        NULL
-      })
-      self:send_message(MSG_TYPE_F.sync, { })
       return self:receive_query_result()
     end,
     receive_query_result = function(self)
@@ -935,6 +955,29 @@ do
       else
         return true
       end
+    end,
+    send_messages = function(self, messages)
+      local data
+      do
+        local _accum_0 = { }
+        local _len_0 = 1
+        for _index_0 = 1, #messages do
+          local _des_0 = messages[_index_0]
+          local message_type, message_data
+          message_type, message_data = _des_0[1], _des_0[2]
+          local len = _len(message_data)
+          len = len + 4
+          local _value_0 = {
+            message_type,
+            self:encode_int(len),
+            message_data
+          }
+          _accum_0[_len_0] = _value_0
+          _len_0 = _len_0 + 1
+        end
+        data = _accum_0
+      end
+      return self.sock:send(data)
     end,
     send_message = function(self, t, data, len)
       if len == nil then
