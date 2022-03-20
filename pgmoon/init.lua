@@ -542,7 +542,14 @@ do
         return error("unknown response from auth")
       end
     end,
-    query = function(self, q)
+    query = function(self, q, ...)
+      if select("#", ...) > 0 then
+        return self:extended_query(q, ...)
+      else
+        return self:simple_query(q)
+      end
+    end,
+    simple_query = function(self, q)
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end

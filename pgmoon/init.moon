@@ -546,15 +546,20 @@ class Postgres
       else
         error "unknown response from auth"
 
+  query: (q, ...) =>
+    if select("#", ...) > 0
+      @extended_query q, ...
+    else
+      @simple_query q
+
   -- query using the "simple" query protocol
   -- supports multiple queries, but no parameters
-  query: (q) =>
+  simple_query: (q) =>
     if q\find NULL
       return nil, "invalid null byte in query"
 
     @send_message MSG_TYPE_F.query, {q, NULL}
     @receive_query_result!
-
 
   -- query using the "extended" query protocol
   -- supports only a single query, and parameters
