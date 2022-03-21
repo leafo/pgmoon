@@ -315,8 +315,6 @@ class Postgres
     return nil, msg unless t
 
     unless MSG_TYPE_B.auth == t
-      @disconnect!
-
       if MSG_TYPE_B.error == t
         return nil, @parse_error msg
 
@@ -855,7 +853,6 @@ class Postgres
       return nil, msg unless t
 
       if MSG_TYPE_B.error == t
-        @disconnect!
         return nil, @parse_error(msg)
 
       break if MSG_TYPE_B.ready_for_query == t
@@ -867,7 +864,6 @@ class Postgres
     prefix, err = @sock\receive 5
 
     unless prefix
-      @disconnect!
       return nil, "receive_message: failed to get type: #{err}"
 
     t = prefix\sub 1,1
@@ -919,7 +915,6 @@ class Postgres
         else
           error "don't know how to do ssl handshake for socket type: #{@sock_type}"
     elseif t == MSG_TYPE_B.error or @config.ssl_required
-      @disconnect!
       nil, "the server does not support SSL connections"
     else
       true -- no SSL support, but not required by client

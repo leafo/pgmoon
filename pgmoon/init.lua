@@ -319,7 +319,6 @@ do
         return nil, msg
       end
       if not (MSG_TYPE_B.auth == t) then
-        self:disconnect()
         if MSG_TYPE_B.error == t then
           return nil, self:parse_error(msg)
         end
@@ -875,7 +874,6 @@ do
           return nil, msg
         end
         if MSG_TYPE_B.error == t then
-          self:disconnect()
           return nil, self:parse_error(msg)
         end
         if MSG_TYPE_B.ready_for_query == t then
@@ -887,7 +885,6 @@ do
     receive_message = function(self)
       local prefix, err = self.sock:receive(5)
       if not (prefix) then
-        self:disconnect()
         return nil, "receive_message: failed to get type: " .. tostring(err)
       end
       local t = prefix:sub(1, 1)
@@ -946,7 +943,6 @@ do
           return error("don't know how to do ssl handshake for socket type: " .. tostring(self.sock_type))
         end
       elseif t == MSG_TYPE_B.error or self.config.ssl_required then
-        self:disconnect()
         return nil, "the server does not support SSL connections"
       else
         return true
