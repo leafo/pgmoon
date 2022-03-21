@@ -92,9 +92,9 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 
-local res = assert(pg:query("select * from users where status = 'active'")
+local res = assert(pg:query("select * from users where status = 'active' limit 20")
 
-assert(pg:query("update users set name = $1 where id = $2"))
+assert(pg:query("update users set name = $1 where id = $2", "leafo", 99))
 
 ```
 
@@ -155,7 +155,6 @@ Connects to the Postgres server using the credentials specified in the call to
 `new`. On success returns `true`, on failure returns `nil` and the error
 message.
 
-
 ### postgres:settimeout(time)
 
 Sets the timeout value (in milliseconds) for all subsequent socket operations
@@ -163,14 +162,16 @@ Sets the timeout value (in milliseconds) for all subsequent socket operations
 
 ### success, err = postgres:disconnect()
 
-Closes the socket to the server if one is open. No other methods should be
-called on the object after this other than another call to connect.
-
+Closes the socket. Returns `nil` if the socket couldn't be closed. On most
+socket types, `connect` can be called again to reestaablish a connection with
+the same postgres object instance.
 
 ### success, err = postgres:keepalive(...)
 
 Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
 arguments passed here are also passed to `setkeepalive`.
+
+> Note: This method only works within OpenResty using the nginx cosocket API
 
 ### result, num_queries = postgres:query(query_string, ...)
 ### result, err, partial, num_queries = postgres:query(query_string, ...)
