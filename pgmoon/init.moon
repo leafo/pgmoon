@@ -1002,6 +1002,9 @@ class Postgres
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
 
   escape_literal: (val) =>
+    if val == (@ and @NULL or Postgres.NULL)
+      return "NULL"
+
     switch type val
       when "number"
         return tostring val

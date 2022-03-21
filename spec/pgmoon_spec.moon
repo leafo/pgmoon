@@ -1028,6 +1028,7 @@ describe "pgmoon without server", ->
     { 34.342, "34.342" }
     { "cat's soft fur", "'cat''s soft fur'" }
     { true, "TRUE" }
+    { Postgres.NULL, "NULL" }
   }
 
   local pg

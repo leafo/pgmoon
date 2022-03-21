@@ -1048,6 +1048,9 @@ do
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'
     end,
     escape_literal = function(self, val)
+      if val == (self and self.NULL or Postgres.NULL) then
+        return "NULL"
+      end
       local _exp_0 = type(val)
       if "number" == _exp_0 then
         return tostring(val)
