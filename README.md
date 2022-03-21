@@ -149,34 +149,81 @@ Available options:
 
 Methods on the `Postgres` object returned by `new`:
 
-### success, err = postgres:connect()
+### `postgres:connect()`
+
+```lua
+local success, err = postgres:connect()
+```
 
 Connects to the Postgres server using the credentials specified in the call to
 `new`. On success returns `true`, on failure returns `nil` and the error
 message.
 
-### postgres:settimeout(time)
+### `postgres:settimeout(time)`
+
+```lua
+postgres:settimeout(5000) -- 5 second timeout
+```
 
 Sets the timeout value (in milliseconds) for all subsequent socket operations
 (connect, write, receive). This function does not have any return values.
 
-### success, err = postgres:disconnect()
+The default timeout depends on the underslying socket implementation but
+generally corresponds to no timeout.
+
+### `postgres:disconnect()`
+
+```lua
+local success, err = postgres:disconnect()
+```
 
 Closes the socket. Returns `nil` if the socket couldn't be closed. On most
 socket types, `connect` can be called again to reestaablish a connection with
 the same postgres object instance.
 
-### success, err = postgres:keepalive(...)
+### postgres:keepalive(...)
+
+```lua
+postgres:keepalive()
+```
 
 Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
-arguments passed here are also passed to `setkeepalive`.
+arguments passed here are also passed to `setkeepalive`. After calling this
+method, the socket is no longer available for queries and should be considered
+disconnected.
 
 > Note: This method only works within OpenResty using the nginx cosocket API
 
-### result, num_queries = postgres:query(query_string, ...)
-### result, err, partial, num_queries = postgres:query(query_string, ...)
+### `postgres:query(query_string, ...)`
 
-Sends a query to the server. On failure returns `nil` and the error message.
+```lua
+-- return values for successful query
+local result, err, num_queries = postgres:query("select name from users limit 2")
+
+-- return value for failure (status is nil)
+local status, err, partial_result, num_queries = postgres:query("select created_at from tags; select throw_error() from users")
+```
+
+<details>
+<summary>Additional return values: notifications and notices</summary>
+
+In addition to the return values above, pgmoon will also return two additional
+values if the query generates them, notifications an notices.
+
+```lua
+local result, err, num_queries, notifications, notices  = postgres:query("drop table if exists some_table")
+```
+In this example, if the table `some_table` does not exist, then  `notices` will
+be an array containing a message that the table didn't exist.
+
+</details>
+
+Sends a query (or multiple queries) to the server. On failure the first return
+value is `nil`, followed by a string describing the error. Since a single call
+to query can contain multiple queries, the results of any queries that
+succeeded before the error occurred are returned after the error message.
+(Note: queries are atomic, they either succeed or fail. The partial result will
+only contain succeed queries, not partially data from the failed query)
 
 The query function has two modes of operation which correspond to the two
 protocols the Postgres server provides for sending queries to the database
@@ -185,37 +232,7 @@ server:
 * Simple query: you only pass in a single argument, the query string
 * Extended query: you pass in a query with parameter placeholders (`$1`, `$2`, etc.) and then pass in additional arguments which will be used as values for the placeholders
 
-<details>
-<summary>Differences between query protocols...</summary>
-
-### Extended protocol
-
-```lua
-local res, err = postgres:query("select name from users where id = $1 and status = $2", 12, "ready")
-```
-
-* **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
-* **Disadvantage**: Only a single query can be sent a time
-* **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
-* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
-
-### Simple protocol
-
-```lua
-local res, err = postgres:query("select name from users where id = " .. postgres:escape_literal(12) .." and status = " .. postgres:escape_literal("ready"))
-```
-
-* **Advantage**: Higher performance. Low overhead per query means more queries can be sent per second, even when manually escaping and interpolating parameters
-* **Advantage**: Multiple queries can be sent in a single request (separated by `;`)
-* **Disadvantage**: Any parameters to the query must be manually escaped and interpolated into the query string. This can be error prone and introduce SQL injection attacks if not done correctly
-
-> Note: The extended protocol also supports binary encoding of parameter values
-> & results, but since Lua treats binary as strings, it's generally going to be
-> faster to just consume the string values from Postgres rather than using the
-> binary protocol which will require binary to string conversion within Lua.
-
-</details>
-
+See [Extended and simple query protocol][] for more information about the differences.
 
 On success returns a result depending on the kind of query sent.
 
@@ -304,13 +321,13 @@ Similarly for queries that return affected rows or just `true`, they will be
 wrapped up in an addition array table when there are multiple of them. You can
 also mix the different query types as you see fit.
 
-Because Postgres executes each query at a time, earlier ones may succeed and
-further ones may fail. If there is a failure with multiple queries then the
-partial result and partial number of queries executed is returned after the
-error message.
+### `postgres:escape_literal(val)`
 
+```lua
+local sql_fragment = postgres:escape_literal(val)
 
-### escaped = postgres:escape_literal(val)
+local res = postgres:query("select created_at from users where id = " .. sql_fragment)
+```
 
 Escapes a Lua value for use as a Postgres value interpolated into a query
 string. When sending user provided data into a query you should use this method
@@ -325,7 +342,13 @@ It is aware of the following Lua types:
 Any other type will throw a hard `error`, to ensure that you provide a value
 that is safe to escape.
 
-### escaped = postgres:escape_identifier(val)
+### `postgres:escape_identifier(val)`
+
+```lua
+local sql_fragment = postgres:escape_identifier(some_table_name)`
+
+local res = postgres:query("select * from " .. sql_fragment .. " limit 20)
+```
 
 Escapes a Lua value for use as a Postgres identifier. This includes things like
 table or column names. This does not include regular values, you should use
@@ -334,9 +357,49 @@ with built in language keywords.
 
 The argument, `val`, must be a string.
 
-### str = tostring(postgres)
+### `tostring(postgres)`
+
+```lua
+print(tostring(postgres)) -> "<Postgres socket: 0xffffff>"
+```
 
 Returns string representation of current state of `Postgres` object.
+
+## Extended and simple query protocol
+
+pgmoon will issue your query to the database server using either the simple or
+extended protocol depending if you provide parameters and parameter
+placeholders in your query. The simple protocol is used for when your query is
+just a string, and the extended protocol is used when you provide addition
+parameters as arguments to the `query` method.
+
+The protocols have some trade-offs and differences:
+
+### Extended protocol
+
+```lua
+local res, err = postgres:query("select name from users where id = $1 and status = $2", 12, "ready")
+```
+
+* **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
+* **Disadvantage**: Only a single query can be sent a time
+* **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
+* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
+
+### Simple protocol
+
+```lua
+local res, err = postgres:query("select name from users where id = " .. postgres:escape_literal(12) .." and status = " .. postgres:escape_literal("ready"))
+```
+
+* **Advantage**: Higher performance. Low overhead per query means more queries can be sent per second, even when manually escaping and interpolating parameters
+* **Advantage**: Multiple queries can be sent in a single request (separated by `;`)
+* **Disadvantage**: Any parameters to the query must be manually escaped and interpolated into the query string. This can be error prone and introduce SQL injection attacks if not done correctly
+
+> Note: The extended protocol also supports binary encoding of parameter values
+> & results, but since Lua treats binary as strings, it's generally going to be
+> faster to just consume the string values from Postgres rather than using the
+> binary protocol which will require binary to string conversion within Lua.
 
 ## SSL connections
 
@@ -521,7 +584,7 @@ local pg = pgmoon.new(config)
 -- in this example we create a new deserializer called bignumber and provide
 -- the function to deserialize (type OID 20 is an 8 byte integer)
 pg:set_type_deserializer(20, "bignumber", function(val)
-	return "HUGENUMBER:" .. val
+    return "HUGENUMBER:" .. val
 end)
 
 -- in this example we point another OID to the "bignumber" deserializer we
@@ -534,6 +597,74 @@ The arguments are as follows:
 * `oid` The OID from `pg_type` that will be handled
 * `name` The local name of the type. This is a name that points to an existing deserializer or will be used to register a new one if the `deserializer` argument is 
 * `deserializer` A function that takes the raw string value from Postgres and converts it into something more useful (optional). Any existing deserializer function with the same name will be overwritten
+
+## Custom type serializer
+
+When using the query method with params, (aka the extended query protocol), and
+values passed into parameters must be serialized into a string version of that
+value and a type OID.
+
+pgmoon provides implementations for Lua's basic types: string, boolean,
+numbers, and `postgres.NULL` for the `NULL` value.
+
+If you want to support custom types, like JSON, then you will need to provide
+your own serializer.
+
+> Serializing vs escaping: pgmoon has two methods for preparing data to be sent
+> in a query. *Escaping* is used when you want to turn some value into a SQL
+> fragment that can be safely concatenated into a query. This is done with
+> `postgres:escape_literal()` and is suitable for use with the simple query
+> protocol. *Serializing*, on the other hand, is used to convert a value into a
+> string representation that can be parsed by Postgres as a value when using
+> the extended query protocol. As an example, an *escaped* string would be
+> `'hello'` (notice the quotes, this is a fragment of valid SQL syntax, whereas
+> a serialized string would be just the string: `hello` (and typically paired
+> with a type OID, typically `25` for text). Serializing is the oposite of
+> deserializing, which is described above.
+
+
+> **Note:** Serializing is **NOT** the same as escaping. You can not take a
+> serialized value and concatenate it directly into your query. You may,
+> however, take a serialized value and escape it as a string, then attempt to
+> cast it to the appropriate type within your query.
+
+
+To provide your own serializer for an object, you can add a method on the
+metatable called `pgmoon_serialize`. This method takes two arguments, the value
+to be serialized and the current instance of `Postgres` that is doing the
+serialization. The method should return two values: the type OID as an integer,
+and the string representation of that value.
+
+> Note: The type OID 0 can be used for "unknown", and Postgres will try to
+> infer the type of the value based on the context. If possible you should
+> always try to provide a specific type OID.
+
+```lua
+-- this metatable will enable an object to be serialized as json for use as a
+-- parameter in postgres:query()
+local json_mt = {
+  pgmoon_serialize = function(v)
+    local cjson = require("cjson")
+    return 114, cjson.encode(v) -- 114 is oid from pg_type catalog
+  end
+}
+
+local data = {
+  age = 200,
+  color = "blue",
+  tags = {"one", "two"}
+}
+
+postgres:query("update user set data = $1 where id = 233", setmetatable(data, json_mt))
+```
+
+The `pgmoon_serialize` method can also return `nil` and an error message to
+abort serialization. This will block the query from running at all, and the
+error will be returned from the `postgres:query()` method.
+
+> Note: Postgres supports a binary representation for values when using the
+> extended query protocol, but at this time pgmoon does not support it.
+
 
 ## Converting `NULL`s
 
