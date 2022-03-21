@@ -894,6 +894,48 @@ describe "pgmoon with server", ->
               true
             }, res.val
 
+          it "serializes nested arrays", ->
+            nested_array = PostgresArray {
+              PostgresArray {1,2,3}
+              PostgresArray {4,5,6}
+            }
+
+            assert.same {0, '{{1,2,3},{4,5,6}}'}, { serialize_value nested_array }
+
+            res = unpack assert pg\query "select $1::numeric[][] val, pg_typeof($1::numeric[][])", nested_array
+
+            assert.same "numeric[]", res.pg_typeof -- uhh this is strange
+            assert.same {
+              {1,2,3}
+              {4,5,6}
+            }, res.val
+
+          it "serializes array of serializable objects", ->
+            json_type = (v) ->
+              setmetatable { v }, {
+                pgmoon_serialize: (pgmoon) =>
+                  json = require("cjson")
+                  114, (json.encode @[1])
+              }
+
+            assert.same {0, [[{"{\"hello\":\"world\"}","[1,2,3]"}]]}, {
+              serialize_value PostgresArray({
+                json_type({hello: "world"})
+                json_type({1,2,3})
+              })
+            }
+
+            res = unpack assert pg\query "select $1::json[] val, pg_typeof($1::json[])", PostgresArray {
+              json_type({hello: "world"})
+              json_type({1,2,3})
+            }
+
+            assert.same "json[]", res.pg_typeof
+            assert.same {
+              { hello: "world" }
+              {1,2,3}
+            }, res.val
+
 
         describe "with table", ->
           before_each ->

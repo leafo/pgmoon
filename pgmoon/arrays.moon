@@ -3,7 +3,17 @@ OIDS = {
   boolean: 1000
   number: 1231
   string: 1009
+
+  -- supplementary types for subtype detection
+  array_json: 199
+  array_jsonb: 3807
 }
+
+is_array = (oid) ->
+  for k, v in pairs OIDS
+    return true if v == oid
+
+  false
 
 class PostgresArray
   -- the array literal syntax used is different than the "array constructor"
@@ -29,7 +39,13 @@ class PostgresArray
                 _oid, _value = v_mt.pgmoon_serialize val, pg
 
             if _oid
-              _value
+              if is_array(_oid)
+                _value
+              else
+                -- because of array syntax we can't trust the type here so we
+                -- must quote it. This may fail for sub-arrays of types not
+                -- accounted for in OIDs
+                '"' .. _value\gsub('"', [[\"]]) .. '"'
             else
               return nil, "table does not implement pgmoon_serialize, can't serialize"
 

@@ -1,8 +1,19 @@
 local OIDS = {
   boolean = 1000,
   number = 1231,
-  string = 1009
+  string = 1009,
+  array_json = 199,
+  array_jsonb = 3807
 }
+local is_array
+is_array = function(oid)
+  for k, v in pairs(OIDS) do
+    if v == oid then
+      return true
+    end
+  end
+  return false
+end
 local PostgresArray
 do
   local _class_0
@@ -50,7 +61,11 @@ do
               end
             end
             if _oid then
-              _accum_0[_len_0] = _value
+              if is_array(_oid) then
+                _accum_0[_len_0] = _value
+              else
+                _accum_0[_len_0] = '"' .. _value:gsub('"', [[\"]]) .. '"'
+              end
             else
               return nil, "table does not implement pgmoon_serialize, can't serialize"
             end
