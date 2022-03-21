@@ -181,7 +181,7 @@ Closes the socket. Returns `nil` if the socket couldn't be closed. On most
 socket types, `connect` can be called again to reestaablish a connection with
 the same postgres object instance.
 
-### postgres:keepalive(...)
+### `postgres:keepalive(...)`
 
 ```lua
 postgres:keepalive()
@@ -204,8 +204,17 @@ local result, err, num_queries = postgres:query("select name from users limit 2"
 local status, err, partial_result, num_queries = postgres:query("select created_at from tags; select throw_error() from users")
 ```
 
+Sends a query (or multiple queries) to the server. On failure the first return
+value is `nil`, followed by a string describing the error. Since a single call
+to `postgres:query` can contain multiple queries, the results of any queries that
+succeeded before the error occurred are returned after the error message.
+(Note: queries are atomic, they either succeed or fail. The partial result will
+only contain succeed queries, not partially data from the failed query)
+
 <details>
 <summary>Additional return values: notifications and notices</summary>
+
+---
 
 In addition to the return values above, pgmoon will also return two additional
 values if the query generates them, notifications an notices.
@@ -216,25 +225,21 @@ local result, err, num_queries, notifications, notices  = postgres:query("drop t
 In this example, if the table `some_table` does not exist, then  `notices` will
 be an array containing a message that the table didn't exist.
 
-</details>
+---
 
-Sends a query (or multiple queries) to the server. On failure the first return
-value is `nil`, followed by a string describing the error. Since a single call
-to query can contain multiple queries, the results of any queries that
-succeeded before the error occurred are returned after the error message.
-(Note: queries are atomic, they either succeed or fail. The partial result will
-only contain succeed queries, not partially data from the failed query)
+</details>
 
 The query function has two modes of operation which correspond to the two
 protocols the Postgres server provides for sending queries to the database
 server:
 
-* Simple query: you only pass in a single argument, the query string
-* Extended query: you pass in a query with parameter placeholders (`$1`, `$2`, etc.) and then pass in additional arguments which will be used as values for the placeholders
+* **Simple protocol**: you only pass in a single argument, the query string
+* **Extended protocol**: you pass in a query with parameter placeholders (`$1`, `$2`, etc.) and then pass in additional arguments which will be used as values for the placeholders
 
-See [Extended and simple query protocol][] for more information about the differences.
+See [Extended and simple query protocol][#extended-and-simple-query-protocols]
+for more information about the differences and trade-offs.
 
-On success returns a result depending on the kind of query sent.
+On success, the result returned depends on the kind of query sent:
 
 `SELECT` queries, `INSERT` with `returning`, or anything else that returns a
 result set will return an array table of results. Each result is a hash table
@@ -329,18 +334,20 @@ local sql_fragment = postgres:escape_literal(val)
 local res = postgres:query("select created_at from users where id = " .. sql_fragment)
 ```
 
-Escapes a Lua value for use as a Postgres value interpolated into a query
-string. When sending user provided data into a query you should use this method
-to prevent SQL injection attacks.
+Escapes a Lua value int a valid SQL fragment that can be safely concatenated
+into a query string. **Never** concatenate a variable into query without
+escaping it in some way, or you may open yourself up to [SQL injection
+attacks](https://en.wikipedia.org/wiki/SQL_injection).
 
-It is aware of the following Lua types:
+This function is aware of the following Lua value types:
 
-* `number` `escape_literal(5.5) --> 5.5`
-* `string` `escape_literal("your's") --> 'your''s'`
-* `boolean` `escape_literal(true) --> TRUE`
+* `type(val) == "number"` &#8594; `escape_literal(5.5) --> 5.5`
+* `type(val) == "string"` &#8594; `escape_literal("your's") --> 'your''s'`
+* `type(val) == "boolean"` &#8594; `escape_literal(true) --> TRUE`
+* `val == pgmoon.NULL` &#8594; `escape_literal(pgmoon.NULL) --> NULL`
 
 Any other type will throw a hard `error`, to ensure that you provide a value
-that is safe to escape.
+that is safe for escaping.
 
 ### `postgres:escape_identifier(val)`
 
@@ -365,7 +372,7 @@ print(tostring(postgres)) -> "<Postgres socket: 0xffffff>"
 
 Returns string representation of current state of `Postgres` object.
 
-## Extended and simple query protocol
+## Extended and simple query protocols
 
 pgmoon will issue your query to the database server using either the simple or
 extended protocol depending if you provide parameters and parameter
