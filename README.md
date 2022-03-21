@@ -392,7 +392,7 @@ local res, err = postgres:query("select name from users where id = $1 and status
 * **Advantage**: Supports the `pgmoon_serialize` method to allow for custom types to be automatically serialized into parameters for the query
 * **Disadvantage**: Only a single query can be sent a time
 * **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
-* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks
+* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (...)`, dynamic expressions), so you may still need to use string interpolation and assume the associated risks
 
 ### Simple protocol
 
