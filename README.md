@@ -92,8 +92,10 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 
-local res = assert(pg:query("select * from users where username = " ..
-  pg:escape_literal("leafo")))
+local res = assert(pg:query("select * from users where status = 'active'")
+
+assert(pg:query("update users set name = $1 where id = $2"))
+
 ```
 
 If you are using OpenResty you can relinquish the socket to the connection pool
@@ -170,10 +172,38 @@ called on the object after this other than another call to connect.
 Relinquishes socket to OpenResty socket pool via the `setkeepalive` method. Any
 arguments passed here are also passed to `setkeepalive`.
 
-### result, num_queries = postgres:query(query_string)
-### result, err, partial, num_queries = postgres:query(query_string)
+### result, num_queries = postgres:query(query_string, ...)
+### result, err, partial, num_queries = postgres:query(query_string, ...)
 
 Sends a query to the server. On failure returns `nil` and the error message.
+
+The query function has two modes of operation which correspond to the two
+protocols the Postgres server provides for sending queries to the database
+server:
+
+* Simple query: you only pass in a single argument, the query string
+* Extended query: you pass in a query with parameter placeholders (`$1`, `$2`, etc.) and then pass in additional arguments which will be used as values for the placeholders
+
+<details>
+<summary>Differences between query protocols...</summary>
+
+* Extended protocol
+	* **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
+	* **Disadvantage**: Only a single query can be sent a time
+	* **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
+	* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
+* Simple protocol
+	* **Advantage**: Higher performance. Low overhead per query means more queries can be sent per second, even when manually escaping and interpolating parameters
+	* **Advantage**: Multiple queries can be sent in a single request (separated by `;`)
+	* **Disadvantage**: Any parameters to the query must be manually escaped and interpolated into the query string. This can be error prone and introduce SQL injection attacks if not done correctly
+
+> Note: The extended protocol also supports binary encoding of parameter values
+> & results, but since Lua treats binary as strings, it's generally going to be
+> faster to just consume the string values from Postgres rather than using the
+> binary protocol which will require binary to string conversion within Lua.
+
+</details>
+
 
 On success returns a result depending on the kind of query sent.
 
@@ -220,11 +250,11 @@ Might return:
 Any queries with no result set or updated rows will return `true`.
 
 
-This method also supports sending multiple queries at once by separating them
-with a `;`. The number of queries executed is returned as a second return value
-after the result object. When more than one query is executed then the result
-object changes slightly. It becomes a array table holding all the individual
-results:
+When using the *simple protocol* (calling the function with a single string),
+you can send multiple queries at once by separating them with a `;`. The number
+of queries executed is returned as a second return value after the result
+object. When more than one query is executed then the result object changes
+slightly. It becomes a array table holding all the individual results:
 
 ```lua
 local res, num_queries = pg:query([[
@@ -274,12 +304,23 @@ Escapes a Lua value for use as a Postgres value interpolated into a query
 string. When sending user provided data into a query you should use this method
 to prevent SQL injection attacks.
 
+It is aware of the following Lua types:
+
+* `number` `escape_literal(5.5) --> 5.5`
+* `string` `escape_literal("your's") --> 'your''s'`
+* `boolean` `escape_literal(true) --> TRUE`
+
+Any other type will throw a hard `error`, to ensure that you provide a value
+that is safe to escape.
+
 ### escaped = postgres:escape_identifier(val)
 
 Escapes a Lua value for use as a Postgres identifier. This includes things like
 table or column names. This does not include regular values, you should use
 `escape_literal` for that. Identifier escaping is required when names collide
 with built in language keywords.
+
+The argument, `val`, must be a string.
 
 ### str = tostring(postgres)
 
