@@ -236,7 +236,7 @@ server:
 * **Simple protocol**: you only pass in a single argument, the query string
 * **Extended protocol**: you pass in a query with parameter placeholders (`$1`, `$2`, etc.) and then pass in additional arguments which will be used as values for the placeholders
 
-See [Extended and simple query protocol][#extended-and-simple-query-protocols]
+See [Extended and simple query protocol](#extended-and-simple-query-protocols)
 for more information about the differences and trade-offs.
 
 On success, the result returned depends on the kind of query sent:
@@ -367,7 +367,7 @@ The argument, `val`, must be a string.
 ### `tostring(postgres)`
 
 ```lua
-print(tostring(postgres)) -> "<Postgres socket: 0xffffff>"
+print(tostring(postgres)) --> "<Postgres socket: 0xffffff>"
 ```
 
 Returns string representation of current state of `Postgres` object.
