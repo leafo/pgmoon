@@ -389,9 +389,10 @@ local res, err = postgres:query("select name from users where id = $1 and status
 ```
 
 * **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
+* **Advantage**: Supports the `pgmoon_serialize` method to allow for custom types to be automatically serialized into parameters for the query
 * **Disadvantage**: Only a single query can be sent a time
 * **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
-* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
+* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks
 
 ### Simple protocol
 
@@ -462,9 +463,9 @@ Any other types are returned as Lua strings.
 
 ## Handling arrays
 
-Arrays are automatically decoded when they are returned from a query. Numeric,
-string, and boolean types are automatically loaded accordingly. Nested arrays
-are also supported.
+Arrays are automatically deserialized into a Lua object when they are returned
+from a query. Numeric, string, and boolean types are automatically loaded
+accordingly. Nested arrays are also supported.
 
 Use `encode_array` to encode a Lua table to array syntax for a query:
 
@@ -477,6 +478,30 @@ local encode_array = require("pgmoon.arrays").encode_array
 local my_array = {1,2,3,4,5}
 pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
 ```
+
+Arrays that are returned from queries have their metatable configured for the
+`PostgresArray` type (defined in `require("pgmoon.arrays")`).
+
+
+### Extended protocol
+
+When using the extended query protocol (query with parameters), an array object
+created with `PostgresArray` will automatically be serialized when passed as a
+parameter.
+
+```lua
+local PostgresArray = require("pgmoon.arrays").PostgresArray
+
+postgres:query("update user set tags = $1 where id = 44", PostgresArray({1,2,4}))
+```
+
+Keep in mind that calling `PostgresArray` mutate the argument by setting its
+metatable. Make a copy first if you don't want the original object to be
+mutated.
+
+Additionally, array types must contain values of only the same type. No
+run-time checking is performed on the object you pass. The type OID is
+determined from the first entry of the array.
 
 ### Empty Arrays
 
