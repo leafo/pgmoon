@@ -188,22 +188,26 @@ server:
 <details>
 <summary>Differences between query protocols...</summary>
 
-* Extended protocol
+### Extended protocol
+
 ```lua
 local res, err = postgres:query("select name from users where id = $1 and status = $2", 12, "ready")
 ```
-	* **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
-	* **Disadvantage**: Only a single query can be sent a time
-	* **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
-	* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
 
-* Simple protocol
+* **Advantage**: Parameters can be included in query without risk of SQL injection attacks, no need to escape values and interpolate strings
+* **Disadvantage**: Only a single query can be sent a time
+* **Disadvantage**: Substantially more overhead per query. A no-op query may be 50% to 100% slower. (note that this overhead may be negligible depending on the runtime of the query itself)
+* **Disadvantage**: Some kinds of query syntax are not compatible with parameters (eg. `where id in (1,2,3)`), so you may still need to use string interpolation and assume the associated risks.
+
+### Simple protocol
+
 ```lua
 local res, err = postgres:query("select name from users where id = " .. postgres:escape_literal(12) .." and status = " .. postgres:escape_literal("ready"))
 ```
-	* **Advantage**: Higher performance. Low overhead per query means more queries can be sent per second, even when manually escaping and interpolating parameters
-	* **Advantage**: Multiple queries can be sent in a single request (separated by `;`)
-	* **Disadvantage**: Any parameters to the query must be manually escaped and interpolated into the query string. This can be error prone and introduce SQL injection attacks if not done correctly
+
+* **Advantage**: Higher performance. Low overhead per query means more queries can be sent per second, even when manually escaping and interpolating parameters
+* **Advantage**: Multiple queries can be sent in a single request (separated by `;`)
+* **Disadvantage**: Any parameters to the query must be manually escaped and interpolated into the query string. This can be error prone and introduce SQL injection attacks if not done correctly
 
 > Note: The extended protocol also supports binary encoding of parameter values
 > & results, but since Lua treats binary as strings, it's generally going to be
