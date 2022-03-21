@@ -60,7 +60,26 @@ do
       end
       escaped = _accum_0
     end
-    return OIDS[type(v[1])] or 0, "{" .. tostring(table.concat(escaped, ",")) .. "}"
+    local type_oid = 0
+    for _index_0 = 1, #v do
+      local _continue_0 = false
+      repeat
+        do
+          local val = v[_index_0]
+          if val == pg.NULL then
+            _continue_0 = true
+            break
+          end
+          type_oid = OIDS[type(val)] or type_oid
+          break
+        end
+        _continue_0 = true
+      until true
+      if not _continue_0 then
+        break
+      end
+    end
+    return type_oid, "{" .. tostring(table.concat(escaped, ",")) .. "}"
   end
   PostgresArray = _class_0
 end

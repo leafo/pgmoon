@@ -848,6 +848,9 @@ describe "pgmoon with server", ->
             assert.same {ARRAY_OIDS.number, "{1,2,3}"}, { serialize_value PostgresArray({1,2,3}) }
             assert.same {ARRAY_OIDS.number, "{-23892}"}, { serialize_value PostgresArray({-23892}) }
 
+            -- still figures out type even if array starts with NULL
+            assert.same {ARRAY_OIDS.number, "{NULL,5}"}, { serialize_value PostgresArray({pg.NULL, 5}) }
+
           it "serializes string array", ->
             assert.same {ARRAY_OIDS.string, '{"hello"}'}, { serialize_value PostgresArray({"hello"}) }
             assert.same {ARRAY_OIDS.string, '{"hello",NULL,"world"}'}, { serialize_value PostgresArray({"hello", pg.NULL, "world"}) }

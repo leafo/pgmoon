@@ -10,7 +10,6 @@ class PostgresArray
   -- that is used in encode_array below. This is the same format that is parsed by "decode_array"
   -- https://www.postgresql.org/docs/current/arrays.html#ARRAYS-INPUT
   @__base.pgmoon_serialize = (v, pg) ->
-
     escaped = for val in *v
       if val == pg.NULL
         "NULL"
@@ -34,7 +33,13 @@ class PostgresArray
             else
               return nil, "table does not implement pgmoon_serialize, can't serialize"
 
-    OIDS[type(v[1])] or 0, "{#{table.concat escaped, ","}}"
+    type_oid = 0
+    for val in *v
+      continue if val == pg.NULL
+      type_oid = OIDS[type val] or type_oid
+      break
+
+    type_oid, "{#{table.concat escaped, ","}}"
 
 getmetatable(PostgresArray).__call = (t) =>
   setmetatable t, @__base
