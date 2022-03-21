@@ -697,7 +697,7 @@ do
         end
       end
       if err_msg then
-        return nil, self:parse_error(err_msg), result, num_queries, notifications
+        return nil, self:parse_error(err_msg), result, num_queries, notifications, notices
       end
       return result, num_queries, notifications, notices
     end,

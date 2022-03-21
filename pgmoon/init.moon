@@ -694,7 +694,7 @@ class Postgres
             print "Unhandled message in query result: #{t}"
 
     if err_msg
-      return nil, @parse_error(err_msg), result, num_queries, notifications
+      return nil, @parse_error(err_msg), result, num_queries, notifications, notices
 
     result, num_queries, notifications, notices
 
