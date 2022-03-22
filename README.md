@@ -702,22 +702,29 @@ error will be returned from the `postgres:query()` method.
 
 By default `NULL`s in Postgres are converted to `nil`, meaning they aren't
 visible in the resulting tables. If you want to convert `NULL`s to some visible
-value set `convert_null` to `true` on the `Postgres` object:
+value set `convert_null` to `true` on the `Postgres` object and the
+`postgres.NULL` object will be used to represent NULL.
 
 ```lua
 local pgmoon = require("pgmoon")
-local pg = pgmoon.new(auth)
-pg:connect()
+local config = {
+  database = "my_database",
+  convert_null = true
+}
 
-pg.convert_null = true
-local res = pg:query("select NULL the_null")
+local postgres = pgmoon.new(config)
+assert(postgres:connect())
 
-assert(pg.NULL == res[1].the_null)
+local res = postgres:query("select NULL the_null")
+assert(postgres.NULL == res[1].the_null)
 ```
 
-As shown above, the `NULL` value is set to `pg.NULL`. You can change this value
-to make pgmoon use something else as `NULL`. For example if you're using
-OpenResty you might want to reuse `ngx.null`.
+As shown above, the `NULL` value is set to `postgres.NULL`. It's possible to change
+this value to make pgmoon use something else as `NULL`. For example if you're
+using OpenResty you might want to reuse `ngx.null`.
+
+Also note that you can use `postgres.NULL` as an extended query parameter or
+inside `escape_literal` to generate the value for `NULL`.
 
 # Contact
 
