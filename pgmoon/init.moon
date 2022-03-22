@@ -230,6 +230,8 @@ class Postgres
   -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
   -- luasec_opts: manually created options for LuaSocket ssl connections
   new: (@_config={}) =>
+
+    -- NOTE: since config is a proxy table, we should avoid using it in hot code paths, like making queries
     @config = setmetatable {}, {
       __index: (t, key) ->
         value = @_config[key]
@@ -239,6 +241,7 @@ class Postgres
           value
     }
 
+    @convert_null = @config.convert_null
     @sock, @sock_type = socket.new @config.socket_type
 
   connect: =>

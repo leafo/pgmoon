@@ -1082,6 +1082,7 @@ do
           end
         end
       })
+      self.convert_null = self.config.convert_null
       self.sock, self.sock_type = socket.new(self.config.socket_type)
     end,
     __base = _base_0,
