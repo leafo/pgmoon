@@ -2,7 +2,7 @@ package = "pgmoon"
 version = "dev-1"
 
 source = {
-  url = "git://github.com/mecampbellsoup/pgmoon.git",
+  url = "git+https://github.com/mecampbellsoup/pgmoon.git",
   tag = "luasocket-to-haproxy"
 }
 
