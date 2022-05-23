@@ -22,7 +22,7 @@ unpack = table.unpack or unpack
 -- Protocol documentation:
 -- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
-VERSION = "2.2.1"
+VERSION = "2.2.2"
 
 _len = (thing, t=type(thing)) ->
   switch t
