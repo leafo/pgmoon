@@ -2,17 +2,17 @@
 
 ![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)
 
-> **Note!** Are you using the latest version of OpenResty? You must update to
-> pgmoon 1.12 or above, due to a change in Lua pattern compatibility, any query
-> that returns affected number of rows will return the expected value.
+> **Note:** Have you updated from an older version of OpenResty? You must update to
+> pgmoon 1.12 or above, due to a change in Lua pattern compatibility to avoid incorrect 
+> results from queries that return affected rows.
 
-pgmoon is a PostgreSQL client library written in pure Lua (MoonScript).
+**pgmoon** is a PostgreSQL client library written in pure Lua (MoonScript).
 
-pgmoon was originally designed for use in [OpenResty][5] to take advantage of
-the [cosocket api][4] to provide asynchronous queries but it also works in the
-regular Lua environment as well using [LuaSocket][1].
-pgmoon can also use [cqueues][]' socket when passed `"cqueues"` as the socket
-type when instantiating. pgmoon optionally requires:
+**pgmoon** was originally designed for use in [OpenResty][] to take advantage
+of the [cosocket
+api](https://github.com/openresty/lua-nginx-module#ngxsockettcp) to provide
+asynchronous queries but it also works in the regular any Lua environment where
+[LuaSocket][] or [cqueues][] is available. pgmoon optionally requires:
 
 - [LuaCrypto][2] for authentication with MD5
 - [LuaSec][6] for SSL connections
@@ -20,7 +20,7 @@ type when instantiating. pgmoon optionally requires:
 For authentication with SCRAM-SHA-256 (without channel binding support) pgmoon requires [luaossl](https://luarocks.org/modules/daurnimator/luaossl) only. For authentication with SCRAM-SHA-256-PLUS (with channel binding support) it requires [LuaSec][6] for the socket type `luasocket` and [lua-resty-openssl](https://luarocks.org/modules/fffonion/lua-resty-openssl) for the socket type `nginx`.
 
 It's a perfect candidate for running your queries both inside OpenResty's
-environment and on the command line (eg. tests) in web frameworks like [Lapis][3].
+environment and on the command line (eg. tests) in web frameworks like [Lapis][].
 
 ## Install
 
@@ -28,19 +28,32 @@ environment and on the command line (eg. tests) in web frameworks like [Lapis][3
 $ luarocks install pgmoon
 ```
 
+<details>
+<summary>Using <a href="https://opm.openresty.org/">OpenResty's OPM</a></summary>
+
+```bash
+$ opm get leafo/pgmoon
+```
+
+</details>
+
+
 ### Dependencies
 
 pgmoon supports a wide range of environments and libraries, so it may be
 necessary to install additional dependencies depending on how you intend to
 communicate with the database:
 
-> Tip: If you're using OpenResty then no additional dependencies are needed
+> **Tip:** If you're using OpenResty then no additional dependencies are needed
+> (generally, a crypto library may be necessary for some authentication
+> methods)
 
-Some socket library **is required**, depending on the environment you can chose one:
+A socket implementation **is required** to use pgmoon, depending on the
+environment you can chose one:
 
-* [OpenResty](https://openresty.org/en/) &mdash; The built in socket is used, so additional dependencies necessary
-* [LuaSocket](http://w3.impa.br/~diego/software/luasocket/) &mdash; Suitable for command line database access, has the highest platform compatibility `luarocks install luasocket`
-* [cqueues](https://github.com/wahern/cqueues) &mdash; `luarocks install cqueues`
+* [OpenResty][] &mdash; The built in socket is used, no additional dependencies necessary
+* [LuaSocket][] &mdash; `luarocks install luasocket`
+* [cqueues][] &mdash; `luarocks install cqueues`
 
 If you're on PUC Lua 5.1 or 5.2 then you will need a bit libray (not needed for LuaJIT):
 
@@ -54,19 +67,21 @@ If you want to use JSON types you will need lua-cjson
 $ luarocks install lua-cjson
 ```
 
-If you want to use SSL connections with LuaSocket then you will need LuaSec:
-(OpenResty and cqueues come with their own SSL implementations)
+SSL connections may require an additional dependency:
 
+* OpenResty &mdash; No additional dependencies required
+* LuaSocket &mdash; `luarocks install luasec`
+* cqueues &mdash; `luarocks install luaossl`
+
+Password authentication may require a crypto library, [luaossl][].
 
 ```bash
-$ luarocks install luasec
+$ luarocks install luaossl
 ```
 
-If you want to use password authentication then you will need a crypto library:
+> **Note:** [LuaCrypto][] can be used as a fallback, but the library is abandoned and not recommended for use
 
-* [OpenResty](https://openresty.org/en/) &mdash; Built in function will be used, no additional dependencies necessary
-* [luaossl](https://github.com/wahern/luaossl) &mdash; Recommended `luarocks install luaossl`
-* [luacrypto](https://github.com/starius/luacrypto) &mdash; Deprecated library, not recommended
+> **Note:** Use within [OpenResty][] will prioritize built  in functions if possible
 
 ## Example
 
@@ -85,8 +100,8 @@ local res = assert(pg:query("select * from users where username = " ..
   pg:escape_literal("leafo")))
 ```
 
-If you are using OpenResty you should relinquish the socket after you are done
-with it so it can be reused in future requests:
+If you are using OpenResty you can relinquish the socket to the connection pool
+after you are done with it so it can be reused in future requests:
 
 ```lua
 pg:keepalive()
@@ -98,19 +113,27 @@ Functions in table returned by `require("pgmoon")`:
 
 ### `new(options={})`
 
-Creates a new `Postgres` object. Does not connect automatically. Takes a table
-of options. The table can have the following keys:
+Creates a new `Postgres` object from a configuration object. All fields are
+optional unless otherwise stated. The newly created object will not
+automatically connect, you must call `conect` after creating the object.
 
+Available options:
+
+* `"database"`: the database name to connect to **required**
 * `"host"`: the host to connect to (default: `"127.0.0.1"`)
 * `"port"`: the port to connect to (default: `"5432"`)
 * `"user"`: the database username to authenticate (default: `"postgres"`)
-* `"database"`: the database name to connect to **required**
-* `"password"`: password for authentication, optional depending on server configuration
+* `"password"`: password for authentication, may be required depending on server configuration
 * `"ssl"`: enable ssl (default: `false`)
 * `"ssl_verify"`: verify server certificate (default: `nil`)
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
-* `"pool"`: optional name of pool to use when using OpenResty cosocket (defaults to `"#{host}:#{port}:#{database}"`)
-* `"socket_type"`: optional, the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
+* `"pool"`: (OpenResty only) name of pool to use when using OpenResty cosocket (default: `"#{host}:#{port}:#{database}"`)
+* `"pool_size"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `"backlog"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
+* `"cqueues_openssl_context"`: Manually created `opensssl.ssl.context` to use when created cqueues SSL connections
+* `"luasec_opts"`: Manually created options object to use when using LuaSec SSL connections
 
 Methods on the `Postgres` object returned by `new`:
 
@@ -123,9 +146,8 @@ message.
 
 ### postgres:settimeout(time)
 
-Sets the timeout value (in milliseconds) for all socket operations (connect,
-write, receive). This function does not have any return values.
-
+Sets the timeout value (in milliseconds) for all subsequent socket operations
+(connect, write, receive). This function does not have any return values.
 
 ### success, err = postgres:disconnect()
 
@@ -256,9 +278,9 @@ Returns string representation of current state of `Postgres` object.
 ## SSL connections
 
 pgmoon can establish an SSL connection to a Postgres server. It can also refuse
-to connect to it if the server does not support SSL.
-Just as pgmoon depends on LuaSocket for usage outside of OpenResty, it depends
-on LuaSec for SSL connections in such contexts.
+to connect to it if the server does not support SSL. Just as pgmoon depends on
+LuaSocket for usage outside of OpenResty, it depends on luaossl/LuaSec for SSL
+connections in such contexts.
 
 ```lua
 local pgmoon = require("pgmoon")
@@ -276,13 +298,13 @@ local pg = pgmoon.new({
 assert(pg:connect())
 ```
 
-> Note: In Postgres 12 and above, the minium SSL version accepted by client
-> connections is 1.2. When using LuaSec to connect to an SSL server, if you
-> don't specify an `ssl_version` then `tlsv1_2` is used.
+> **Note:** In Postgres 12 and above, the minium SSL version accepted by client
+> connections is 1.2. When using LuaSocket + LuaSec to connect to an SSL
+> server, if you don't specify an `ssl_version` then `tlsv1_2` is used.
 
-In OpenResty, make sure to configure the [lua_ssl_trusted_certificate][7]
-directive if you wish to verify the server certificate, as the LuaSec-only
-options become irrelevant in that case.
+In OpenResty, make sure to configure the
+[lua_ssl_trusted_certificate](https://github.com/openresty/lua-nginx-module#lua_ssl_trusted_certificate)
+directive if you wish to verify the server certificate.
 
 ## Authentication types
 
@@ -321,6 +343,22 @@ pg:connect()
 local encode_array = require("pgmoon.arrays").encode_array
 local my_array = {1,2,3,4,5}
 pg:query("insert into some_table (some_arr_col) values(" .. encode_array(my_array) .. ")")
+```
+
+### Empty Arrays
+
+When trying to encode an empty array an error will be thrown. Postgres requires
+a type when using an array. When there are values in the array Postgres can
+infer the type, but with no values in the array no type can be inferred. This
+is illustrated in the erorr provided by Postgres:
+
+
+```
+postgres=# select ARRAY[];
+ERROR:  cannot determine type of empty array
+LINE 1: select ARRAY[];
+               ^
+HINT:  Explicitly cast to the desired type, for example ARRAY[]::integer[].
 ```
 
 ## Handling JSON
@@ -401,6 +439,7 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+* 1.13.0 — 2021-10-13 - Add support for scram_sha_256_auth (@murillopaula), 'backlog' and 'pool_size' options while using ngx.socket (@xiaocang), update LuaSec ssl_protocol default options (@jeremymv2), `application_name` option (@mecampbellsoup)
 * 1.12.0 — 2021-01-06 - Lua pattern compatibility fix, Support for Lua 5.1 through 5.4 (@jprjr). Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec. Luabitop is no longer automatically installed as a dependency. New test suite.
 * 1.11.0 — 2020-03-26 - Allow for TLS v1.2 when using LuaSec (Miles Elam)
 * 1.10.0 — 2019-04-15 - Support luaossl for crypto functions, added better error when missing crypto library
@@ -438,12 +477,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
-
-  [1]: http://w3.impa.br/~diego/software/luasocket/
-  [2]: http://mkottman.github.io/luacrypto/
-  [3]: http://leafo.net/lapis
-  [4]: http://wiki.nginx.org/HttpLuaModule#ngx.socket.tcp
-  [5]: http://openresty.org/
-  [6]: https://github.com/brunoos/luasec
-  [7]: https://github.com/openresty/lua-nginx-module#lua_ssl_trusted_certificate
+  [luaossl]: https://github.com/wahern/luaossl
+  [LuaCrypto]: https://luarocks.org/modules/starius/luacrypto
+  [LuaSec]: https://github.com/brunoos/luasec
+  [Lapis]: http://leafo.net/lapis
+  [OpenResty]: https://openresty.org/
+  [LuaSocket]: http://w3.impa.br/~diego/software/luasocket/
   [cqueues]: http://25thandclement.com/~william/projects/cqueues.html

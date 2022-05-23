@@ -580,6 +580,7 @@ describe "pgmoon with server", ->
           assert PostgresArray.__base == getmetatable array
 
         it "encodes array value", ->
+          assert.same "ARRAY[]", encode_array {}
           assert.same "ARRAY[1,2,3]", encode_array {1,2,3}
           assert.same "ARRAY['hello','world']", encode_array {"hello", "world"}
           assert.same "ARRAY[[4,5],[6,7]]", encode_array {{4,5}, {6,7}}

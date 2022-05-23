@@ -6,18 +6,20 @@ getmetatable(PostgresArray).__call = (t) =>
 
 default_escape_literal = nil
 
+import insert, concat from table
+
 encode_array = do
   append_buffer = (escape_literal, buffer, values) ->
     for item in *values
       -- plain array
       if type(item) == "table" and not getmetatable(item)
-        table.insert buffer, "["
+        insert buffer, "["
         append_buffer escape_literal, buffer, item
         buffer[#buffer] = "]" -- strips trailing comma
-        table.insert buffer, ","
+        insert buffer, ","
       else
-        table.insert buffer, escape_literal item
-        table.insert buffer, ","
+        insert buffer, escape_literal item
+        insert buffer, ","
 
     buffer
 
@@ -33,8 +35,12 @@ encode_array = do
 
     buffer = append_buffer escape_literal, {"ARRAY["}, tbl
 
-    buffer[#buffer] = "]" -- strips trailing comma
-    table.concat buffer
+
+    if buffer[#buffer] == ","
+      buffer[#buffer] = "]"
+    else
+      insert buffer, "]"
+    concat buffer
 
 convert_values = (array, fn) ->
   for idx, v in ipairs array

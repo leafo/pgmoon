@@ -79,6 +79,22 @@ describe "pgmoon with server", ->
     assert.same 'TLSv1.3', res[1].version
     pg\disconnect!
 
+  it "connects with TLSv1.3 on ssl server", ->
+    pg = Postgres {
+      database: DB
+      port: PORT
+      user: USER
+      password: PASSWORD
+      host: HOST
+      ssl: true
+      ssl_required: true
+      ssl_version: "tlsv1_3"
+    }
+
+    assert pg\connect!
+    res = assert pg\query [[SELECT version FROM pg_stat_ssl WHERE pid=pg_backend_pid()]]
+    assert.same 'TLSv1.3', res[1].version
+    pg\disconnect!
 
   it "connects with ssl using cqueues", ->
     pg = Postgres {
@@ -93,5 +109,27 @@ describe "pgmoon with server", ->
 
     assert pg\connect!
     assert pg\query "select * from information_schema.tables"
+
+    pg\disconnect!
+
+
+  it "connects with ssl using cqueues with context options", ->
+    pg = Postgres {
+      database: DB
+      port: PORT
+      user: USER
+      password: PASSWORD
+      host: HOST
+      ssl: true
+      socket_type: "cqueues"
+      ssl_version: "TLSv1_2"
+    }
+
+    assert pg\connect!
+    assert pg\query "select * from information_schema.tables"
+
+    res = assert pg\query [[SELECT version FROM pg_stat_ssl WHERE pid=pg_backend_pid()]]
+    assert.same 'TLSv1.2', res[1].version
+
     pg\disconnect!
 

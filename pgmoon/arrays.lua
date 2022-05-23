@@ -22,6 +22,11 @@ getmetatable(PostgresArray).__call = function(self, t)
   return setmetatable(t, self.__base)
 end
 local default_escape_literal = nil
+local insert, concat
+do
+  local _obj_0 = table
+  insert, concat = _obj_0.insert, _obj_0.concat
+end
 local encode_array
 do
   local append_buffer
@@ -29,13 +34,13 @@ do
     for _index_0 = 1, #values do
       local item = values[_index_0]
       if type(item) == "table" and not getmetatable(item) then
-        table.insert(buffer, "[")
+        insert(buffer, "[")
         append_buffer(escape_literal, buffer, item)
         buffer[#buffer] = "]"
-        table.insert(buffer, ",")
+        insert(buffer, ",")
       else
-        table.insert(buffer, escape_literal(item))
-        table.insert(buffer, ",")
+        insert(buffer, escape_literal(item))
+        insert(buffer, ",")
       end
     end
     return buffer
@@ -53,8 +58,12 @@ do
     local buffer = append_buffer(escape_literal, {
       "ARRAY["
     }, tbl)
-    buffer[#buffer] = "]"
-    return table.concat(buffer)
+    if buffer[#buffer] == "," then
+      buffer[#buffer] = "]"
+    else
+      insert(buffer, "]")
+    end
+    return concat(buffer)
   end
 end
 local convert_values

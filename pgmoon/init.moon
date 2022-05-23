@@ -1,7 +1,14 @@
 socket = require "pgmoon.socket"
 import insert from table
 
-import rshift, lshift, band from require "pgmoon.bit"
+import rshift, lshift, band, bxor from require "pgmoon.bit"
+
+local pl_file
+local ssl
+
+if ngx
+  pl_file = require "pl.file"
+  ssl = require "ngx.ssl"
 
 local pl_file
 local ssl
@@ -11,6 +18,9 @@ if ngx
   ssl = require "ngx.ssl"
 
 unpack = table.unpack or unpack
+
+-- Protocol documentation:
+-- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
 VERSION = "2.2.1"
 
@@ -113,10 +123,13 @@ class Postgres
   NULL: {"NULL"}
   :PG_TYPES
 
-  user: "postgres"
-  host: "127.0.0.1"
-  port: "5432"
-  ssl: false
+  default_config: {
+    application_name: "pgmoon"
+    user: "postgres"
+    host: "127.0.0.1"
+    port: "5432"
+    ssl: false
+  }
 
   -- custom types supplementing PG_TYPES
   type_deserializers: {
@@ -160,46 +173,47 @@ class Postgres
     assert res, "hstore oid not found"
     @set_type_oid tonumber(res.oid), "hstore"
 
-  new: (opts) =>
-    @sock, @sock_type = socket.new opts and opts.socket_type
+  -- config={}
+  -- host: server hostname
+  -- port: server port
+  -- user: the username to authenticate with
+  -- password: the username to authenticate with
+  -- database: database to connect to
+  -- application_name: name assigned to connection to server
+  -- socket_type: type of socket to use (nginx, luasocket, cqueues)
+  -- ssl: enable ssl connections
+  -- ssl_verify: verify the certificate
+  -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
+  -- luasec_opts: manually created options for LuaSocket ssl connections
+  new: (@_config={}) =>
+    @config = setmetatable {}, {
+      __index: (t, key) ->
+        value = @_config[key]
+        if value == nil
+          @default_config[key]
+        else
+          value
+    }
 
-    if opts
-      @user = opts.user
-      @host = opts.host
-      @database = opts.database
-      @port = opts.port
-      @password = opts.password
-      @ssl = opts.ssl
-      @ssl_verify = opts.ssl_verify
-      @ssl_required = opts.ssl_required
-      @pool_name = opts.pool
-
-      key = opts.key
-      cert = opts.cert
-
-      if @sock_type == "nginx" and key and cert
-        key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
-        cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
-
-      @luasec_opts = {
-        key: key
-        cert: cert
-        cafile: opts.cafile
-        ssl_version: opts.ssl_version or "any"
-        options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
-      }
+    @sock, @sock_type = socket.new @config.socket_type
 
   connect: =>
-    opts = if @sock_type == "nginx"
-      {
-        pool: @pool_name or "#{@host}:#{@port}:#{@database}:#{@user}"
-      }
+    unless @sock
+      @sock = socket.new @sock_type
 
-    ok, err = @sock\connect @host, @port, opts
+    connect_opts = switch @sock_type
+      when "nginx"
+        {
+          pool: @config.pool_name or "#{@config.host}:#{@config.port}:#{@config.database}:#{@config.user}"
+          pool_size: @config.pool_size
+          backlog: @config.backlog
+        }
+
+    ok, err = @sock\connect @config.host, @config.port, connect_opts
     return nil, err unless ok
 
     if @sock\getreusedtimes! == 0
-      if @ssl
+      if @config.ssl
         success, err = @send_ssl_message!
         return nil, err unless success
 
@@ -227,6 +241,46 @@ class Postgres
     @sock = nil
     sock\setkeepalive ...
 
+  -- see: http://25thandclement.com/~william/projects/luaossl.pdf
+  create_cqueues_openssl_context: =>
+    return unless @config.ssl_verify != nil or @config.cert or @config.key or @config.ssl_version
+
+    ssl_context = require("openssl.ssl.context")
+
+    out = ssl_context.new @config.ssl_version
+
+    if @config.ssl_verify == true
+      out\setVerify ssl_context.VERIFY_PEER
+
+    if @config.ssl_verify == false
+      out\setVerify ssl_context.VERIFY_NONE
+
+    if @config.cert
+      out\setCertificate @config.cert
+
+    if @config.key
+      out\setPrivateKey @config.key
+
+    out
+
+  create_luasec_opts: =>
+    key = @config.key
+    cert = @config.cert
+
+    if @config.sock_type == "nginx" and key and cert
+      key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
+      cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
+    {
+      key: key
+      certificate: cert
+      cafile: @config.cafile
+      protocol: @config.ssl_version
+      verify: @config.ssl_verify and "peer" or "none",
+      ssl_version: @config.ssl_version or "any"
+      options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
+    }
+
+
   auth: =>
     t, msg = @receive_message!
     return nil, msg unless t
@@ -247,27 +301,205 @@ class Postgres
         @cleartext_auth msg
       when 5 -- md5 password
         @md5_auth msg
+      when 10 -- AuthenticationSASL
+        @scram_sha_256_auth msg
       else
         error "don't know how to auth: #{auth_type}"
 
   cleartext_auth: (msg) =>
-    assert @password, "missing password, required for connect"
+    assert @config.password, "missing password, required for connect"
 
     @send_message MSG_TYPE.password, {
-      @password
+      @config.password
       NULL
     }
+
+    @check_auth!
+
+  -- https://www.postgresql.org/docs/current/sasl-authentication.html#SASL-SCRAM-SHA-256
+  scram_sha_256_auth: (msg) =>
+    assert @config.password, "missing password, required for connect"
+
+    import random_bytes, x509_digest from require "pgmoon.crypto"
+
+    -- '18' is the number set by postgres on the server side
+    rand_bytes  = assert random_bytes 18
+
+    import encode_base64 from require "pgmoon.util"
+
+    c_nonce = encode_base64 rand_bytes
+    nonce = "r=" .. c_nonce
+    saslname = ""
+    username = "n=" .. saslname
+    client_first_message_bare = username .. "," .. nonce
+
+    plus = false
+    bare = false
+
+    if msg\match "SCRAM%-SHA%-256%-PLUS"
+      plus = true
+    elseif msg\match "SCRAM%-SHA%-256"
+      bare = true
+    else
+      error "unsupported SCRAM mechanism name: " .. tostring(msg)
+
+    local gs2_cbind_flag
+    local gs2_header
+    local cbind_input
+    local mechanism_name
+
+    if bare
+      gs2_cbind_flag = "n"
+      gs2_header = gs2_cbind_flag .. ",,"
+      cbind_input = gs2_header
+      mechanism_name = "SCRAM-SHA-256" .. NULL
+    elseif plus
+      cb_name = "tls-server-end-point"
+      gs2_cbind_flag = "p=" .. cb_name
+      gs2_header = gs2_cbind_flag .. ",,"
+      mechanism_name = "SCRAM-SHA-256-PLUS" .. NULL
+
+      cbind_data = do
+        if @sock_type == "cqueues"
+          openssl_x509 = @sock\getpeercertificate!
+          openssl_x509\digest "sha256", "s"
+        else
+          pem, signature = if @sock_type == "nginx"
+            ssl = require("resty.openssl.ssl").from_socket(@sock)
+            server_cert = ssl\get_peer_certificate()
+            server_cert\to_PEM!, server_cert\get_signature_name!
+          else
+            server_cert = @sock\getpeercertificate()
+            server_cert\pem!, server_cert\getsignaturename!
+
+          signature = signature\lower!
+
+          -- upgrade the signature if necessary
+          if signature\match("^md5") or signature\match("^sha1")
+            signature = "sha256"
+
+          assert x509_digest(pem, signature)
+
+      cbind_input = gs2_header .. cbind_data
+
+    client_first_message = gs2_header .. client_first_message_bare
+
+    @send_message MSG_TYPE.password, {
+      mechanism_name
+      @encode_int #client_first_message
+      client_first_message
+    }
+
+    t, msg = @receive_message()
+
+    unless t
+      return nil, msg
+
+    server_first_message = msg\sub 5
+    int32 = @decode_int msg, 4
+
+    if int32 == nil or int32 != 11
+      return nil, "server_first_message error: " .. msg
+
+    channel_binding = "c=" .. encode_base64 cbind_input
+    nonce = server_first_message\match "([^,]+)"
+
+    unless nonce
+      return nil, "malformed server message (nonce)"
+
+    client_final_message_without_proof = channel_binding .. "," .. nonce
+
+    xor = (a, b) ->
+      result = for i=1,#a
+        x = a\byte i
+        y = b\byte i
+
+        unless x and y
+          return nil
+
+        string.char bxor x, y
+
+      table.concat result
+
+    salt = server_first_message\match ",s=([^,]+)"
+
+    unless salt
+      return nil, "malformed server message (salt)"
+
+    i = server_first_message\match ",i=(.+)"
+
+    unless i
+      return nil, "malformed server message (iteraton count)"
+
+    if tonumber(i) < 4096
+      return nil, "the iteration-count sent by the server is less than 4096"
+
+    import kdf_derive_sha256, hmac_sha256, digest_sha256 from require "pgmoon.crypto"
+    salted_password, err = kdf_derive_sha256 @config.password, salt, tonumber i
+
+    unless salted_password
+      return nil, err
+
+    client_key, err = hmac_sha256 salted_password, "Client Key"
+
+    unless client_key
+      return nil, err
+
+    stored_key, err = digest_sha256 client_key
+
+    unless stored_key
+      return nil, err
+
+    auth_message = "#{client_first_message_bare },#{server_first_message },#{client_final_message_without_proof}"
+
+    client_signature, err = hmac_sha256 stored_key, auth_message
+
+    unless client_signature
+      return nil, err
+
+    proof = xor client_key, client_signature
+
+    unless proof
+      return nil, "failed to generate the client proof"
+
+    client_final_message = "#{client_final_message_without_proof },p=#{encode_base64 proof}"
+
+    @send_message MSG_TYPE.password, {
+      client_final_message
+    }
+
+    t, msg = @receive_message()
+
+    unless t
+      return nil, msg
+
+    server_key, err = hmac_sha256 salted_password, "Server Key"
+
+    unless server_key
+      return nil, err
+
+    server_signature, err = hmac_sha256 server_key, auth_message
+
+    unless server_signature
+      return nil, err
+
+
+    server_signature = encode_base64 server_signature
+    sent_server_signature = msg\match "v=([^,]+)"
+
+    if server_signature != sent_server_signature then
+      return nil, "authentication exchange unsuccessful"
 
     @check_auth!
 
   md5_auth: (msg) =>
     import md5 from require "pgmoon.crypto"
     salt = msg\sub 5, 8
-    assert @password, "missing password, required for connect"
+    assert @config.password, "missing password, required for connect"
 
     @send_message MSG_TYPE.password, {
       "md5"
-      md5 md5(@password .. @user) .. salt
+      md5 md5(@config.password .. @config.user) .. salt
       NULL
     }
 
@@ -515,17 +747,17 @@ class Postgres
     t, msg
 
   send_startup_message: =>
-    assert @user, "missing user for connect"
-    assert @database, "missing database for connect"
+    assert @config.user, "missing user for connect"
+    assert @config.database, "missing database for connect"
 
     data = {
       @encode_int 196608
       "user", NULL
-      @user, NULL
+      @config.user, NULL
       "database", NULL
-      @database, NULL
+      @config.database, NULL
       "application_name", NULL
-      "pgmoon", NULL
+      @config.application_name, NULL
       NULL
     }
 
@@ -545,15 +777,17 @@ class Postgres
     return nil, err unless t
 
     if t == MSG_TYPE.status
-      if @sock_type == "nginx"
-        @sock\tlshandshake {
-          verify: @ssl_verify,
-          client_cert: @luasec_opts.cert,
-          client_priv_key: @luasec_opts.key,
-        }
-      else
-        @sock\sslhandshake @ssl_verify, @luasec_opts
-    elseif t == MSG_TYPE.error or @ssl_required
+      switch @sock_type
+        when "nginx"
+          luasec_opts = @config.luasec_opts or @create_luasec_opts!
+          @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
+        when "luasocket"
+          @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
+        when "cqueues"
+          @sock\starttls @config.cqueues_openssl_context or @create_cqueues_openssl_context!
+        else
+          error "don't know how to do ssl handshake for socket type: #{@sock_type}"
+    elseif t == MSG_TYPE.error or @config.ssl_required
       @disconnect!
       nil, "the server does not support SSL connections"
     else
