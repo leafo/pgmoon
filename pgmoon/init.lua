@@ -812,9 +812,13 @@ do
 
           -- version compability check to see if setclientcert is supported
           if self.sock.setclientcert then
-            return self.sock:setclientcert(luasec_opts.certificate, luasec_opts.key)
+            local ok, err_internal = self.sock:setclientcert(luasec_opts.certificate, luasec_opts.key)
+            if not ok then
+              error(err_internal)
+            end
+            return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
           else
-            return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.cert, client_priv_key = luasec_opts.key })
+            return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.certificate, client_priv_key = luasec_opts.key })
           end
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())

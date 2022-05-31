@@ -783,9 +783,12 @@ class Postgres
 
           -- version compability check to see if setclientcert is supported
           if @sock.setclientcert
-            @sock\setclientcert luasec_opts.certificate, luasec_opts.key
+            ok, err_internal = @sock\setclientcert luasec_opts.certificate, luasec_opts.key
+            if not ok
+              error(err_internal)
+            return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
           else
-            @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
+            @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.certificate, client_priv_key: luasec_opts.key }
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"
