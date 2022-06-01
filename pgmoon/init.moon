@@ -785,8 +785,8 @@ class Postgres
           if @sock.setclientcert
             ok, err_internal = @sock\setclientcert luasec_opts.certificate, luasec_opts.key
             if not ok
-              error(err_internal)
-            return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+              return false, err_internal
+            return @sock\sslhandshake false, nil, @config.ssl_verify
           else
             @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.certificate, client_priv_key: luasec_opts.key }
         when "luasocket"

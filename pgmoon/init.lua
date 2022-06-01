@@ -814,7 +814,7 @@ do
           if self.sock.setclientcert then
             local ok, err_internal = self.sock:setclientcert(luasec_opts.certificate, luasec_opts.key)
             if not ok then
-              error(err_internal)
+              return false, err_internal
             end
             return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
           else
