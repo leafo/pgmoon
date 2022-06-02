@@ -71,7 +71,8 @@ local MSG_TYPE_F = flipped({
   describe = "D",
   execute = "E",
   close = "C",
-  sync = "S"
+  sync = "S",
+  terminate = "X"
 })
 local MSG_TYPE_B = flipped({
   auth = "R",
@@ -279,6 +280,7 @@ do
       return self.sock:settimeout(...)
     end,
     disconnect = function(self)
+      self:send_message(MSG_TYPE_F.terminate, { })
       return self.sock:close()
     end,
     keepalive = function(self, ...)

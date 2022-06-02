@@ -51,6 +51,7 @@ MSG_TYPE_F = flipped {
   close: "C"
   sync: "S"
 
+  terminate: "X"
 }
 
 -- backend message types (recieved)
@@ -276,6 +277,7 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
+    @send_message MSG_TYPE_F.terminate, {}
     @sock\close!
 
   keepalive: (...) =>
