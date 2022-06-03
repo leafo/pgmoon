@@ -735,6 +735,10 @@ Homepage: <http://leafo.net>
 
 # Changelog
 
+Note: Future changenotes will be published on GitHub releases page: https://github.com/leafo/pgmoon/releases
+
+* 1.15.0 — 2022-6-3 - Extended query protocol
+* 1.14.0 — 2022-2-17 - OpenResty crypto functions used, better empty array support, 
 * 1.13.0 — 2021-10-13 - Add support for scram_sha_256_auth (@murillopaula), 'backlog' and 'pool_size' options while using ngx.socket (@xiaocang), update LuaSec ssl_protocol default options (@jeremymv2), `application_name` option (@mecampbellsoup)
 * 1.12.0 — 2021-01-06 - Lua pattern compatibility fix, Support for Lua 5.1 through 5.4 (@jprjr). Fix bug where SSL vesrion was not being passed. Default to TLS v1.2 when using LuaSec. Luabitop is no longer automatically installed as a dependency. New test suite.
 * 1.11.0 — 2020-03-26 - Allow for TLS v1.2 when using LuaSec (Miles Elam)
