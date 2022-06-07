@@ -780,7 +780,15 @@ class Postgres
       switch @sock_type
         when "nginx"
           luasec_opts = @config.luasec_opts or @create_luasec_opts!
-          @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.cert, client_priv_key: luasec_opts.key }
+
+          -- version compability check to see if setclientcert is supported
+          if @sock.setclientcert
+            ok, err_internal = @sock\setclientcert luasec_opts.certificate, luasec_opts.key
+            if not ok
+              return false, err_internal
+            return @sock\sslhandshake false, nil, @config.ssl_verify
+          else
+            @sock\tlshandshake { verify: @config.ssl_verify, client_cert: luasec_opts.certificate, client_priv_key: luasec_opts.key }
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"

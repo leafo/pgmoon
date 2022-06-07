@@ -809,7 +809,17 @@ do
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
 	        local luasec_opts = self.config.luasec_opts or self:create_luasec_opts()
-          return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.cert, client_priv_key = luasec_opts.key })
+
+          -- version compability check to see if setclientcert is supported
+          if self.sock.setclientcert then
+            local ok, err_internal = self.sock:setclientcert(luasec_opts.certificate, luasec_opts.key)
+            if not ok then
+              return false, err_internal
+            end
+            return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+          else
+            return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.certificate, client_priv_key = luasec_opts.key })
+          end
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
         elseif "cqueues" == _exp_0 then
