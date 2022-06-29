@@ -22,6 +22,7 @@ unpack = table.unpack or unpack
 -- Protocol documentation:
 -- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
+DEBUG = false
 VERSION = "2.2.3"
 
 _len = (thing, t=type(thing)) ->
@@ -48,24 +49,45 @@ flipped = (t) ->
   keys = [k for k in pairs t]
   for key in *keys
     t[t[key]] = key
+
   t
 
-MSG_TYPE = flipped {
-  status: "S"
+-- frontend message types (sent)
+MSG_TYPE_F = flipped {
+  password: "p"
+
+  query: "Q"
+
+  parse: "P"
+  bind: "B"
+  describe: "D"
+  execute: "E"
+  close: "C"
+  sync: "S"
+
+  terminate: "X"
+}
+
+-- backend message types (recieved)
+MSG_TYPE_B = flipped {
   auth: "R"
+  parameter_status: "S"
+
   backend_key: "K"
   ready_for_query: "Z"
-  query: "Q"
-  notice: "N"
-  notification: "A"
 
-  password: "p"
+  parse_complete: "1"
+  bind_complete: "2"
+  close_complete: "3"
 
   row_description: "T"
   data_row: "D"
+
   command_complete: "C"
 
   error: "E"
+  notice: "N"
+  notification: "A"
 }
 
 ERROR_TYPES = flipped {
@@ -79,6 +101,7 @@ ERROR_TYPES = flipped {
   constraint: "n"
 }
 
+-- maps pg_type.oid -> a name we can reference when converting the type to lua
 PG_TYPES = {
   [16]: "boolean"
   [17]: "bytea"
@@ -131,7 +154,31 @@ class Postgres
     ssl: false
   }
 
+  -- convert a lua value to pg_type.oid, string representation used for sending
+  -- the value as a parameter in the extended query protocol
+  -- select oid, typname, typcategory from pg_type;
+  -- https://www.postgresql.org/docs/9.0/catalog-pg-type.html#CATALOG-TYPCATEGORY-TABLE
+  type_serializers: {
+    string: (v) =>
+      25, v
+
+    boolean: (v) =>
+      16, v and "t" or "f"
+
+    -- converts all numbers to numeric
+    number: (v) =>
+      1700, tostring v
+
+    table: (v) =>
+      if v_mt = getmetatable(v)
+        if v_mt.pgmoon_serialize
+          return v_mt.pgmoon_serialize v, @
+
+      nil, "table does not implement pgmoon_serialize, can't serialize"
+  }
+
   -- custom types supplementing PG_TYPES
+  -- new ones can be added by using set_type_deserializer
   type_deserializers: {
     json: (val, name) =>
       import decode_json from require "pgmoon.json"
@@ -142,36 +189,48 @@ class Postgres
 
     array_boolean: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val, tobool
+      decode_array val, tobool, @
 
     array_number: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val, tonumber
+      decode_array val, tonumber, @
 
     array_string: (val, name) =>
       import decode_array from require "pgmoon.arrays"
-      decode_array val
+      decode_array val, nil, @
 
     array_json: (val, name) =>
       import decode_array from require "pgmoon.arrays"
       import decode_json from require "pgmoon.json"
-      decode_array val, decode_json
+      decode_array val, decode_json, @
 
     hstore: (val, name) =>
       import decode_hstore from require "pgmoon.hstore"
       decode_hstore val
   }
 
-  set_type_oid: (oid, name) =>
+  -- this is the legacy method name, old undocumented api that someone might be using
+  set_type_oid: (a,b) =>
+    print "pgmoon: WARNING: set_type_oid is deprecated for set_type_deserializer"
+    @set_type_deserializer a,b
+
+  set_type_deserializer: (oid, name, deserializer) =>
+    -- create a copy specific to this instance if we don't already have one
     unless rawget(@, "PG_TYPES")
       @PG_TYPES = {k,v for k,v in pairs @PG_TYPES}
 
     @PG_TYPES[assert tonumber oid] = name
 
+    if deserializer
+      unless rawget(@, "type_deserializers")
+        @type_deserializers = {k,v for k,v in pairs @type_deserializers}
+
+      @type_deserializers[name] = deserializer
+
   setup_hstore: =>
     res = unpack @query "SELECT oid FROM pg_type WHERE typname = 'hstore'"
     assert res, "hstore oid not found"
-    @set_type_oid tonumber(res.oid), "hstore"
+    @set_type_deserializer tonumber(res.oid), "hstore"
 
   -- config={}
   -- host: server hostname
@@ -186,6 +245,8 @@ class Postgres
   -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
   -- luasec_opts: manually created options for LuaSocket ssl connections
   new: (@_config={}) =>
+
+    -- NOTE: since config is a proxy table, we should avoid using it in hot code paths, like making queries
     @config = setmetatable {}, {
       __index: (t, key) ->
         value = @_config[key]
@@ -195,12 +256,10 @@ class Postgres
           value
     }
 
+    @convert_null = @config.convert_null
     @sock, @sock_type = socket.new @config.socket_type
 
   connect: =>
-    unless @sock
-      @sock = socket.new @sock_type
-
     connect_opts = switch @sock_type
       when "nginx"
         {
@@ -232,14 +291,11 @@ class Postgres
     @sock\settimeout ...
 
   disconnect: =>
-    sock = @sock
-    @sock = nil
-    sock\close!
+    @send_message MSG_TYPE_F.terminate, {}
+    @sock\close!
 
   keepalive: (...) =>
-    sock = @sock
-    @sock = nil
-    sock\setkeepalive ...
+    @sock\setkeepalive ...
 
   -- see: http://25thandclement.com/~william/projects/luaossl.pdf
   create_cqueues_openssl_context: =>
@@ -285,10 +341,8 @@ class Postgres
     t, msg = @receive_message!
     return nil, msg unless t
 
-    unless MSG_TYPE.auth == t
-      @disconnect!
-
-      if MSG_TYPE.error == t
+    unless MSG_TYPE_B.auth == t
+      if MSG_TYPE_B.error == t
         return nil, @parse_error msg
 
       error "unexpected message during auth: #{t}"
@@ -309,7 +363,7 @@ class Postgres
   cleartext_auth: (msg) =>
     assert @config.password, "missing password, required for connect"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       @config.password
       NULL
     }
@@ -384,7 +438,7 @@ class Postgres
 
     client_first_message = gs2_header .. client_first_message_bare
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       mechanism_name
       @encode_int #client_first_message
       client_first_message
@@ -464,7 +518,7 @@ class Postgres
 
     client_final_message = "#{client_final_message_without_proof },p=#{encode_base64 proof}"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       client_final_message
     }
 
@@ -497,7 +551,7 @@ class Postgres
     salt = msg\sub 5, 8
     assert @config.password, "missing password, required for connect"
 
-    @send_message MSG_TYPE.password, {
+    @send_message MSG_TYPE_F.password, {
       "md5"
       md5 md5(@config.password .. @config.user) .. salt
       NULL
@@ -510,35 +564,138 @@ class Postgres
     return nil, msg unless t
 
     switch t
-      when MSG_TYPE.error
+      when MSG_TYPE_B.error
         nil, @parse_error msg
-      when MSG_TYPE.auth
+      when MSG_TYPE_B.auth
         true
       else
         error "unknown response from auth"
 
-  query: (q) =>
+  query: (q, ...) =>
+    if select("#", ...) > 0
+      @extended_query q, ...
+    else
+      @simple_query q
+
+
+  -- query using the "simple" query protocol
+  -- supports multiple queries, but no parameters
+  simple_query: (q) =>
     if q\find NULL
       return nil, "invalid null byte in query"
 
-    @post q
+    @send_message MSG_TYPE_F.query, {q, NULL}
+    @receive_query_result!
+
+  -- query using the "extended" query protocol
+  -- supports only a single query, and parameters
+  -- order of operations: Parse, Bind, portal Describe, Execute, Close, Sync
+  -- NOTE: due to the additional steps, this protocol comes with a performance penalty
+  extended_query: (q, ...) =>
+    if q\find NULL
+      return nil, "invalid null byte in query"
+
+    num_params = select "#", ...
+
+    parse_data = {
+      NULL -- empty string, store query in unnamed prepared statement
+      q, NULL
+      @encode_int(num_params, 2) -- parameter type OIDs will follow
+    }
+
+    bind_data = {
+      NULL -- empty string, destination is unamed portal
+      NULL -- empty string, source is unamed statement
+
+      @encode_int(0, 2) -- number of parameter format codes, 0 to default to all text
+      @encode_int(num_params, 2) -- parameter values follow
+    }
+
+    for idx=1,num_params
+      v = select idx, ...
+
+      if v == @NULL or v == nil
+        insert parse_data, @encode_int 0 -- OID is unspecified for NULL special case
+        insert bind_data, @encode_int -1
+
+      else
+        v_type = type v
+
+        type_oid, value_bytes = if fn = @type_serializers[v_type]
+          _oid, _value_or_err, _third = fn @, v
+          if _oid == nil
+            full_error = "pgmoon: param #{idx}: #{_value_or_err or "failed to serialize type: #{v_type}"}"
+            return nil, full_error
+
+          if _third != nil
+            return nil, "pgmoon: param #{idx}: please do not return a third value from serializer function, we may use this value in the future for binary formats"
+
+          _oid, _value_or_err
+        else
+          0, "#{v}"
+
+        insert parse_data, @encode_int type_oid
+        insert bind_data, @encode_int #value_bytes
+        insert bind_data, value_bytes
+
+
+    insert bind_data, @encode_int 0, 2 -- number of result format codes, 0 to default to all text
+
+    @send_messages {
+      { MSG_TYPE_F.parse, parse_data }
+      { MSG_TYPE_F.bind, bind_data }
+
+      {
+         MSG_TYPE_F.describe, {
+          "P" -- describe a portal
+          NULL -- empty string, use the unnamed portal
+        }
+      }
+
+      {
+        MSG_TYPE_F.execute, {
+          NULL -- empty string, use unamed portal
+          @encode_int(0) -- 0, do not limit number of returned rows
+        }
+      }
+
+      {
+        MSG_TYPE_F.close, {
+          "P" -- close a portal
+          NULL -- empty string, close unnamed portal
+        }
+      }
+
+      {
+        MSG_TYPE_F.sync, { }
+      }
+    }
+
+    @receive_query_result!
+
+  -- NOTE: this is called for both the simple query and the extended query protocol
+  receive_query_result: =>
     local row_desc, data_rows, command_complete, err_msg
 
-    local result, notifications
+    local result, notifications, notices
     num_queries = 0
 
     while true
       t, msg = @receive_message!
       return nil, msg unless t
       switch t
-        when MSG_TYPE.data_row
-          data_rows or= {}
+        when MSG_TYPE_B.data_row
+          data_rows = {} unless data_rows
           insert data_rows, msg
-        when MSG_TYPE.row_description
+        when MSG_TYPE_B.row_description
           row_desc = msg
-        when MSG_TYPE.error
+        when MSG_TYPE_B.error
           err_msg = msg
-        when MSG_TYPE.command_complete
+        when MSG_TYPE_B.notice
+          notices = {} unless notices
+          -- a notice is encoded the same as an error, but does not mean we should abort with failure
+          insert notices, (@parse_error(msg))
+        when MSG_TYPE_B.command_complete
           command_complete = msg
           next_result = @format_query_result row_desc, data_rows, command_complete
           num_queries += 1
@@ -551,28 +708,29 @@ class Postgres
             insert result, next_result
 
           row_desc, data_rows, command_complete = nil
-        when MSG_TYPE.ready_for_query
+        when MSG_TYPE_B.ready_for_query
           break
-        when MSG_TYPE.notification
+        when MSG_TYPE_B.notification
           notifications = {} unless notifications
           insert notifications, @parse_notification(msg)
-        -- when MSG_TYPE.notice
-        -- TODO: do something with notices
+        -- these responsees only come from the extended query protocol
+        when MSG_TYPE_B.parse_complete, MSG_TYPE_B.bind_complete, MSG_TYPE_B.close_complete
+          nil
+        else
+          if DEBUG
+            print "Unhandled message in query result: #{t}"
 
     if err_msg
-      return nil, @parse_error(err_msg), result, num_queries, notifications
+      return nil, @parse_error(err_msg), result, num_queries, notifications, notices
 
-    result, num_queries, notifications
-
-  post: (q) =>
-    @send_message MSG_TYPE.query, {q, NULL}
+    result, num_queries, notifications, notices
 
   wait_for_notification: =>
     while true
       t, msg = @receive_message!
       return nil, msg unless t
       switch t
-        when MSG_TYPE.notification
+        when MSG_TYPE_B.notification
           return @parse_notification(msg)
 
   format_query_result: (row_desc, data_rows, command_complete) =>
@@ -721,25 +879,22 @@ class Postgres
       t, msg = @receive_message!
       return nil, msg unless t
 
-      if MSG_TYPE.error == t
-        @disconnect!
+      if MSG_TYPE_B.error == t
         return nil, @parse_error(msg)
 
-      break if MSG_TYPE.ready_for_query == t
+      break if MSG_TYPE_B.ready_for_query == t
 
     true
 
+  -- NOTE: timeout of 0 would cause this clinet to disconnect if it's not ready
   receive_message: =>
-    t, err = @sock\receive 1
-    unless t
-      @disconnect!
+    prefix, err = @sock\receive 5
+
+    unless prefix
       return nil, "receive_message: failed to get type: #{err}"
 
-    len, err = @sock\receive 4
-
-    unless len
-      @disconnect!
-      return nil, "receive_message: failed to get len: #{err}"
+    t = prefix\sub 1,1
+    len = prefix\sub 2
 
     len = @decode_int len
     len -= 4
@@ -776,7 +931,7 @@ class Postgres
     t, err = @sock\receive 1
     return nil, err unless t
 
-    if t == MSG_TYPE.status
+    if t == MSG_TYPE_B.parameter_status
       switch @sock_type
         when "nginx"
           luasec_opts = @config.luasec_opts or @create_luasec_opts!
@@ -795,11 +950,28 @@ class Postgres
           @sock\starttls @config.cqueues_openssl_context or @create_cqueues_openssl_context!
         else
           error "don't know how to do ssl handshake for socket type: #{@sock_type}"
-    elseif t == MSG_TYPE.error or @config.ssl_required
-      @disconnect!
+    elseif t == MSG_TYPE_B.error or @config.ssl_required
       nil, "the server does not support SSL connections"
     else
       true -- no SSL support, but not required by client
+
+  -- send multiple messages all together. There is a substantial overhead from
+  -- sending messages one at a time, so this should be used if we can safely
+  -- bulk together multiple messages
+  -- format { { message_type, message_data}, ...  }
+  send_messages: (messages) =>
+    data = for {message_type, message_data} in *messages
+      len = _len message_data
+      len += 4 -- includes the length of the length integer
+      {
+        message_type
+        @encode_int len
+        message_data
+
+      }
+
+    @sock\send data
+
 
   send_message: (t, data, len) =>
     len = _len data if len == nil
@@ -812,6 +984,11 @@ class Postgres
     }
 
   decode_int: (str, bytes=#str) =>
+    -- make decoding common case 0 faster
+    switch str
+      when "\0\0", "\0\0\0\0"
+        return 0
+
     switch bytes
       when 4
         d, c, b, a = str\byte 1, 4
@@ -824,6 +1001,13 @@ class Postgres
 
   -- create big endian binary string of number
   encode_int: (n, bytes=4) =>
+    -- make sending 0 faster
+    if n == 0
+      if bytes == 2
+        return "\0\0"
+      if bytes == 4
+        return "\0\0\0\0"
+
     switch bytes
       when 4
         a = band n, 0xff
@@ -831,6 +1015,10 @@ class Postgres
         c = band rshift(n, 16), 0xff
         d = band rshift(n, 24), 0xff
         string.char d, c, b, a
+      when 2
+        a = band n, 0xff
+        b = band rshift(n, 8), 0xff
+        string.char b, a
       else
         error "don't know how to encode #{bytes} byte(s)"
 
@@ -850,6 +1038,9 @@ class Postgres
     '"' ..  (tostring(ident)\gsub '"', '""') .. '"'
 
   escape_literal: (val) =>
+    if val == (@ and @NULL or Postgres.NULL)
+      return "NULL"
+
     switch type val
       when "number"
         return tostring val

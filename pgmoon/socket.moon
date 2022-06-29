@@ -1,5 +1,6 @@
 
-luasocket = do
+-- creates a luasocket socket proxy to make it behave like ngx.socket.tcp
+create_luasocket = do
   import flatten from require "pgmoon.util"
 
   proxy_mt = {
@@ -15,59 +16,71 @@ luasocket = do
         original
   }
 
-  overrides = {
-    send: true
-    getreusedtimes: true
-    sslhandshake: true,
-    settimeout: true
+  -- these methods are overidden from the default socket implementation
+  -- all other methods/properties are carried over via the __index metamethod above
+  local method_overrides
+  method_overrides = {
+    send: (...) => @sock\send flatten ...
+
+    -- luasocket takes SECONDS while ngx takes MILLISECONDS
+    settimeout: (t) =>
+      if t
+        t = t/1000
+
+      @sock\settimeout t
+
+    setkeepalive: =>
+      error "You attempted to call setkeepalive on a LuaSocket socket. This method is only available for the ngx cosocket API for releasing a socket back into the connection pool"
+
+    -- there is no compatible interface here, always return 0 to suggest the
+    -- socket is connecting for the first time
+    getreusedtimes: (t) => 0
+
+    sslhandshake: (opts={}) =>
+      ssl = require "ssl"
+      params = {
+        mode: "client"
+        protocol: "any"
+        verify: "none"
+        options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
+      }
+
+      for k,v in pairs opts
+        params[k] = v
+
+      sec_sock, err = ssl.wrap @sock, params
+      return false, err unless sec_sock
+
+      success, err = sec_sock\dohandshake!
+      return false, err unless success
+
+      -- purge memoized socket closures (created by proxy_mt)
+      for k, v in pairs @
+        if not method_overrides[k] and type(v) == "function"
+          @[k] = nil
+
+      @sock = sec_sock
+
+      true
   }
 
-  {
-    tcp: (...) ->
-      socket = require "socket"
-      sock = socket.tcp ...
-      proxy = setmetatable {
-        :sock
-        send: (...) => @sock\send flatten ...
-        getreusedtimes: => 0
-        settimeout: (t) =>
-          if t
-            t = t/1000
-          @sock\settimeout t
+  (...) ->
+    socket = require("socket")
+    proxy = {
+      sock: socket.tcp ...
+    }
+    for k,v in pairs method_overrides
+      proxy[k] = v
 
-        sslhandshake: (opts={}) =>
-          ssl = require "ssl"
-          params = {
-            mode: "client"
-            protocol: "any"
-            verify: "none"
-            options: { "all", "no_sslv2", "no_sslv3", "no_tlsv1" }
-          }
-
-          for k,v in pairs opts
-            params[k] = v
-
-          sec_sock, err = ssl.wrap @sock, params
-          return false, err unless sec_sock
-
-          success, err = sec_sock\dohandshake!
-          return false, err unless success
-
-          -- purge memoized socket closures
-          for k, v in pairs @
-            @[k] = nil unless type(v) ~= "function" or overrides[k]
-
-          @sock = sec_sock
-
-          true
-      }, proxy_mt
-
-      proxy
-  }
+    setmetatable proxy, proxy_mt
 
 {
+  :create_luasocket
+
   new: (socket_type) ->
     if socket_type == nil
+      -- TODO: this should not be the responsibility of this library
+      -- TODO: write out a warning for some versions, then throw error when socket type is missing
       -- choose the default socket, try to use nginx, otherwise default to
       -- luasocket
       socket_type = if ngx and ngx.get_phase! != "init"
@@ -79,11 +92,11 @@ luasocket = do
       when "nginx"
         ngx.socket.tcp!
       when "luasocket"
-        luasocket.tcp!
+        create_luasocket!
       when "cqueues"
         require("pgmoon.cqueues").CqueuesSocket!
       else
-        error "unknown socket type: #{socket_type}"
+        error "got unknown or unset socket type: #{socket_type}"
 
     socket, socket_type
 }

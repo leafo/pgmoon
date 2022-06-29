@@ -1,5 +1,5 @@
 
--- make luasockets send behave like openresty's
+-- flattens arguments following the logic of ngx.socket's send method so that other sockets can emulate it
 flatten = do
   __flatten = (t, buffer) ->
     switch type(t)

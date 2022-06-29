@@ -104,7 +104,16 @@ describe "pgmoon with server", ->
   teardown ->
     os.execute "spec/postgres.sh stop"
 
-  for socket_type in *{"luasocket", "cqueues"}
+  for socket_type in *{"luasocket", "cqueues", "nginx"}
+    if ngx
+      unless socket_type == "nginx"
+        it "(disabled)", -> pending "skipping #{socket_type} in nginx testing mode"
+        continue
+    else
+      if socket_type == "nginx"
+        it "(disabled)", -> pending "Skipping nginx tests, no ngx global available"
+        continue
+
     describe "socket(#{socket_type})", ->
       local pg
 
@@ -127,6 +136,12 @@ describe "pgmoon with server", ->
 
       teardown ->
         pg\disconnect!
+
+      -- issue another query to make sure that the connection is stil valid
+      sanity_check = ->
+        assert.same {
+          { one: 1 }
+        }, pg\query "select 1 as one"
 
       it "creates and drop table", ->
         res = assert pg\query [[
@@ -163,6 +178,14 @@ describe "pgmoon with server", ->
 
         assert.true errors[err]
 
+      it "keepalive()", ->
+        if socket_type != "nginx"
+          return pending "only available in nginx"
+
+        assert pg\keepalive! -- put socket back into pool
+        assert pg\connect! -- reconnect using same socket object
+        assert pg\query "select 1"
+
       it "tries to connect with SSL", ->
         -- we expect a server with ssl = off
         ssl_pg = Postgres {
@@ -195,6 +218,140 @@ describe "pgmoon with server", ->
         status, err = ssl_pg\connect!
         assert.falsy status, "connection should fail if it could not establish ssl"
         assert.same [[the server does not support SSL connections]], err
+
+      describe "extended_query", ->
+        it "query with no params", ->
+          res = assert pg\extended_query "select 1 as one"
+          assert.same {
+            {
+              one: 1
+            }
+          }, res
+
+        it "simple string params", ->
+          res = assert pg\extended_query "select $1 a, $2 b, $3 c, $4 d",
+            "one", "two", "three", "four"
+
+          assert.same {
+            {
+              a: "one"
+              b: "two"
+              c: "three"
+              d: "four"
+            }
+          }, res
+
+        it "mixed types", ->
+          res = assert pg\extended_query "select $1 a, $2 b, $3 c, $4 d",
+            true, false, pg.NULL, 44
+
+          assert.same {
+            {
+              a: true
+              b: false
+              c: nil
+              d: 44
+            }
+          }, res
+
+        it "types don't need casting", ->
+          res = assert pg\extended_query "select $1 + $1 as sum", 7
+
+          assert.same {
+            {
+              sum: 14
+            }
+          }, res
+
+        it "handles error when missing params", ->
+          res, err = pg\extended_query "select $1 as hi"
+          assert.nil res
+          assert.same [[ERROR: bind message supplies 0 parameters, but prepared statement "" requires 1]], err
+          sanity_check!
+
+          -- TODO: test that we are ready to process a new query
+
+        it "handles query with excess params", ->
+          -- this does not throw an error
+          res = assert pg\extended_query "select $1 as hi", 1, 2
+
+          assert.same res, {
+            {
+              hi: 1
+            }
+          }
+
+        it "handle passing in nil as parameter value", ->
+          pg.convert_null = true
+          res, err = pg\extended_query "select $1 as hi, $2 as bye", 1, nil
+          pg.convert_null = false
+
+          assert.same {
+            {
+              hi: 1
+              bye: pg.NULL
+            }
+          }, res
+
+        it "json custom serializable value", ->
+          json = require("cjson")
+
+          json_type = (v) ->
+            setmetatable { v }, {
+              pgmoon_serialize: (pgmoon) =>
+                114, (json.encode @[1])
+            }
+
+          res = assert pg\extended_query "select $1 as a, $2 as b",
+            json_type({1,2,json.null,4}), json_type({
+              color: "blue"
+              yes: true
+              more: {"ok"}
+            })
+
+          assert.same {
+            {
+              a: {1,2,json.null,4}
+              b: {
+                color: "blue"
+                yes: true
+                more: {"ok"}
+              }
+            }
+          }, res
+
+        it "array custom serializer", ->
+          numeric_array = (v) ->
+            setmetatable { v }, {
+              pgmoon_serialize: (pgmoon) =>
+                import encode_array from require "pgmoon.arrays"
+                1231, "{#{table.concat @[1], ","}}"
+            }
+
+          res = assert pg\extended_query "select $1 as a, $2 as b",
+            numeric_array({4, 99, 77, -4}), numeric_array({})
+
+          assert.same {
+            {
+              a: {
+                4, 99, 77, -4
+              }
+              b: {}
+            }
+          }, res
+
+          res, err = pg\extended_query "select $1 as a",
+            numeric_array({"hello"})
+
+          assert.nil res
+          assert.same [[ERROR: invalid input syntax for type numeric: "hello"]], err
+          sanity_check!
+
+
+        it "fails on table with no serializer", ->
+          res, err = pg\extended_query "select $1 as a", {"hello", world: 9}
+          assert.nil res
+          assert.same [[pgmoon: param 1: table does not implement pgmoon_serialize, can't serialize]], err
 
       describe "with table", ->
         before_each ->
@@ -427,10 +584,25 @@ describe "pgmoon with server", ->
           drop table types_test
         ]]
 
-      it "deserializes row types correctly #ddd", ->
-        pg\query "select 1"
-        pg\query "select row(1, 'hello', 5.999)"
-        pg\query "select (1, 'hello', 5.999)"
+      it "deserializes row types correctly", ->
+        assert.same {
+          {
+            ["?column?"]: 1
+          }
+        }, (pg\query "select 1")
+
+
+        assert.same {
+          {
+            ["row"]: "(1,hello,5.999)" -- we don't have a type deserializer for record type at this time
+          }
+        }, (pg\query "select row(1, 'hello', 5.999)")
+
+        assert.same {
+          {
+            ["row"]: "(1,hello,5.999)" -- we don't have a type deserializer for record type at this time
+          }
+        }, (pg\query "select (1, 'hello', 5.999)")
 
       describe "custom deserializer", ->
         it "deserializes big integer to string", ->
@@ -446,14 +618,24 @@ describe "pgmoon with server", ->
             insert into bigint_test (largenum) values (default)
           ]]
 
-          pg\set_type_oid 20, "bignumber"
-          pg.type_deserializers.bignumber = (val) => val
+          pg\set_type_deserializer 20, "bignumber", (val) => "HUGENUMBER:#{val}"
           row = unpack pg\query "select * from bigint_test"
 
           assert.same {
             id: 1
-            largenum: "9223372036854775807"
+            largenum: "HUGENUMBER:9223372036854775807"
           }, row
+
+      describe "notice", ->
+        it "gets notice from query", ->
+          res, num_queries, notifications, notices = pg\query "drop table if exists farts"
+
+          assert.same true, res
+          assert.same num_queries, 1
+          assert.nil notifications
+          assert.same {
+            [[NOTICE: table "farts" does not exist, skipping]]
+          }, notices
 
       describe "hstore", ->
         import encode_hstore, decode_hstore from require "pgmoon.hstore"
@@ -570,11 +752,9 @@ describe "pgmoon with server", ->
           ]]
 
       describe "arrays", ->
-        import decode_array, encode_array from require "pgmoon.arrays"
+        import decode_array, encode_array, PostgresArray from require "pgmoon.arrays"
 
         it "converts table to array", ->
-          import PostgresArray from require "pgmoon.arrays"
-
           array = PostgresArray {1,2,3}
           assert.same {1,2,3}, array
           assert PostgresArray.__base == getmetatable array
@@ -587,7 +767,6 @@ describe "pgmoon with server", ->
 
         it "decodes empty array value", ->
           assert.same {}, decode_array "{}"
-          import PostgresArray from require "pgmoon.arrays"
           assert PostgresArray.__base == getmetatable decode_array "{}"
 
         it "decodes numeric array", ->
@@ -648,6 +827,115 @@ describe "pgmoon with server", ->
               }
             }
           }, pg\query "select array(select row_to_json(t)::jsonb from (values (442,'itch'), (99, 'zone')) as t(id, name)) as items"
+
+        describe "serialize", ->
+          ARRAY_OIDS = {
+            boolean: 1000
+            number: 1231
+            string: 1009
+          }
+
+          serialize_value = (v) ->
+            getmetatable(v).pgmoon_serialize v, pg
+
+          it "serializes empty array", ->
+            assert.same {0, "{}"}, { serialize_value PostgresArray({}) }
+
+          it "serializes null array", ->
+            assert.same {0, "{NULL}"}, { serialize_value PostgresArray({pg.NULL}) }
+
+          it "serializes numeric array", ->
+            assert.same {ARRAY_OIDS.number, "{1,2,3}"}, { serialize_value PostgresArray({1,2,3}) }
+            assert.same {ARRAY_OIDS.number, "{-23892}"}, { serialize_value PostgresArray({-23892}) }
+
+            -- still figures out type even if array starts with NULL
+            assert.same {ARRAY_OIDS.number, "{NULL,5}"}, { serialize_value PostgresArray({pg.NULL, 5}) }
+
+          it "serializes string array", ->
+            assert.same {ARRAY_OIDS.string, '{"hello"}'}, { serialize_value PostgresArray({"hello"}) }
+            assert.same {ARRAY_OIDS.string, '{"hello",NULL,"world"}'}, { serialize_value PostgresArray({"hello", pg.NULL, "world"}) }
+            assert.same {ARRAY_OIDS.string, '{"hello","world"}'}, { serialize_value PostgresArray({"hello", "world"}) }
+            assert.same {ARRAY_OIDS.string, [[{",","f\"f","}{","\""}]]}, { serialize_value PostgresArray({ ",", [[f"f]], "}{", '"' }) }
+
+            res = unpack assert pg\query "select $1 val, pg_typeof($1)", PostgresArray {
+              "hello"
+              pg.NULL
+              "world"
+              ","
+              [[f"f]]
+              "}{"
+              "'"
+              '"'
+            }
+
+            assert.same "text[]", res.pg_typeof
+            assert.same {
+              "hello"
+              pg.NULL
+              "world"
+              ","
+              [[f"f]]
+              "}{"
+              "'"
+              '"'
+            }, res.val
+
+          it "serializes boolean array", ->
+            assert.same {ARRAY_OIDS.boolean, '{t}'}, { serialize_value PostgresArray({true}) }
+            assert.same {ARRAY_OIDS.boolean, '{f,t}'}, { serialize_value PostgresArray({false, true}) }
+            assert.same {ARRAY_OIDS.boolean, '{f,NULL,t}'}, { serialize_value PostgresArray({false, pg.NULL, true}) }
+
+            res = unpack assert pg\query "select $1 val, pg_typeof($1)", PostgresArray { false, pg.NULL, true }
+
+            assert.same "boolean[]", res.pg_typeof
+            assert.same {
+              false
+              pg.NULL
+              true
+            }, res.val
+
+          it "serializes nested arrays", ->
+            nested_array = PostgresArray {
+              PostgresArray {1,2,3}
+              PostgresArray {4,5,6}
+            }
+
+            assert.same {0, '{{1,2,3},{4,5,6}}'}, { serialize_value nested_array }
+
+            res = unpack assert pg\query "select $1::numeric[][] val, pg_typeof($1::numeric[][])", nested_array
+
+            assert.same "numeric[]", res.pg_typeof -- uhh this is strange
+            assert.same {
+              {1,2,3}
+              {4,5,6}
+            }, res.val
+
+          it "serializes array of serializable objects", ->
+            json_type = (v) ->
+              setmetatable { v }, {
+                pgmoon_serialize: (pgmoon) =>
+                  json = require("cjson")
+                  114, (json.encode @[1])
+              }
+
+            assert.same {0, [[{"{\"hello\":\"world\"}","[1,2,3]"}]]}, {
+              serialize_value PostgresArray({
+                json_type({hello: "world"})
+                json_type({1,2,3})
+              })
+            }
+
+            res = unpack assert pg\query "select $1::json[] val, pg_typeof($1::json[])", PostgresArray {
+              json_type({hello: "world"})
+              json_type({1,2,3})
+            }
+
+            assert.same "json[]", res.pg_typeof
+            assert.same {
+              { hello: "world" }
+              {1,2,3}
+            }, res.val
+
 
         describe "with table", ->
           before_each ->
@@ -785,6 +1073,7 @@ describe "pgmoon without server", ->
     { 34.342, "34.342" }
     { "cat's soft fur", "'cat''s soft fur'" }
     { true, "TRUE" }
+    { Postgres.NULL, "NULL" }
   }
 
   local pg
@@ -798,3 +1087,225 @@ describe "pgmoon without server", ->
   for {lit, expected} in *escape_literal
     it "escapes literal '#{lit}'", ->
       assert.same expected, pg\escape_literal lit
+
+
+  describe "decode & encode int", ->
+    -- sampling of 2 & 4 byte numbers, generated from:
+
+    -- d = (s, len=#s) ->
+    --   "[string.char(#{table.concat {string.byte s, 1,len}, ", "})]: #{decode_int s, len}"
+
+    -- for i=1,255,13
+    --   print d "#{string.char i}\0\0\0"
+    --   print d "\0#{string.char i}\0\0"
+    --   print d "\0\0#{string.char i}\0"
+    --   print d "\0\0\0#{string.char i}"
+
+    --   print d "\0#{string.char i + 1}\0#{string.char i}"
+    --   print d "#{string.char i + 1}\0#{string.char i}\0"
+
+    -- for i=1,255,13
+    --   print d "#{string.char i}\0"
+    --   print d "\0#{string.char i}"
+    --   print d "#{string.char i + 1}#{string.char i}"
+
+    numbers4 = {
+      [string.char(1, 0, 0, 0)]: 16777216
+      [string.char(0, 1, 0, 0)]: 65536
+      [string.char(0, 0, 1, 0)]: 256
+      [string.char(0, 0, 0, 1)]: 1
+      [string.char(0, 2, 0, 1)]: 131073
+      [string.char(2, 0, 1, 0)]: 33554688
+      [string.char(14, 0, 0, 0)]: 234881024
+      [string.char(0, 14, 0, 0)]: 917504
+      [string.char(0, 0, 14, 0)]: 3584
+      [string.char(0, 0, 0, 14)]: 14
+      [string.char(0, 15, 0, 14)]: 983054
+      [string.char(15, 0, 14, 0)]: 251661824
+      [string.char(27, 0, 0, 0)]: 452984832
+      [string.char(0, 27, 0, 0)]: 1769472
+      [string.char(0, 0, 27, 0)]: 6912
+      [string.char(0, 0, 0, 27)]: 27
+      [string.char(0, 28, 0, 27)]: 1835035
+      [string.char(28, 0, 27, 0)]: 469768960
+      [string.char(40, 0, 0, 0)]: 671088640
+      [string.char(0, 40, 0, 0)]: 2621440
+      [string.char(0, 0, 40, 0)]: 10240
+      [string.char(0, 0, 0, 40)]: 40
+      [string.char(0, 41, 0, 40)]: 2687016
+      [string.char(41, 0, 40, 0)]: 687876096
+      [string.char(53, 0, 0, 0)]: 889192448
+      [string.char(0, 53, 0, 0)]: 3473408
+      [string.char(0, 0, 53, 0)]: 13568
+      [string.char(0, 0, 0, 53)]: 53
+      [string.char(0, 54, 0, 53)]: 3538997
+      [string.char(54, 0, 53, 0)]: 905983232
+      [string.char(66, 0, 0, 0)]: 1107296256
+      [string.char(0, 66, 0, 0)]: 4325376
+      [string.char(0, 0, 66, 0)]: 16896
+      [string.char(0, 0, 0, 66)]: 66
+      [string.char(0, 67, 0, 66)]: 4390978
+      [string.char(67, 0, 66, 0)]: 1124090368
+      [string.char(79, 0, 0, 0)]: 1325400064
+      [string.char(0, 79, 0, 0)]: 5177344
+      [string.char(0, 0, 79, 0)]: 20224
+      [string.char(0, 0, 0, 79)]: 79
+      [string.char(0, 80, 0, 79)]: 5242959
+      [string.char(80, 0, 79, 0)]: 1342197504
+      [string.char(92, 0, 0, 0)]: 1543503872
+      [string.char(0, 92, 0, 0)]: 6029312
+      [string.char(0, 0, 92, 0)]: 23552
+      [string.char(0, 0, 0, 92)]: 92
+      [string.char(0, 93, 0, 92)]: 6094940
+      [string.char(93, 0, 92, 0)]: 1560304640
+      [string.char(105, 0, 0, 0)]: 1761607680
+      [string.char(0, 105, 0, 0)]: 6881280
+      [string.char(0, 0, 105, 0)]: 26880
+      [string.char(0, 0, 0, 105)]: 105
+      [string.char(0, 106, 0, 105)]: 6946921
+      [string.char(106, 0, 105, 0)]: 1778411776
+      [string.char(118, 0, 0, 0)]: 1979711488
+      [string.char(0, 118, 0, 0)]: 7733248
+      [string.char(0, 0, 118, 0)]: 30208
+      [string.char(0, 0, 0, 118)]: 118
+      [string.char(0, 119, 0, 118)]: 7798902
+      [string.char(119, 0, 118, 0)]: 1996518912
+      [string.char(131, 0, 0, 0)]: -2097152000
+      [string.char(0, 131, 0, 0)]: 8585216
+      [string.char(0, 0, 131, 0)]: 33536
+      [string.char(0, 0, 0, 131)]: 131
+      [string.char(0, 132, 0, 131)]: 8650883
+      [string.char(132, 0, 131, 0)]: -2080341248
+      [string.char(144, 0, 0, 0)]: -1879048192
+      [string.char(0, 144, 0, 0)]: 9437184
+      [string.char(0, 0, 144, 0)]: 36864
+      [string.char(0, 0, 0, 144)]: 144
+      [string.char(0, 145, 0, 144)]: 9502864
+      [string.char(145, 0, 144, 0)]: -1862234112
+      [string.char(157, 0, 0, 0)]: -1660944384
+      [string.char(0, 157, 0, 0)]: 10289152
+      [string.char(0, 0, 157, 0)]: 40192
+      [string.char(0, 0, 0, 157)]: 157
+      [string.char(0, 158, 0, 157)]: 10354845
+      [string.char(158, 0, 157, 0)]: -1644126976
+      [string.char(170, 0, 0, 0)]: -1442840576
+      [string.char(0, 170, 0, 0)]: 11141120
+      [string.char(0, 0, 170, 0)]: 43520
+      [string.char(0, 0, 0, 170)]: 170
+      [string.char(0, 171, 0, 170)]: 11206826
+      [string.char(171, 0, 170, 0)]: -1426019840
+      [string.char(183, 0, 0, 0)]: -1224736768
+      [string.char(0, 183, 0, 0)]: 11993088
+      [string.char(0, 0, 183, 0)]: 46848
+      [string.char(0, 0, 0, 183)]: 183
+      [string.char(0, 184, 0, 183)]: 12058807
+      [string.char(184, 0, 183, 0)]: -1207912704
+      [string.char(196, 0, 0, 0)]: -1006632960
+      [string.char(0, 196, 0, 0)]: 12845056
+      [string.char(0, 0, 196, 0)]: 50176
+      [string.char(0, 0, 0, 196)]: 196
+      [string.char(0, 197, 0, 196)]: 12910788
+      [string.char(197, 0, 196, 0)]: -989805568
+      [string.char(209, 0, 0, 0)]: -788529152
+      [string.char(0, 209, 0, 0)]: 13697024
+      [string.char(0, 0, 209, 0)]: 53504
+      [string.char(0, 0, 0, 209)]: 209
+      [string.char(0, 210, 0, 209)]: 13762769
+      [string.char(210, 0, 209, 0)]: -771698432
+      [string.char(222, 0, 0, 0)]: -570425344
+      [string.char(0, 222, 0, 0)]: 14548992
+      [string.char(0, 0, 222, 0)]: 56832
+      [string.char(0, 0, 0, 222)]: 222
+      [string.char(0, 223, 0, 222)]: 14614750
+      [string.char(223, 0, 222, 0)]: -553591296
+      [string.char(235, 0, 0, 0)]: -352321536
+      [string.char(0, 235, 0, 0)]: 15400960
+      [string.char(0, 0, 235, 0)]: 60160
+      [string.char(0, 0, 0, 235)]: 235
+      [string.char(0, 236, 0, 235)]: 15466731
+      [string.char(236, 0, 235, 0)]: -335484160
+      [string.char(248, 0, 0, 0)]: -134217728
+      [string.char(0, 248, 0, 0)]: 16252928
+      [string.char(0, 0, 248, 0)]: 63488
+      [string.char(0, 0, 0, 248)]: 248
+      [string.char(0, 249, 0, 248)]: 16318712
+      [string.char(249, 0, 248, 0)]: -117377024
+
+    }
+
+    numbers2 = {
+      [string.char(1, 0)]: 256
+      [string.char(0, 1)]: 1
+      [string.char(2, 1)]: 513
+      [string.char(14, 0)]: 3584
+      [string.char(0, 14)]: 14
+      [string.char(15, 14)]: 3854
+      [string.char(27, 0)]: 6912
+      [string.char(0, 27)]: 27
+      [string.char(28, 27)]: 7195
+      [string.char(40, 0)]: 10240
+      [string.char(0, 40)]: 40
+      [string.char(41, 40)]: 10536
+      [string.char(53, 0)]: 13568
+      [string.char(0, 53)]: 53
+      [string.char(54, 53)]: 13877
+      [string.char(66, 0)]: 16896
+      [string.char(0, 66)]: 66
+      [string.char(67, 66)]: 17218
+      [string.char(79, 0)]: 20224
+      [string.char(0, 79)]: 79
+      [string.char(80, 79)]: 20559
+      [string.char(92, 0)]: 23552
+      [string.char(0, 92)]: 92
+      [string.char(93, 92)]: 23900
+      [string.char(105, 0)]: 26880
+      [string.char(0, 105)]: 105
+      [string.char(106, 105)]: 27241
+      [string.char(118, 0)]: 30208
+      [string.char(0, 118)]: 118
+      [string.char(119, 118)]: 30582
+      [string.char(131, 0)]: 33536
+      [string.char(0, 131)]: 131
+      [string.char(132, 131)]: 33923
+      [string.char(144, 0)]: 36864
+      [string.char(0, 144)]: 144
+      [string.char(145, 144)]: 37264
+      [string.char(157, 0)]: 40192
+      [string.char(0, 157)]: 157
+      [string.char(158, 157)]: 40605
+      [string.char(170, 0)]: 43520
+      [string.char(0, 170)]: 170
+      [string.char(171, 170)]: 43946
+      [string.char(183, 0)]: 46848
+      [string.char(0, 183)]: 183
+      [string.char(184, 183)]: 47287
+      [string.char(196, 0)]: 50176
+      [string.char(0, 196)]: 196
+      [string.char(197, 196)]: 50628
+      [string.char(209, 0)]: 53504
+      [string.char(0, 209)]: 209
+      [string.char(210, 209)]: 53969
+      [string.char(222, 0)]: 56832
+      [string.char(0, 222)]: 222
+      [string.char(223, 222)]: 57310
+      [string.char(235, 0)]: 60160
+      [string.char(0, 235)]: 235
+      [string.char(236, 235)]: 60651
+      [string.char(248, 0)]: 63488
+      [string.char(0, 248)]: 248
+      [string.char(249, 248)]: 63992
+    }
+
+    it "encodes and decodes 4 bytes", ->
+      for str, num in pairs numbers4
+        en = pg\encode_int num, 4
+        assert.same 4, #en
+        assert.same str, en
+        assert.same num, pg\decode_int en
+
+    it "encodes and decodes 2 bytes", ->
+      for str, num in pairs numbers2
+        en = pg\encode_int num, 2
+        assert.same 2, #en
+        assert.same str, en
+        assert.same num, pg\decode_int en

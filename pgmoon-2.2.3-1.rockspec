@@ -2,7 +2,7 @@ package = "pgmoon"
 version = "2.2.3-1"
 
 source = {
-  url = "git://github.com/Kong/pgmoon.git",
+  url = "git+https://github.com/Kong/pgmoon.git",
   tag = "2.2.3"
 }
 
@@ -17,6 +17,14 @@ description = {
 dependencies = {
   "lua >= 5.1",
   "lpeg",
+
+  -- "luasocket",
+  -- "luasec",
+  --
+  -- "cqueues",
+  -- "luaossl"
+  --
+  -- "lua-resty-openssl",
 }
 
 build = {
