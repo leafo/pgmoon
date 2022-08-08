@@ -965,7 +965,11 @@ do
             return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
           else
             if self.sock.tlshandshake then
-              return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.certificate, client_priv_key = luasec_opts.key })
+              return self.sock:tlshandshake({
+                verify = self.config.ssl_verify,
+                client_cert = luasec_opts.certificate,
+                client_priv_key = luasec_opts.key
+              })
             else
               return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
             end
