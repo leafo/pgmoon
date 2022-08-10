@@ -13,7 +13,8 @@ if ngx then
   ssl = require("ngx.ssl")
 end
 local unpack = table.unpack or unpack
-local VERSION = "2.2.3"
+local DEBUG = false
+local VERSION = "2.3.0"
 local _len
 _len = function(thing, t)
   if t == nil then
@@ -68,19 +69,31 @@ flipped = function(t)
   end
   return t
 end
-local MSG_TYPE = flipped({
-  status = "S",
+local MSG_TYPE_F = flipped({
+  password = "p",
+  query = "Q",
+  parse = "P",
+  bind = "B",
+  describe = "D",
+  execute = "E",
+  close = "C",
+  sync = "S",
+  terminate = "X"
+})
+local MSG_TYPE_B = flipped({
   auth = "R",
+  parameter_status = "S",
   backend_key = "K",
   ready_for_query = "Z",
-  query = "Q",
-  notice = "N",
-  notification = "A",
-  password = "p",
+  parse_complete = "1",
+  bind_complete = "2",
+  close_complete = "3",
   row_description = "T",
   data_row = "D",
   command_complete = "C",
-  error = "E"
+  error = "E",
+  notice = "N",
+  notification = "A"
 })
 local ERROR_TYPES = flipped({
   severity = "S",
@@ -139,6 +152,28 @@ do
       port = "5432",
       ssl = false
     },
+    type_serializers = {
+      string = function(self, v)
+        return 25, v
+      end,
+      boolean = function(self, v)
+        return 16, v and "t" or "f"
+      end,
+      number = function(self, v)
+        return 1700, tostring(v)
+      end,
+      table = function(self, v)
+        do
+          local v_mt = getmetatable(v)
+          if v_mt then
+            if v_mt.pgmoon_serialize then
+              return v_mt.pgmoon_serialize(v, self)
+            end
+          end
+        end
+        return nil, "table does not implement pgmoon_serialize, can't serialize"
+      end
+    },
     type_deserializers = {
       json = function(self, val, name)
         local decode_json
@@ -151,24 +186,24 @@ do
       array_boolean = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val, tobool)
+        return decode_array(val, tobool, self)
       end,
       array_number = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val, tonumber)
+        return decode_array(val, tonumber, self)
       end,
       array_string = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
-        return decode_array(val)
+        return decode_array(val, nil, self)
       end,
       array_json = function(self, val, name)
         local decode_array
         decode_array = require("pgmoon.arrays").decode_array
         local decode_json
         decode_json = require("pgmoon.json").decode_json
-        return decode_array(val, decode_json)
+        return decode_array(val, decode_json, self)
       end,
       hstore = function(self, val, name)
         local decode_hstore
@@ -176,7 +211,11 @@ do
         return decode_hstore(val)
       end
     },
-    set_type_oid = function(self, oid, name)
+    set_type_oid = function(self, a, b)
+      print("pgmoon: WARNING: set_type_oid is deprecated for set_type_deserializer")
+      return self:set_type_deserializer(a, b)
+    end,
+    set_type_deserializer = function(self, oid, name, deserializer)
       if not (rawget(self, "PG_TYPES")) then
         do
           local _tbl_0 = { }
@@ -187,16 +226,25 @@ do
         end
       end
       self.PG_TYPES[assert(tonumber(oid))] = name
+      if deserializer then
+        if not (rawget(self, "type_deserializers")) then
+          do
+            local _tbl_0 = { }
+            for k, v in pairs(self.type_deserializers) do
+              _tbl_0[k] = v
+            end
+            self.type_deserializers = _tbl_0
+          end
+        end
+        self.type_deserializers[name] = deserializer
+      end
     end,
     setup_hstore = function(self)
       local res = unpack(self:query("SELECT oid FROM pg_type WHERE typname = 'hstore'"))
       assert(res, "hstore oid not found")
-      return self:set_type_oid(tonumber(res.oid), "hstore")
+      return self:set_type_deserializer(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
-      if not (self.sock) then
-        self.sock = socket.new(self.sock_type)
-      end
       local connect_opts
       local _exp_0 = self.sock_type
       if "nginx" == _exp_0 then
@@ -238,14 +286,11 @@ do
       return self.sock:settimeout(...)
     end,
     disconnect = function(self)
-      local sock = self.sock
-      self.sock = nil
-      return sock:close()
+      self:send_message(MSG_TYPE_F.terminate, { })
+      return self.sock:close()
     end,
     keepalive = function(self, ...)
-      local sock = self.sock
-      self.sock = nil
-      return sock:setkeepalive(...)
+      return self.sock:setkeepalive(...)
     end,
     create_cqueues_openssl_context = function(self)
       if not (self.config.ssl_verify ~= nil or self.config.cert or self.config.key or self.config.ssl_version) then
@@ -289,9 +334,8 @@ do
       if not (t) then
         return nil, msg
       end
-      if not (MSG_TYPE.auth == t) then
-        self:disconnect()
-        if MSG_TYPE.error == t then
+      if not (MSG_TYPE_B.auth == t) then
+        if MSG_TYPE_B.error == t then
           return nil, self:parse_error(msg)
         end
         error("unexpected message during auth: " .. tostring(t))
@@ -312,7 +356,7 @@ do
     end,
     cleartext_auth = function(self, msg)
       assert(self.config.password, "missing password, required for connect")
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         self.config.password,
         NULL
       })
@@ -385,7 +429,7 @@ do
         cbind_input = gs2_header .. cbind_data
       end
       local client_first_message = gs2_header .. client_first_message_bare
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         mechanism_name,
         self:encode_int(#client_first_message),
         client_first_message
@@ -467,7 +511,7 @@ do
         return nil, "failed to generate the client proof"
       end
       local client_final_message = tostring(client_final_message_without_proof) .. ",p=" .. tostring(encode_base64(proof))
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         client_final_message
       })
       t, msg = self:receive_message()
@@ -496,7 +540,7 @@ do
       md5 = require("pgmoon.crypto").md5
       local salt = msg:sub(5, 8)
       assert(self.config.password, "missing password, required for connect")
-      self:send_message(MSG_TYPE.password, {
+      self:send_message(MSG_TYPE_F.password, {
         "md5",
         md5(md5(self.config.password .. self.config.user) .. salt),
         NULL
@@ -509,21 +553,118 @@ do
         return nil, msg
       end
       local _exp_0 = t
-      if MSG_TYPE.error == _exp_0 then
+      if MSG_TYPE_B.error == _exp_0 then
         return nil, self:parse_error(msg)
-      elseif MSG_TYPE.auth == _exp_0 then
+      elseif MSG_TYPE_B.auth == _exp_0 then
         return true
       else
         return error("unknown response from auth")
       end
     end,
-    query = function(self, q)
+    query = function(self, q, ...)
+      if select("#", ...) > 0 then
+        return self:extended_query(q, ...)
+      else
+        return self:simple_query(q)
+      end
+    end,
+    simple_query = function(self, q)
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end
-      self:post(q)
+      self:send_message(MSG_TYPE_F.query, {
+        q,
+        NULL
+      })
+      return self:receive_query_result()
+    end,
+    extended_query = function(self, q, ...)
+      if q:find(NULL) then
+        return nil, "invalid null byte in query"
+      end
+      local num_params = select("#", ...)
+      local parse_data = {
+        NULL,
+        q,
+        NULL,
+        self:encode_int(num_params, 2)
+      }
+      local bind_data = {
+        NULL,
+        NULL,
+        self:encode_int(0, 2),
+        self:encode_int(num_params, 2)
+      }
+      for idx = 1, num_params do
+        local v = select(idx, ...)
+        if v == self.NULL or v == nil then
+          insert(parse_data, self:encode_int(0))
+          insert(bind_data, self:encode_int(-1))
+        else
+          local v_type = type(v)
+          local type_oid, value_bytes
+          do
+            local fn = self.type_serializers[v_type]
+            if fn then
+              local _oid, _value_or_err, _third = fn(self, v)
+              if _oid == nil then
+                local full_error = "pgmoon: param " .. tostring(idx) .. ": " .. tostring(_value_or_err or "failed to serialize type: " .. tostring(v_type))
+                return nil, full_error
+              end
+              if _third ~= nil then
+                return nil, "pgmoon: param " .. tostring(idx) .. ": please do not return a third value from serializer function, we may use this value in the future for binary formats"
+              end
+              type_oid, value_bytes = _oid, _value_or_err
+            else
+              type_oid, value_bytes = 0, tostring(v)
+            end
+          end
+          insert(parse_data, self:encode_int(type_oid))
+          insert(bind_data, self:encode_int(#value_bytes))
+          insert(bind_data, value_bytes)
+        end
+      end
+      insert(bind_data, self:encode_int(0, 2))
+      self:send_messages({
+        {
+          MSG_TYPE_F.parse,
+          parse_data
+        },
+        {
+          MSG_TYPE_F.bind,
+          bind_data
+        },
+        {
+          MSG_TYPE_F.describe,
+          {
+            "P",
+            NULL
+          }
+        },
+        {
+          MSG_TYPE_F.execute,
+          {
+            NULL,
+            self:encode_int(0)
+          }
+        },
+        {
+          MSG_TYPE_F.close,
+          {
+            "P",
+            NULL
+          }
+        },
+        {
+          MSG_TYPE_F.sync,
+          { }
+        }
+      })
+      return self:receive_query_result()
+    end,
+    receive_query_result = function(self)
       local row_desc, data_rows, command_complete, err_msg
-      local result, notifications
+      local result, notifications, notices
       local num_queries = 0
       while true do
         local t, msg = self:receive_message()
@@ -531,14 +672,21 @@ do
           return nil, msg
         end
         local _exp_0 = t
-        if MSG_TYPE.data_row == _exp_0 then
-          data_rows = data_rows or { }
+        if MSG_TYPE_B.data_row == _exp_0 then
+          if not (data_rows) then
+            data_rows = { }
+          end
           insert(data_rows, msg)
-        elseif MSG_TYPE.row_description == _exp_0 then
+        elseif MSG_TYPE_B.row_description == _exp_0 then
           row_desc = msg
-        elseif MSG_TYPE.error == _exp_0 then
+        elseif MSG_TYPE_B.error == _exp_0 then
           err_msg = msg
-        elseif MSG_TYPE.command_complete == _exp_0 then
+        elseif MSG_TYPE_B.notice == _exp_0 then
+          if not (notices) then
+            notices = { }
+          end
+          insert(notices, (self:parse_error(msg)))
+        elseif MSG_TYPE_B.command_complete == _exp_0 then
           command_complete = msg
           local next_result = self:format_query_result(row_desc, data_rows, command_complete)
           num_queries = num_queries + 1
@@ -553,25 +701,25 @@ do
             insert(result, next_result)
           end
           row_desc, data_rows, command_complete = nil
-        elseif MSG_TYPE.ready_for_query == _exp_0 then
+        elseif MSG_TYPE_B.ready_for_query == _exp_0 then
           break
-        elseif MSG_TYPE.notification == _exp_0 then
+        elseif MSG_TYPE_B.notification == _exp_0 then
           if not (notifications) then
             notifications = { }
           end
           insert(notifications, self:parse_notification(msg))
+        elseif MSG_TYPE_B.parse_complete == _exp_0 or MSG_TYPE_B.bind_complete == _exp_0 or MSG_TYPE_B.close_complete == _exp_0 then
+          local _ = nil
+        else
+          if DEBUG then
+            print("Unhandled message in query result: " .. tostring(t))
+          end
         end
       end
       if err_msg then
-        return nil, self:parse_error(err_msg), result, num_queries, notifications
+        return nil, self:parse_error(err_msg), result, num_queries, notifications, notices
       end
-      return result, num_queries, notifications
-    end,
-    post = function(self, q)
-      return self:send_message(MSG_TYPE.query, {
-        q,
-        NULL
-      })
+      return result, num_queries, notifications, notices
     end,
     wait_for_notification = function(self)
       while true do
@@ -580,7 +728,7 @@ do
           return nil, msg
         end
         local _exp_0 = t
-        if MSG_TYPE.notification == _exp_0 then
+        if MSG_TYPE_B.notification == _exp_0 then
           return self:parse_notification(msg)
         end
       end
@@ -745,28 +893,22 @@ do
         if not (t) then
           return nil, msg
         end
-        if MSG_TYPE.error == t then
-          self:disconnect()
+        if MSG_TYPE_B.error == t then
           return nil, self:parse_error(msg)
         end
-        if MSG_TYPE.ready_for_query == t then
+        if MSG_TYPE_B.ready_for_query == t then
           break
         end
       end
       return true
     end,
     receive_message = function(self)
-      local t, err = self.sock:receive(1)
-      if not (t) then
-        self:disconnect()
+      local prefix, err = self.sock:receive(5)
+      if not (prefix) then
         return nil, "receive_message: failed to get type: " .. tostring(err)
       end
-      local len
-      len, err = self.sock:receive(4)
-      if not (len) then
-        self:disconnect()
-        return nil, "receive_message: failed to get len: " .. tostring(err)
-      end
+      local t = prefix:sub(1, 1)
+      local len = prefix:sub(2)
       len = self:decode_int(len)
       len = len - 4
       local msg = self.sock:receive(len)
@@ -809,7 +951,7 @@ do
       if not (t) then
         return nil, err
       end
-      if t == MSG_TYPE.status then
+      if t == MSG_TYPE_B.parameter_status then
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
 	        local luasec_opts = self.config.luasec_opts or self:create_luasec_opts()
@@ -822,7 +964,15 @@ do
             end
             return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
           else
-            return self.sock:tlshandshake({ verify = self.config.ssl_verify, client_cert = luasec_opts.certificate, client_priv_key = luasec_opts.key })
+            if self.sock.tlshandshake then
+              return self.sock:tlshandshake({
+                verify = self.config.ssl_verify,
+                client_cert = luasec_opts.certificate,
+                client_priv_key = luasec_opts.key
+              })
+            else
+              return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+            end
           end
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
@@ -831,12 +981,34 @@ do
         else
           return error("don't know how to do ssl handshake for socket type: " .. tostring(self.sock_type))
         end
-      elseif t == MSG_TYPE.error or self.config.ssl_required then
-        self:disconnect()
+      elseif t == MSG_TYPE_B.error or self.config.ssl_required then
         return nil, "the server does not support SSL connections"
       else
         return true
       end
+    end,
+    send_messages = function(self, messages)
+      local data
+      do
+        local _accum_0 = { }
+        local _len_0 = 1
+        for _index_0 = 1, #messages do
+          local _des_0 = messages[_index_0]
+          local message_type, message_data
+          message_type, message_data = _des_0[1], _des_0[2]
+          local len = _len(message_data)
+          len = len + 4
+          local _value_0 = {
+            message_type,
+            self:encode_int(len),
+            message_data
+          }
+          _accum_0[_len_0] = _value_0
+          _len_0 = _len_0 + 1
+        end
+        data = _accum_0
+      end
+      return self.sock:send(data)
     end,
     send_message = function(self, t, data, len)
       if len == nil then
@@ -853,11 +1025,15 @@ do
       if bytes == nil then
         bytes = #str
       end
-      local _exp_0 = bytes
-      if 4 == _exp_0 then
+      local _exp_0 = str
+      if "\0\0" == _exp_0 or "\0\0\0\0" == _exp_0 then
+        return 0
+      end
+      local _exp_1 = bytes
+      if 4 == _exp_1 then
         local d, c, b, a = str:byte(1, 4)
         return a + lshift(b, 8) + lshift(c, 16) + lshift(d, 24)
-      elseif 2 == _exp_0 then
+      elseif 2 == _exp_1 then
         local b, a = str:byte(1, 2)
         return a + lshift(b, 8)
       else
@@ -868,6 +1044,14 @@ do
       if bytes == nil then
         bytes = 4
       end
+      if n == 0 then
+        if bytes == 2 then
+          return "\0\0"
+        end
+        if bytes == 4 then
+          return "\0\0\0\0"
+        end
+      end
       local _exp_0 = bytes
       if 4 == _exp_0 then
         local a = band(n, 0xff)
@@ -875,6 +1059,10 @@ do
         local c = band(rshift(n, 16), 0xff)
         local d = band(rshift(n, 24), 0xff)
         return string.char(d, c, b, a)
+      elseif 2 == _exp_0 then
+        local a = band(n, 0xff)
+        local b = band(rshift(n, 8), 0xff)
+        return string.char(b, a)
       else
         return error("don't know how to encode " .. tostring(bytes) .. " byte(s)")
       end
@@ -899,6 +1087,9 @@ do
       return '"' .. (tostring(ident):gsub('"', '""')) .. '"'
     end,
     escape_literal = function(self, val)
+      if val == (self and self.NULL or Postgres.NULL) then
+        return "NULL"
+      end
       local _exp_0 = type(val)
       if "number" == _exp_0 then
         return tostring(val)
@@ -930,6 +1121,7 @@ do
           end
         end
       })
+      self.convert_null = self.config.convert_null
       self.sock, self.sock_type = socket.new(self.config.socket_type)
     end,
     __base = _base_0,

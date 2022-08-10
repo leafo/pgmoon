@@ -1,6 +1,7 @@
 
 import flatten from require "pgmoon.util"
 
+-- socket proxy class to make cqueues socket behave like ngx.socket.tcp
 class CqueuesSocket
   connect: (host, port, opts) =>
     socket = require "cqueues.socket"
@@ -48,8 +49,12 @@ class CqueuesSocket
     else
       @timeout = t
 
-  -- openresty pooling interface, disable pooling
+  -- openresty pooling interface, always return 0 to suggest that the socket
+  -- is connecting for the first time
   getreusedtimes: => 0
+
+  setkeepalive: =>
+    error "You attempted to call setkeepalive on a cqueues.socket. This method is only available for the ngx cosocket API for releasing a socket back into the connection pool"
 
 { :CqueuesSocket }
 

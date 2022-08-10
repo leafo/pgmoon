@@ -1,3 +1,19 @@
+local OIDS = {
+  boolean = 1000,
+  number = 1231,
+  string = 1009,
+  array_json = 199,
+  array_jsonb = 3807
+}
+local is_array
+is_array = function(oid)
+  for k, v in pairs(OIDS) do
+    if v == oid then
+      return true
+    end
+  end
+  return false
+end
 local PostgresArray
 do
   local _class_0
@@ -16,6 +32,70 @@ do
     end
   })
   _base_0.__class = _class_0
+  local self = _class_0
+  self.__base.pgmoon_serialize = function(v, pg)
+    local escaped
+    do
+      local _accum_0 = { }
+      local _len_0 = 1
+      for _index_0 = 1, #v do
+        local val = v[_index_0]
+        if val == pg.NULL then
+          _accum_0[_len_0] = "NULL"
+        else
+          local _exp_0 = type(val)
+          if "number" == _exp_0 then
+            _accum_0[_len_0] = tostring(val)
+          elseif "string" == _exp_0 then
+            _accum_0[_len_0] = '"' .. val:gsub('"', [[\"]]) .. '"'
+          elseif "boolean" == _exp_0 then
+            _accum_0[_len_0] = val and "t" or "f"
+          elseif "table" == _exp_0 then
+            local _oid, _value
+            do
+              local v_mt = getmetatable(val)
+              if v_mt then
+                if v_mt.pgmoon_serialize then
+                  _oid, _value = v_mt.pgmoon_serialize(val, pg)
+                end
+              end
+            end
+            if _oid then
+              if is_array(_oid) then
+                _accum_0[_len_0] = _value
+              else
+                _accum_0[_len_0] = '"' .. _value:gsub('"', [[\"]]) .. '"'
+              end
+            else
+              return nil, "table does not implement pgmoon_serialize, can't serialize"
+            end
+          end
+        end
+        _len_0 = _len_0 + 1
+      end
+      escaped = _accum_0
+    end
+    local type_oid = 0
+    for _index_0 = 1, #v do
+      local _continue_0 = false
+      repeat
+        do
+          local val = v[_index_0]
+          if val == pg.NULL then
+            _continue_0 = true
+            break
+          end
+          type_oid = OIDS[type(val)] or type_oid
+          break
+        end
+        _continue_0 = true
+      until true
+      if not _continue_0 then
+        break
+      end
+    end
+    return type_oid, "{" .. tostring(table.concat(escaped, ",")) .. "}"
+  end
   PostgresArray = _class_0
 end
 getmetatable(PostgresArray).__call = function(self, t)
@@ -67,12 +147,18 @@ do
   end
 end
 local convert_values
-convert_values = function(array, fn)
+convert_values = function(array, fn, pg)
   for idx, v in ipairs(array) do
     if type(v) == "table" then
       convert_values(v, fn)
     else
-      array[idx] = fn(v)
+      if v == "NULL" then
+        array[idx] = pg.NULL
+      elseif fn then
+        array[idx] = fn(v)
+      else
+        array[idx] = v
+      end
     end
   end
   return array
@@ -97,14 +183,10 @@ do
     delim = P(","),
     close = P("}")
   })
-  decode_array = function(str, convert_fn)
+  decode_array = function(str, convert_fn, pg)
     local out = (assert(g:match(str), "failed to parse postgresql array"))
     setmetatable(out, PostgresArray.__base)
-    if convert_fn then
-      return convert_values(out, convert_fn)
-    else
-      return out
-    end
+    return convert_values(out, convert_fn, (pg or require("pgmoon").Postgres))
   end
 end
 return {
