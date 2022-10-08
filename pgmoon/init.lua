@@ -402,7 +402,12 @@ do
               pem, signature = server_cert:pem(), server_cert:getsignaturename()
             end
             signature = signature:lower()
-            if signature:match("^md5") or signature:match("^sha1") then
+            local _, with_sig
+            _, _, with_sig = signature:find("%-with%-(.*)")
+            if with_sig then
+              signature = with_sig
+            end
+            if signature:match("^md5") or signature:match("^sha1") or signature:match("sha1$") then
               signature = "sha256"
             end
             cbind_data = assert(x509_digest(pem, signature))

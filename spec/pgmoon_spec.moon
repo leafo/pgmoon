@@ -174,6 +174,7 @@ describe "pgmoon with server", ->
         errors = {
           "timeout": true
           "Connection timed out": true
+          "Operation timed out": true
         }
 
         assert.true errors[err]

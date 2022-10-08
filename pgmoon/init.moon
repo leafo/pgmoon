@@ -406,8 +406,13 @@ class Postgres
 
           signature = signature\lower!
 
-          -- upgrade the signature if necessary
-          if signature\match("^md5") or signature\match("^sha1")
+          -- Handle the case when the signature is e.g. ECDSA-with-SHA384
+          _, _, with_sig = signature\find("%-with%-(.*)")
+          if with_sig
+            signature = with_sig
+
+          -- upgrade the signature if necessary (also handle the case of s/RSA-SHA1/sha256)
+          if signature\match("^md5") or signature\match("^sha1") or signature\match("sha1$")
             signature = "sha256"
 
           assert x509_digest(pem, signature)

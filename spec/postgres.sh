@@ -14,7 +14,7 @@ function makecerts {
     openssl req -new -passout pass:itchzone -text -out server.req -subj "/C=US/ST=Leafo/L=Leafo/O=Leafo/CN=itch.zone"
     openssl rsa -passin pass:itchzone -in privkey.pem -out server.key
     rm privkey.pem
-    openssl req -x509 -in server.req -text -key server.key -out server.crt
+    openssl req -x509 -sha1 -in server.req -text -key server.key -out server.crt
     chmod og-rwx server.key
   )
 }
