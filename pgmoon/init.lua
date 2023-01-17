@@ -315,7 +315,7 @@ do
     create_luasec_opts = function(self)
       local key = self.config.key
       local cert = self.config.cert
-      if self.config.sock_type == "nginx" and key and cert then
+      if self.sock_type == "nginx" and key and cert then
         key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
         cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
       end

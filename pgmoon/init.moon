@@ -323,7 +323,7 @@ class Postgres
     key = @config.key
     cert = @config.cert
 
-    if @config.sock_type == "nginx" and key and cert
+    if @sock_type == "nginx" and key and cert
       key = assert(ssl.parse_pem_priv_key(pl_file.read(key, true)))
       cert = assert(ssl.parse_pem_cert(pl_file.read(cert, true)))
     {
