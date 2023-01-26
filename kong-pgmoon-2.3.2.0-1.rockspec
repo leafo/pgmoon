@@ -1,9 +1,9 @@
 package = "kong-pgmoon"
-version = "2.3.1-1"
+version = "2.3.2.0-1"
 
 source = {
   url = "git+https://github.com/Kong/pgmoon.git",
-  tag = "2.3.1"
+  tag = "2.3.2.0" -- internal kong version adds an extra digit to the version
 }
 
 description = {
