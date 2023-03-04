@@ -92,7 +92,7 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 
-local res = assert(pg:query("select * from users where status = 'active' limit 20")
+local res = assert(pg:query("select * from users where status = 'active' limit 20"))
 
 assert(pg:query("update users set name = $1 where id = $2", "leafo", 99))
 
