@@ -404,16 +404,16 @@ class Postgres
             server_cert = @sock\getpeercertificate()
             server_cert\pem!, server_cert\getsignaturename!
 
-          signature = signature\lower!
-
-          -- Handle the case when the signature is e.g. ECDSA-with-SHA384
-          _, _, with_sig = signature\find("%-with%-(.*)")
-          if with_sig
-            signature = with_sig
+          sig_lower = signature\lower!
 
           -- upgrade the signature if necessary (also handle the case of s/RSA-SHA1/sha256)
-          if signature\match("^md5") or signature\match("^sha1") or signature\match("sha1$")
+          if sig_lower\match("^md5") or sig_lower\match("^sha1") or sig_lower\match("sha1$") or sig_lower\match("sha256$")
             signature = "sha256"
+          else
+            objects = require "resty.openssl.objects"
+            sigid = assert objects.txt2nid(signature)
+            digest_nid = assert objects.find_sigid_algs(sigid)
+            signature = assert objects.nid2table(digest_nid).sn
 
           assert x509_digest(pem, signature)
 
