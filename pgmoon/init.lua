@@ -341,7 +341,7 @@ do
       end
     end,
     cleartext_auth = function(self, msg)
-      assert(self.config.password, "missing password, required for connect")
+      assert(self.config.password, "the database is requesting a password for authentication but you did not provide a password")
       self:send_message(MSG_TYPE_F.password, {
         self.config.password,
         NULL
@@ -349,7 +349,7 @@ do
       return self:check_auth()
     end,
     scram_sha_256_auth = function(self, msg)
-      assert(self.config.password, "missing password, required for connect")
+      assert(self.config.password, "the database is requesting a password for authentication but you did not provide a password")
       local random_bytes, x509_digest
       do
         local _obj_0 = require("pgmoon.crypto")

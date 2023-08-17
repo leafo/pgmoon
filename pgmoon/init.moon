@@ -339,7 +339,7 @@ class Postgres
         error "don't know how to auth: #{auth_type}"
 
   cleartext_auth: (msg) =>
-    assert @config.password, "missing password, required for connect"
+    assert @config.password, "the database is requesting a password for authentication but you did not provide a password"
 
     @send_message MSG_TYPE_F.password, {
       @config.password
@@ -350,7 +350,7 @@ class Postgres
 
   -- https://www.postgresql.org/docs/current/sasl-authentication.html#SASL-SCRAM-SHA-256
   scram_sha_256_auth: (msg) =>
-    assert @config.password, "missing password, required for connect"
+    assert @config.password, "the database is requesting a password for authentication but you did not provide a password"
 
     import random_bytes, x509_digest from require "pgmoon.crypto"
 
