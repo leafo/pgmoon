@@ -72,10 +72,15 @@ do
       return true
     end
   }
-  create_luasocket = function(...)
-    local socket = require("socket")
+  create_luasocket = function(socket_type, ...)
+    local socket
+    if socket_type == "haproxy" then
+      socket = core.tcp(...)
+    else
+      socket = require("socket").tcp(...)
+    end
     local proxy = {
-      sock = socket.tcp(...)
+      sock = socket
     }
     for k, v in pairs(method_overrides) do
       proxy[k] = v
@@ -89,6 +94,8 @@ return {
     if socket_type == nil then
       if ngx and ngx.get_phase() ~= "init" then
         socket_type = "nginx"
+      elseif core and core.get_info() then
+        socket_type = "haproxy"
       else
         socket_type = "luasocket"
       end
@@ -99,6 +106,8 @@ return {
       socket = ngx.socket.tcp()
     elseif "luasocket" == _exp_0 then
       socket = create_luasocket()
+    elseif "haproxy" == _exp_0 then
+      socket = create_luasocket("haproxy")
     elseif "cqueues" == _exp_0 then
       socket = require("pgmoon.cqueues").CqueuesSocket()
     else

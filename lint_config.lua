@@ -1,6 +1,6 @@
 
 return {
 	whitelist_globals = {
-		["."] = {"ngx"}
+		["."] = {"ngx", "core"}
 	}
 }
