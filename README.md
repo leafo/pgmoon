@@ -198,7 +198,7 @@ disconnected.
 
 ```lua
 -- return values for successful query
-local result, err, num_queries = postgres:query("select name from users limit 2")
+local result, num_queries = postgres:query("select name from users limit 2")
 
 -- return value for failure (status is nil)
 local status, err, partial_result, num_queries = postgres:query("select created_at from tags; select throw_error() from users")
@@ -220,7 +220,11 @@ In addition to the return values above, pgmoon will also return two additional
 values if the query generates them, notifications an notices.
 
 ```lua
-local result, err, num_queries, notifications, notices  = postgres:query("drop table if exists some_table")
+-- return values for successful query
+local result, num_queries, notifications, notices = postgres:query("drop table if exists some_table")
+
+-- return value for failure (status is nil)
+local status, err, partial_result, num_queries, notifications, notices = postgres:query("drop table if exists some_table")
 ```
 In this example, if the table `some_table` does not exist, then  `notices` will
 be an array containing a message that the table didn't exist.
