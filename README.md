@@ -127,7 +127,7 @@ Functions in table returned by `require("pgmoon")`:
 
 Creates a new `Postgres` object from a configuration object. All fields are
 optional unless otherwise stated. The newly created object will not
-automatically connect, you must call `conect` after creating the object.
+automatically connect, you must call `connect` after creating the object.
 
 Available options:
 
@@ -139,7 +139,7 @@ Available options:
 * `"ssl"`: enable ssl (default: `false`)
 * `"ssl_verify"`: verify server certificate (default: `nil`)
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
-* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"haproxy"`, `"luasocket"`, `"cqueues"` (default: `"nginx"` if in nginx, `"haproxy"` if in haproxy, `"luasocket"` otherwise)
 * `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
 * `"pool"`: (OpenResty only) name of pool to use when using OpenResty cosocket (default: `"#{host}:#{port}:#{database}"`)
 * `"pool_size"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)
