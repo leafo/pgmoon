@@ -1018,6 +1018,16 @@ describe "pgmoon with server", ->
               } }
             }, (pg\query "select * from arrays_test")
 
+          it "loads inet arrays from table", ->
+            assert pg\query "create table arrays_test (addresses inet[])"
+            assert pg\query "insert into arrays_test (addresses) values ('{192.168.1.1,10.0.0.1}')"
+            assert pg\query "insert into arrays_test (addresses) values ('{127.0.0.1,::1,2001:db8::1}')"
+
+            assert.same {
+              { addresses: {"192.168.1.1", "10.0.0.1"} }
+              { addresses: {"127.0.0.1", "::1", "2001:db8::1"} }
+            }, (pg\query "select * from arrays_test")
+
 
       it "converts null", ->
         pg.convert_null = true

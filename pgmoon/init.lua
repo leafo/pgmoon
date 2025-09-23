@@ -116,6 +116,7 @@ local PG_TYPES = {
   [1016] = "array_number",
   [1021] = "array_number",
   [1022] = "array_number",
+  [1041] = "array_inet",
   [1231] = "array_number",
   [1009] = "array_string",
   [1015] = "array_string",
@@ -176,6 +177,11 @@ do
       end,
       bytea = function(self, val, name)
         return self:decode_bytea(val)
+      end,
+      array_inet = function(self, val, name)
+        local decode_array
+        decode_array = require("pgmoon.arrays").decode_array
+        return decode_array(val, nil, self)
       end,
       array_boolean = function(self, val, name)
         local decode_array

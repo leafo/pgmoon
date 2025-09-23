@@ -110,6 +110,7 @@ PG_TYPES = {
   [1016]: "array_number" -- int8 array
   [1021]: "array_number" -- float4 array
   [1022]: "array_number" -- float8 array
+  [1041]: "array_inet" -- array of ip addresses
   [1231]: "array_number" -- numeric array
 
   [1009]: "array_string" -- text array
@@ -172,6 +173,10 @@ class Postgres
 
     bytea: (val, name) =>
       @decode_bytea val
+
+    array_inet: (val, name) =>
+      import decode_array from require "pgmoon.arrays"
+      decode_array val, nil, @
 
     array_boolean: (val, name) =>
       import decode_array from require "pgmoon.arrays"
