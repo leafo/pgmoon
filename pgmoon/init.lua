@@ -252,6 +252,9 @@ do
       if not (ok) then
         return nil, err
       end
+      if self.config.ssl and self.sock_type == "luaposix" then
+        return nil, "ssl is not supported when using luaposix sockets"
+      end
       if self.sock:getreusedtimes() == 0 then
         if self.config.ssl then
           local success

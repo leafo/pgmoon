@@ -95,9 +95,10 @@ create_luasocket = do
         create_luasocket!
       when "cqueues"
         require("pgmoon.cqueues").CqueuesSocket!
+      when "luaposix"
+        require("pgmoon.posix_socket").PosixSocket!
       else
         error "got unknown or unset socket type: #{socket_type}"
 
     socket, socket_type
 }
-

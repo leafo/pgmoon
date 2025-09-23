@@ -225,7 +225,7 @@ class Postgres
   -- password: the username to authenticate with
   -- database: database to connect to
   -- application_name: name assigned to connection to server
-  -- socket_type: type of socket to use (nginx, luasocket, cqueues)
+  -- socket_type: type of socket to use (nginx, luasocket, cqueues, luaposix)
   -- ssl: enable ssl connections
   -- ssl_verify: verify the certificate
   -- cqueues_openssl_context: manually created openssl.ssl.context for cqueues sockets
@@ -256,6 +256,9 @@ class Postgres
 
     ok, err = @sock\connect @config.host, @config.port, connect_opts
     return nil, err unless ok
+
+    if @config.ssl and @sock_type == "luaposix"
+      return nil, "ssl is not supported when using luaposix sockets"
 
     if @sock\getreusedtimes! == 0
       if @config.ssl
@@ -1029,4 +1032,3 @@ class Postgres
     "<Postgres socket: #{@sock}>"
 
 { :Postgres, new: Postgres, :VERSION }
-

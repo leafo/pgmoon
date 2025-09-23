@@ -101,6 +101,8 @@ return {
       socket = create_luasocket()
     elseif "cqueues" == _exp_0 then
       socket = require("pgmoon.cqueues").CqueuesSocket()
+    elseif "luaposix" == _exp_0 then
+      socket = require("pgmoon.posix_socket").PosixSocket()
     else
       socket = error("got unknown or unset socket type: " .. tostring(socket_type))
     end
