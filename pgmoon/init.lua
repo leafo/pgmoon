@@ -407,14 +407,14 @@ do
               local server_cert = self.sock:getpeercertificate()
               pem, signature = server_cert:pem(), server_cert:getsignaturename()
             end
-            signature = signature:lower()
-            local _, with_sig
-            _, _, with_sig = signature:find("%-with%-(.*)")
-            if with_sig then
-              signature = with_sig
-            end
-            if signature:match("^md5") or signature:match("^sha1") or signature:match("sha1$") then
+            local sig_lower = signature:lower()
+            if sig_lower:match("^md5") or sig_lower:match("^sha1") or sig_lower:match("sha1$") or sig_lower:match("sha256$") then
               signature = "sha256"
+            else
+              local objects = require("resty.openssl.objects")
+              local sigid = assert(objects.txt2nid(signature))
+              local digest_nid = assert(objects.find_sigid_algs(sigid))
+              signature = assert(objects.nid2table(digest_nid).sn)
             end
             cbind_data = assert(x509_digest(pem, signature))
           end
