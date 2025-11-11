@@ -615,7 +615,7 @@ local pg = pgmoon.new(config)
 
 -- in this example we create a new deserializer called bignumber and provide
 -- the function to deserialize (type OID 20 is an 8 byte integer)
-pg:set_type_deserializer(20, "bignumber", function(val)
+pg:set_type_deserializer(20, "bignumber", function(self, val)
     return "HUGENUMBER:" .. val
 end)
 
