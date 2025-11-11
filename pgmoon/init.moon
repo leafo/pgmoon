@@ -824,7 +824,7 @@ class Postgres
       len = @decode_int data_row\sub offset, offset + 3
       offset += 4
 
-      if len < 0
+      if len < 0 or len == 4294967295
         out[field_name] = @NULL if @convert_null
         continue
 
