@@ -44,7 +44,7 @@ jobs:
 
     - name: test
       run: |
-        busted -o utfTerminal
+        busted -o TAP
 
   test_resty:
     runs-on: ubuntu-latest

@@ -8,5 +8,5 @@ package.loaded.moonscript = require("moonscript.base")
 local dofile = require("moonscript.base").dofile
 package.loaded["spec.util"] = dofile "spec/util.moon"
 
-require 'busted.runner'({ standalone = false })
+require 'busted.runner'({ standalone = false, output = 'TAP' })
 
