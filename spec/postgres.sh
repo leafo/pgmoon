@@ -57,9 +57,18 @@ function start {
 
   echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
   if [ "$1" = "unix" ]; then
-    # For unix socket mode, actually try to connect via the socket from the host
-    until (PGHOST="$socket_dir" PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT 1' 2> /dev/null); do
-      sleep 0.1
+    # For unix socket mode, we need to wait past the init restart cycle.
+    # During init, postgres listens on unix socket with listen_addresses='',
+    # then shuts down and restarts in production mode.
+    # Require 3 successful connections with delays to ensure we're past init.
+    success_count=0
+    while [ $success_count -lt 3 ]; do
+      if PGHOST="$socket_dir" PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT 1' > /dev/null 2>&1; then
+        success_count=$((success_count + 1))
+      else
+        success_count=0
+      fi
+      sleep 0.3
     done
   else
     until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' 2> /dev/null); do :; done
