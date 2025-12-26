@@ -249,8 +249,12 @@ class Postgres
 
     @convert_null = @config.convert_null
     @sock, @sock_type = socket.new @config.socket_type
+    @busy = false
 
   connect: =>
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
+
     connect_opts = switch @sock_type
       when "nginx"
         {
@@ -260,33 +264,48 @@ class Postgres
         }
 
     ok, err = @sock\connect @config.host, @config.port, connect_opts
-    return nil, err unless ok
+    unless ok
+      @busy = false
+      return nil, err
 
     if @sock\getreusedtimes! == 0
       if @config.ssl
         success, err = @send_ssl_message!
-        return nil, err unless success
+        unless success
+          @busy = false
+          return nil, err
 
       success, err = @send_startup_message!
-      return nil, err unless success
+      unless success
+        @busy = false
+        return nil, err
 
       success, err = @auth!
-      return nil, err unless success
+      unless success
+        @busy = false
+        return nil, err
 
       success, err = @wait_until_ready!
-      return nil, err unless success
+      unless success
+        @busy = false
+        return nil, err
 
+    @busy = false
     true
 
   settimeout: (...) =>
     @sock\settimeout ...
 
   disconnect: =>
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
     @send_message MSG_TYPE_F.terminate, {}
-    @sock\close!
+    @unbusy @sock\close!
 
   keepalive: (...) =>
-    @sock\setkeepalive ...
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
+    @unbusy @sock\setkeepalive ...
 
   -- see: http://25thandclement.com/~william/projects/luaossl.pdf
   create_cqueues_openssl_context: =>
@@ -566,14 +585,21 @@ class Postgres
       @simple_query q
 
 
+  unbusy: (...) =>
+    @busy = false
+    ...
+
   -- query using the "simple" query protocol
   -- supports multiple queries, but no parameters
   simple_query: (q) =>
     if q\find NULL
       return nil, "invalid null byte in query"
 
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
+
     @send_message MSG_TYPE_F.query, {q, NULL}
-    @receive_query_result!
+    @unbusy @receive_query_result!
 
   -- query using the "extended" query protocol
   -- supports only a single query, and parameters
@@ -629,6 +655,9 @@ class Postgres
 
     insert bind_data, @encode_int 0, 2 -- number of result format codes, 0 to default to all text
 
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
+
     @send_messages {
       { MSG_TYPE_F.parse, parse_data }
       { MSG_TYPE_F.bind, bind_data }
@@ -659,7 +688,7 @@ class Postgres
       }
     }
 
-    @receive_query_result!
+    @unbusy @receive_query_result!
 
   -- NOTE: this is called for both the simple query and the extended query protocol
   receive_query_result: =>
@@ -714,11 +743,17 @@ class Postgres
     result, num_queries, notifications, notices
 
   wait_for_notification: =>
+    error "pgmoon: connection is busy" if @busy
+    @busy = true
+
     while true
       t, msg = @receive_message!
-      return nil, msg unless t
+      unless t
+        @busy = false
+        return nil, msg
       switch t
         when MSG_TYPE_B.notification
+          @busy = false
           return @parse_notification(msg)
 
   format_query_result: (row_desc, data_rows, command_complete) =>

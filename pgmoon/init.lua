@@ -245,6 +245,10 @@ do
       return self:set_type_deserializer(tonumber(res.oid), "hstore")
     end,
     connect = function(self)
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
       local connect_opts
       local _exp_0 = self.sock_type
       if "nginx" == _exp_0 then
@@ -256,6 +260,7 @@ do
       end
       local ok, err = self.sock:connect(self.config.host, self.config.port, connect_opts)
       if not (ok) then
+        self.busy = false
         return nil, err
       end
       if self.sock:getreusedtimes() == 0 then
@@ -263,34 +268,47 @@ do
           local success
           success, err = self:send_ssl_message()
           if not (success) then
+            self.busy = false
             return nil, err
           end
         end
         local success
         success, err = self:send_startup_message()
         if not (success) then
+          self.busy = false
           return nil, err
         end
         success, err = self:auth()
         if not (success) then
+          self.busy = false
           return nil, err
         end
         success, err = self:wait_until_ready()
         if not (success) then
+          self.busy = false
           return nil, err
         end
       end
+      self.busy = false
       return true
     end,
     settimeout = function(self, ...)
       return self.sock:settimeout(...)
     end,
     disconnect = function(self)
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
       self:send_message(MSG_TYPE_F.terminate, { })
-      return self.sock:close()
+      return self:unbusy(self.sock:close())
     end,
     keepalive = function(self, ...)
-      return self.sock:setkeepalive(...)
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
+      return self:unbusy(self.sock:setkeepalive(...))
     end,
     create_cqueues_openssl_context = function(self)
       if not (self.config.ssl_verify ~= nil or self.config.cert or self.config.key or self.config.ssl_version) then
@@ -561,15 +579,23 @@ do
         return self:simple_query(q)
       end
     end,
+    unbusy = function(self, ...)
+      self.busy = false
+      return ...
+    end,
     simple_query = function(self, q)
       if q:find(NULL) then
         return nil, "invalid null byte in query"
       end
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
       self:send_message(MSG_TYPE_F.query, {
         q,
         NULL
       })
-      return self:receive_query_result()
+      return self:unbusy(self:receive_query_result())
     end,
     extended_query = function(self, q, ...)
       if q:find(NULL) then
@@ -618,6 +644,10 @@ do
         end
       end
       insert(bind_data, self:encode_int(0, 2))
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
       self:send_messages({
         {
           MSG_TYPE_F.parse,
@@ -653,7 +683,7 @@ do
           { }
         }
       })
-      return self:receive_query_result()
+      return self:unbusy(self:receive_query_result())
     end,
     receive_query_result = function(self)
       local row_desc, data_rows, command_complete, err_msg
@@ -715,13 +745,19 @@ do
       return result, num_queries, notifications, notices
     end,
     wait_for_notification = function(self)
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self.busy = true
       while true do
         local t, msg = self:receive_message()
         if not (t) then
+          self.busy = false
           return nil, msg
         end
         local _exp_0 = t
         if MSG_TYPE_B.notification == _exp_0 then
+          self.busy = false
           return self:parse_notification(msg)
         end
       end
@@ -1097,6 +1133,7 @@ do
       })
       self.convert_null = self.config.convert_null
       self.sock, self.sock_type = socket.new(self.config.socket_type)
+      self.busy = false
     end,
     __base = _base_0,
     __name = "Postgres"
