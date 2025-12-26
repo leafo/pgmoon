@@ -35,6 +35,7 @@ jobs:
         luarocks install https://raw.githubusercontent.com/leafo/lua-cjson/master/lua-cjson-dev-1.rockspec
         luarocks install luaossl
         luarocks install cqueues
+        luarocks install luaposix
         [[ "${{ matrix.luaVersion }}" =~ ^5\.[12]$ ]] && luarocks install luabitop || true
 
     - name: build
@@ -44,8 +45,6 @@ jobs:
     - name: test
       run: |
         busted -o utfTerminal
-
-
 
   test_resty:
     runs-on: ubuntu-latest
