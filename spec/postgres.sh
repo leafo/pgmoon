@@ -57,11 +57,8 @@ function start {
 
   echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
   if [ "$1" = "unix" ]; then
-    # For unix socket mode, wait until socket file appears and postgres is ready
-    until [ -S "$socket_dir/.s.PGSQL.5432" ]; do
-      sleep 0.1
-    done
-    until docker exec pgmoon-test pg_isready -U postgres > /dev/null 2>&1; do
+    # For unix socket mode, actually try to connect via the socket from the host
+    until (PGHOST="$socket_dir" PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT 1' 2> /dev/null); do
       sleep 0.1
     done
   else
