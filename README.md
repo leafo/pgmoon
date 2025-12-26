@@ -374,6 +374,81 @@ print(tostring(postgres)) --> "<Postgres socket: 0xffffff>"
 
 Returns string representation of current state of `Postgres` object.
 
+## PostgresPool
+
+Although Lua is single-threaded, in asynchronous environments that share state,
+multiple coroutines may attempt to use the same database connection while
+another coroutine is yielded. This can cause issues because PostgreSQL
+connections are stateful — if one coroutine starts a query and yields (e.g.,
+waiting for network I/O), another coroutine might try to use the same
+connection while it's mid-operation, corrupting the protocol state.
+
+pgmoon tracks when a connection is busy executing a query. `PostgresPool` uses
+this busy tracking to manage a pool of connections, automatically assigning
+queries to available connections and creating new ones as needed.
+
+The `PostgresPool` connection is designed to match the interface of the
+`Postgres` connection, so it can be a drop in for when you need a connection
+pool.
+
+
+```lua
+local PostgresPool = require("pgmoon.pool").PostgresPool
+local pool = PostgresPool({
+  host = "127.0.0.1",
+  port = "5432",
+  database = "mydb",
+  user = "postgres",
+  max_pool_size = 10
+})
+
+assert(pool:connect())
+
+-- Queries are automatically assigned to available connections
+-- Safe to call from multiple coroutines simultaneously
+local res = assert(pool:query("select * from users limit 10"))
+```
+
+The first connection must be established with `connect` before any queries are
+made (this is to validate that you connection settings are valid). If the pool
+is fully occupied when an query is issued, then a new connection will
+dynamically be established and used, and then returned to the pool.
+
+Methods like `disconnect`, `settimeout`, `setkeepalive` operate on every
+connection currently in the pool.
+
+
+### Configuration
+
+`PostgresPool` accepts the same configuration options as `Postgres`, plus:
+
+* `"max_pool_size"`: Maximum number of connections in the pool (optional). When all connections are busy and the limit is reached, queries will return an error.
+
+### Methods
+
+`PostgresPool` provides the same query interface as `Postgres`:
+
+* `pool:connect()` — Creates the first connection in the pool
+* `pool:disconnect()` — Disconnects all connections in the pool
+* `pool:keepalive(...)` — Calls keepalive on all connections (OpenResty only)
+* `pool:settimeout(...)` — Sets timeout on all existing and future connections
+* `pool:query(...)` — Runs a query on an available connection
+* `pool:simple_query(q)` — Runs a simple query on an available connection
+* `pool:extended_query(...)` — Runs an extended query on an available connection
+* `pool:set_type_deserializer(...)` — Sets type deserializer on all connections
+* `pool:escape_literal(val)` — Same as `Postgres:escape_literal`
+* `pool:escape_identifier(val)` — Same as `Postgres:escape_identifier`
+* `pool:setup_hstore()` — Same as `Postgres:setup_hstore`
+
+Additional pool-specific methods:
+
+* `pool:pool_size()` — Returns the current number of connections in the pool
+* `pool:active_connections()` — Returns the number of connections currently executing queries
+
+> **Note:** `wait_for_notification` is not supported with `PostgresPool` because
+> notifications are tied to the specific socket connection that issued the
+> `LISTEN` command.
+
 ## Extended and simple query protocols
 
 pgmoon will issue your query to the database server using either the simple or

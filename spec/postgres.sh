@@ -43,7 +43,7 @@ function start {
 }
 
 function stop {
-  docker stop pgmoon-test 2> /dev/null
+  docker stop pgmoon-test > /dev/null 2>&1
 }
 
 function start_legacy {

@@ -36,6 +36,7 @@ build = {
     ["pgmoon.crypto"] = "pgmoon/crypto.lua",
     ["pgmoon.hstore"] = "pgmoon/hstore.lua",
     ["pgmoon.json"] = "pgmoon/json.lua",
+    ["pgmoon.pool"] = "pgmoon/pool.lua",
     ["pgmoon.socket"] = "pgmoon/socket.lua",
     ["pgmoon.util"] = "pgmoon/util.lua",
   },
