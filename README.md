@@ -12,7 +12,7 @@
 of the [cosocket
 api](https://github.com/openresty/lua-nginx-module#ngxsockettcp) to provide
 asynchronous queries but it also works in the regular any Lua environment where
-[LuaSocket][] or [cqueues][] is available.
+[LuaSocket][], [cqueues][], or [LuaPosix][] is available.
 
 It's a perfect candidate for running your queries both inside OpenResty's
 environment and on the command line (eg. tests) in web frameworks like [Lapis][].
@@ -49,6 +49,7 @@ environment you can chose one:
 * [OpenResty][] &mdash; The built in socket is used, no additional dependencies necessary
 * [LuaSocket][] &mdash; `luarocks install luasocket`
 * [cqueues][] &mdash; `luarocks install cqueues`
+* [LuaPosix][] &mdash; `luarocks install luaposix` (Unix sockets only via `socket_path`)
 
 If you're on PUC Lua 5.1 or 5.2 then you will need a bit libray (not needed for LuaJIT):
 
@@ -785,3 +786,4 @@ THE SOFTWARE.
   [OpenResty]: https://openresty.org/
   [LuaSocket]: http://w3.impa.br/~diego/software/luasocket/
   [cqueues]: http://25thandclement.com/~william/projects/cqueues.html
+  [LuaPosix]: https://github.com/luaposix/luaposix
