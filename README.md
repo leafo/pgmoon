@@ -139,7 +139,8 @@ Available options:
 * `"ssl"`: enable ssl (default: `false`)
 * `"ssl_verify"`: verify server certificate (default: `nil`)
 * `"ssl_required"`: abort the connection if the server does not support SSL connections (default: `nil`)
-* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"luasocket"`, `cqueues` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"socket_type"`: the type of socket to use, one of: `"nginx"`, `"luasocket"`, `"cqueues"` (default: `"nginx"` if in nginx, `"luasocket"` otherwise)
+* `"socket_path"`: path to Unix socket (e.g. `"/var/run/postgresql/.s.PGSQL.5432"`); when set `host` and `port` are ignored. In nginx, connects using `unix:/path` syntax; otherwise uses luaposix
 * `"application_name"`: set the name of the connection as displayed in `pg_stat_activity`. (default: `"pgmoon"`)
 * `"pool_name"`: (OpenResty only) name of pool to use when using OpenResty cosocket (default: `"#{host}:#{port}:#{database}:#{user}"`)
 * `"pool_size"`: (OpenResty only) Passed directly to OpenResty cosocket connect function, [see docs](https://github.com/openresty/lua-nginx-module#tcpsockconnect)

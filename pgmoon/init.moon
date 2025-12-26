@@ -139,6 +139,7 @@ class Postgres
     host: "127.0.0.1"
     port: "5432"
     ssl: false
+    socket_path: nil
   }
 
   -- convert a lua value to pg_type.oid, string representation used for sending
@@ -248,8 +249,19 @@ class Postgres
     }
 
     @convert_null = @config.convert_null
-    @sock, @sock_type = socket.new @config.socket_type
     @busy = false
+
+    -- Auto-select socket type based on configuration
+    -- If socket_path is provided, use nginx cosocket when available, otherwise luaposix
+    socket_type = if @config.socket_path
+      if ngx and ngx.get_phase! != "init"
+        "nginx"
+      else
+        "luaposix"
+    else
+      @config.socket_type
+
+    @sock, @sock_type = socket.new socket_type
 
   connect: =>
     error "pgmoon: connection is busy" if @busy
@@ -263,7 +275,14 @@ class Postgres
           backlog: @config.backlog
         }
 
-    ok, err = @sock\connect @config.host, @config.port, connect_opts
+    -- Handle Unix socket vs TCP connection
+    ok, err = if @config.socket_path
+      if @sock_type == "nginx"
+        @sock\connect "unix:#{@config.socket_path}", connect_opts
+      else
+        @sock\connect @config.socket_path
+    else
+      @sock\connect @config.host, @config.port, connect_opts
     unless ok
       @busy = false
       return nil, err
@@ -1069,4 +1088,3 @@ class Postgres
     "<Postgres socket: #{@sock}>"
 
 { :Postgres, new: Postgres, :VERSION }
-

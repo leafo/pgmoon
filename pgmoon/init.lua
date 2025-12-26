@@ -145,7 +145,8 @@ do
       user = "postgres",
       host = "127.0.0.1",
       port = "5432",
-      ssl = false
+      ssl = false,
+      socket_path = nil
     },
     type_serializers = {
       string = function(self, v)
@@ -258,7 +259,16 @@ do
           backlog = self.config.backlog
         }
       end
-      local ok, err = self.sock:connect(self.config.host, self.config.port, connect_opts)
+      local ok, err
+      if self.config.socket_path then
+        if self.sock_type == "nginx" then
+          ok, err = self.sock:connect("unix:" .. tostring(self.config.socket_path), connect_opts)
+        else
+          ok, err = self.sock:connect(self.config.socket_path)
+        end
+      else
+        ok, err = self.sock:connect(self.config.host, self.config.port, connect_opts)
+      end
       if not (ok) then
         self.busy = false
         return nil, err
@@ -1132,8 +1142,18 @@ do
         end
       })
       self.convert_null = self.config.convert_null
-      self.sock, self.sock_type = socket.new(self.config.socket_type)
       self.busy = false
+      local socket_type
+      if self.config.socket_path then
+        if ngx and ngx.get_phase() ~= "init" then
+          socket_type = "nginx"
+        else
+          socket_type = "luaposix"
+        end
+      else
+        socket_type = self.config.socket_type
+      end
+      self.sock, self.sock_type = socket.new(socket_type)
     end,
     __base = _base_0,
     __name = "Postgres"
