@@ -3,6 +3,7 @@ set -eo pipefail
 
 pgroot=$(pwd)/pgdata
 port=9999
+socket_dir="/tmp/pgmoon-test-socket"
 
 postgres_version=${DOCKER_POSTGRES_VERSION:-latest}
 
@@ -20,17 +21,34 @@ function makecerts {
 }
 
 function start {
+  # Stop any existing container first
+  docker stop pgmoon-test > /dev/null 2>&1 || true
+
   INIT_SCRIPT=""
+  VOLUME_MOUNT=""
+  PORT_MAPPING="-p 127.0.0.1:$port:5432/tcp"
 
   if [ "$1" = "ssl" ]; then
     INIT_SCRIPT="-v $(pwd)/spec/docker_enable_ssl.sh:/docker-entrypoint-initdb.d/docker_enable_ssl.sh"
   fi
 
+  if [ "$1" = "unix" ]; then
+    # Create socket directory if it doesn't exist
+    if [ ! -d "$socket_dir" ]; then
+      mkdir -p "$socket_dir"
+      chmod 777 "$socket_dir"
+    fi
+    VOLUME_MOUNT="-v $socket_dir:/var/run/postgresql"
+    # No TCP port mapping needed for unix socket mode
+    PORT_MAPPING=""
+  fi
+
   echo "$(tput setaf 4)Starting postgresql $postgres_version (docker run) $1 $(tput sgr0)"
   docker run --rm --name pgmoon-test \
-    -p 127.0.0.1:$port:5432/tcp \
+    $PORT_MAPPING \
     -e POSTGRES_PASSWORD=pgmoon \
     $INIT_SCRIPT \
+    $VOLUME_MOUNT \
     -d \
     postgres:$postgres_version > /dev/null
 
@@ -38,7 +56,17 @@ function start {
   # -v "$pgroot:/var/lib/postgresql/data" \ # this can be used to inspect logs since we'll have the server data dir available after the sever stops
 
   echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
-  until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' 2> /dev/null); do :; done
+  if [ "$1" = "unix" ]; then
+    # For unix socket mode, wait until socket file appears and postgres is ready
+    until [ -S "$socket_dir/.s.PGSQL.5432" ]; do
+      sleep 0.1
+    done
+    until docker exec pgmoon-test pg_isready -U postgres > /dev/null 2>&1; do
+      sleep 0.1
+    done
+  else
+    until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' 2> /dev/null); do :; done
+  fi
   echo "$(tput setaf 4)Sever is ready$(tput sgr0)"
 }
 
