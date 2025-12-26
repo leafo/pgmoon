@@ -1,6 +1,6 @@
 # pgmoon
 
-![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)
+[![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)](https://github.com/leafo/pgmoon/actions)
 
 > **Note:** Have you updated from an older version of OpenResty? You must update to
 > pgmoon 1.12 or above, due to a change in Lua pattern compatibility to avoid incorrect 
@@ -11,7 +11,7 @@
 **pgmoon** was originally designed for use in [OpenResty][] to take advantage
 of the [cosocket
 api](https://github.com/openresty/lua-nginx-module#ngxsockettcp) to provide
-asynchronous queries but it also works in the regular any Lua environment where
+asynchronous queries but it also works in any regular Lua environment where
 [LuaSocket][], [cqueues][], or [LuaPosix][] is available.
 
 It's a perfect candidate for running your queries both inside OpenResty's
@@ -44,14 +44,14 @@ communicate with the database:
 > methods)
 
 A socket implementation **is required** to use pgmoon, depending on the
-environment you can chose one:
+environment you can choose one:
 
-* [OpenResty][] &mdash; The built in socket is used, no additional dependencies necessary
+* [OpenResty][] &mdash; The built-in socket is used, no additional dependencies necessary
 * [LuaSocket][] &mdash; `luarocks install luasocket`
 * [cqueues][] &mdash; `luarocks install cqueues`
 * [LuaPosix][] &mdash; `luarocks install luaposix` (Unix sockets only via `socket_path`)
 
-If you're on PUC Lua 5.1 or 5.2 then you will need a bit libray (not needed for LuaJIT):
+If you're on PUC Lua 5.1 or 5.2 then you will need a bit library (not needed for LuaJIT):
 
 ```bash
 $ luarocks install luabitop
@@ -76,7 +76,7 @@ $ luarocks install luaossl
 ```
 > **Note:** [LuaCrypto][] can be used as a fallback, but the library is abandoned and not recommended for use
 
-> **Note:** Use within [OpenResty][] will prioritize built  in functions if possible
+> **Note:** Use within [OpenResty][] will prioritize built-in functions if possible
 
 Parsing complex types like Arrays and HStore requires `lpeg` to be installed.
 
@@ -93,7 +93,7 @@ local pg = pgmoon.new({
 
 assert(pg:connect())
 
-local res = assert(pg:query("select * from users where status = 'active' limit 20")
+local res = assert(pg:query("select * from users where status = 'active' limit 20"))
 
 assert(pg:query("update users set name = $1 where id = $2", "leafo", 99))
 
@@ -128,7 +128,7 @@ Functions in table returned by `require("pgmoon")`:
 
 Creates a new `Postgres` object from a configuration object. All fields are
 optional unless otherwise stated. The newly created object will not
-automatically connect, you must call `conect` after creating the object.
+automatically connect, you must call `connect` after creating the object.
 
 Available options:
 
@@ -170,7 +170,7 @@ postgres:settimeout(5000) -- 5 second timeout
 Sets the timeout value (in milliseconds) for all subsequent socket operations
 (connect, write, receive). This function does not have any return values.
 
-The default timeout depends on the underslying socket implementation but
+The default timeout depends on the underlying socket implementation but
 generally corresponds to no timeout.
 
 ### `postgres:disconnect()`
@@ -180,7 +180,7 @@ local success, err = postgres:disconnect()
 ```
 
 Closes the socket. Returns `nil` if the socket couldn't be closed. On most
-socket types, `connect` can be called again to reestaablish a connection with
+socket types, `connect` can be called again to reestablish a connection with
 the same postgres object instance.
 
 ### `postgres:keepalive(...)`
@@ -211,7 +211,7 @@ value is `nil`, followed by a string describing the error. Since a single call
 to `postgres:query` can contain multiple queries, the results of any queries that
 succeeded before the error occurred are returned after the error message.
 (Note: queries are atomic, they either succeed or fail. The partial result will
-only contain succeed queries, not partially data from the failed query)
+only contain succeed queries, not partial data from the failed query)
 
 <details>
 <summary>Additional return values: notifications and notices</summary>
@@ -219,7 +219,7 @@ only contain succeed queries, not partially data from the failed query)
 ---
 
 In addition to the return values above, pgmoon will also return two additional
-values if the query generates them, notifications an notices.
+values if the query generates them, notifications and notices.
 
 ```lua
 local result, err, num_queries, notifications, notices  = postgres:query("drop table if exists some_table")
@@ -290,7 +290,7 @@ When using the *simple protocol* (calling the function with a single string),
 you can send multiple queries at once by separating them with a `;`. The number
 of queries executed is returned as a second return value after the result
 object. When more than one query is executed then the result object changes
-slightly. It becomes a array table holding all the individual results:
+slightly. It becomes an array table holding all the individual results:
 
 ```lua
 local res, num_queries = pg:query([[
@@ -336,8 +336,8 @@ local sql_fragment = postgres:escape_literal(val)
 local res = postgres:query("select created_at from users where id = " .. sql_fragment)
 ```
 
-Escapes a Lua value int a valid SQL fragment that can be safely concatenated
-into a query string. **Never** concatenate a variable into query without
+Escapes a Lua value into a valid SQL fragment that can be safely concatenated
+into a query string. **Never** concatenate a variable into a query without
 escaping it in some way, or you may open yourself up to [SQL injection
 attacks](https://en.wikipedia.org/wiki/SQL_injection).
 
@@ -356,7 +356,7 @@ that is safe for escaping.
 ```lua
 local sql_fragment = postgres:escape_identifier(some_table_name)`
 
-local res = postgres:query("select * from " .. sql_fragment .. " limit 20)
+local res = postgres:query("select * from " .. sql_fragment .. " limit 20")
 ```
 
 Escapes a Lua value for use as a Postgres identifier. This includes things like
@@ -411,7 +411,7 @@ local res = assert(pool:query("select * from users limit 10"))
 
 The first connection must be established with `connect` before any queries are
 made (this is to validate that you connection settings are valid). If the pool
-is fully occupied when an query is issued, then a new connection will
+is fully occupied when a query is issued, then a new connection will
 dynamically be established and used, and then returned to the pool.
 
 Methods like `disconnect`, `settimeout`, `setkeepalive` operate on every
@@ -585,7 +585,7 @@ determined from the first entry of the array.
 When trying to encode an empty array an error will be thrown. Postgres requires
 a type when using an array. When there are values in the array Postgres can
 infer the type, but with no values in the array no type can be inferred. This
-is illustrated in the erorr provided by Postgres:
+is illustrated in the error provided by Postgres:
 
 
 ```
@@ -624,12 +624,12 @@ local my_tbl = { hello = "world" }
 
 local json = require "cjson"
 
-pg:query("update my_table set data = " .. db.escape_literal(json.encode(my_tbl)) .. " where id = 124"
+pg:query("update my_table set data = " .. db.escape_literal(json.encode(my_tbl)) .. " where id = 124")
 ```
 
 ## Handling hstore
 
-Because `hstore` is an extension type, a query is reuired to find out the type
+Because `hstore` is an extension type, a query is required to find out the type
 id before pgmoon can automatically decode it. Call the `setup_hstore` method on
 your connection object after connecting to set it up.
 
@@ -669,7 +669,7 @@ attempt to interpret the types from postgres and map them to something usable
 in Lua. By default implementations are included for primitives like numbers,
 booleans, strings, and JSON.
 
-You can provie you own type deserializer if you want to add custom behavior for
+You can provide your own type deserializer if you want to add custom behavior for
 certain types of values returned by PostgreSQL.
 
 You must have some knowledge of types and type OIDs. Every type in PostgreSQL
@@ -704,7 +704,7 @@ pg:set_type_deserializer(701, "bignumber")
 The arguments are as follows:
 
 * `oid` The OID from `pg_type` that will be handled
-* `name` The local name of the type. This is a name that points to an existing deserializer or will be used to register a new one if the `deserializer` argument is 
+* `name` The local name of the type. This is a name that points to an existing deserializer or will be used to register a new one if the `deserializer` argument is provided
 * `deserializer` A function that takes the raw string value from Postgres and converts it into something more useful (optional). Any existing deserializer function with the same name will be overwritten
 
 ## Custom type serializer
@@ -728,7 +728,7 @@ your own serializer.
 > the extended query protocol. As an example, an *escaped* string would be
 > `'hello'` (notice the quotes, this is a fragment of valid SQL syntax, whereas
 > a serialized string would be just the string: `hello` (and typically paired
-> with a type OID, typically `25` for text). Serializing is the oposite of
+> with a type OID, typically `25` for text). Serializing is the opposite of
 > deserializing, which is described above.
 
 
@@ -814,6 +814,7 @@ Homepage: <http://leafo.net>
 
 Note: Future changenotes will be published on GitHub releases page: https://github.com/leafo/pgmoon/releases
 
+* 1.16.0 — 2022-11-22 - Add support for X509 signature algorithms (RSA-SHA1, ECDSA-with-SHA384), git+ssh protocol in rockspec
 * 1.15.0 — 2022-6-3 - Extended query protocol
 * 1.14.0 — 2022-2-17 - OpenResty crypto functions used, better empty array support, 
 * 1.13.0 — 2021-10-13 - Add support for scram_sha_256_auth (@murillopaula), 'backlog' and 'pool_size' options while using ngx.socket (@xiaocang), update LuaSec ssl_protocol default options (@jeremymv2), `application_name` option (@mecampbellsoup)
