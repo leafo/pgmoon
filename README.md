@@ -2,10 +2,6 @@
 
 [![test](https://github.com/leafo/pgmoon/workflows/test/badge.svg)](https://github.com/leafo/pgmoon/actions)
 
-> **Note:** Have you updated from an older version of OpenResty? You must update to
-> pgmoon 1.12 or above, due to a change in Lua pattern compatibility to avoid incorrect 
-> results from queries that return affected rows.
-
 **pgmoon** is a PostgreSQL client library written in pure Lua (MoonScript).
 
 **pgmoon** was originally designed for use in [OpenResty][] to take advantage
