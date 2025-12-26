@@ -6,6 +6,14 @@ port=9999
 socket_dir="/tmp/pgmoon-test-socket"
 
 postgres_version=${DOCKER_POSTGRES_VERSION:-latest}
+startup_timeout=15
+
+function fail_with_logs {
+  echo "$(tput setaf 1)ERROR: $1$(tput sgr0)" >&2
+  echo "$(tput setaf 3)Docker container logs:$(tput sgr0)" >&2
+  docker logs pgmoon-test 2>&1 | tail -100 >&2
+  exit 1
+}
 
 function makecerts {
   # https://www.postgresql.org/docs/9.5/static/ssl-tcp.html
@@ -55,7 +63,9 @@ function start {
 
   # -v "$pgroot:/var/lib/postgresql/data" \ # this can be used to inspect logs since we'll have the server data dir available after the sever stops
 
-  echo "$(tput setaf 4)Waiting for server to be ready$(tput sgr0)"
+  echo "$(tput setaf 4)Waiting for server to be ready (timeout: ${startup_timeout}s)$(tput sgr0)"
+  start_time=$(date +%s)
+
   if [ "$1" = "unix" ]; then
     # For unix socket mode, we need to wait past the init restart cycle.
     # During init, postgres listens on unix socket with listen_addresses='',
@@ -63,6 +73,9 @@ function start {
     # Require 3 successful connections with delays to ensure we're past init.
     success_count=0
     while [ $success_count -lt 3 ]; do
+      if [ $(($(date +%s) - start_time)) -ge $startup_timeout ]; then
+        fail_with_logs "Timed out waiting for PostgreSQL to be ready (unix socket mode)"
+      fi
       if PGHOST="$socket_dir" PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT 1' > /dev/null 2>&1; then
         success_count=$((success_count + 1))
       else
@@ -71,9 +84,14 @@ function start {
       sleep 0.3
     done
   else
-    until (PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' 2> /dev/null); do :; done
+    while ! PGHOST=127.0.0.1 PGPORT=$port PGUSER=postgres PGPASSWORD=pgmoon psql -c 'SELECT pg_reload_conf()' > /dev/null 2>&1; do
+      if [ $(($(date +%s) - start_time)) -ge $startup_timeout ]; then
+        fail_with_logs "Timed out waiting for PostgreSQL to be ready (TCP mode)"
+      fi
+      sleep 0.1
+    done
   fi
-  echo "$(tput setaf 4)Sever is ready$(tput sgr0)"
+  echo "$(tput setaf 4)Server is ready$(tput sgr0)"
 }
 
 function stop {

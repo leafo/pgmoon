@@ -21,4 +21,4 @@ ssl = on
 ssl_cert_file = '$(pwd)/server.crt'
 ssl_key_file = '$(pwd)/server.key'
 ssl_min_protocol_version = 'TLSv1.2'
-" >> data/postgresql.conf
+" >> "$PGDATA/postgresql.conf"
