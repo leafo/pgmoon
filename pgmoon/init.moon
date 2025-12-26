@@ -9,7 +9,7 @@ unpack = table.unpack or unpack
 -- https://www.postgresql.org/docs/current/protocol-message-formats.html
 
 DEBUG = false
-VERSION = "1.16.0"
+VERSION = "1.17.0"
 
 _len = (thing, t=type(thing)) ->
   switch t
