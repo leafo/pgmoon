@@ -36,21 +36,34 @@ do
     send = function(self, ...)
       local posix_socket = require("posix.sys.socket")
       local data = flatten(...)
-      local result, err, _ = posix_socket.send(self.sock.fd, data)
-      if result then
-        return #data, nil
-      else
-        return nil, err
+      local total_sent = 0
+      while total_sent < #data do
+        local bytes_sent, err, _ = posix_socket.send(self.sock.fd, data:sub(total_sent + 1))
+        if bytes_sent then
+          total_sent = total_sent + bytes_sent
+        else
+          return nil, err
+        end
       end
+      return #data, nil
     end,
     receive = function(self, bytes)
       local posix_socket = require("posix.sys.socket")
-      local result, err, _ = posix_socket.recv(self.sock.fd, bytes)
-      if result then
-        return result
-      else
-        return nil, err
+      local chunks = { }
+      local remaining = bytes
+      while remaining > 0 do
+        local chunk, err, _ = posix_socket.recv(self.sock.fd, remaining)
+        if chunk then
+          if #chunk == 0 then
+            return nil, "closed"
+          end
+          table.insert(chunks, chunk)
+          remaining = remaining - #chunk
+        else
+          return nil, err
+        end
       end
+      return table.concat(chunks)
     end,
     settimeout = function(self, t)
       self.timeout = t

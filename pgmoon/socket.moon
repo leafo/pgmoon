@@ -32,19 +32,30 @@ create_luaposix_socket = do
     send: (...) =>
       posix_socket = require "posix.sys.socket"
       data = flatten ...
-      result, err, _ = posix_socket.send @sock.fd, data
-      if result
-        #data, nil
-      else
-        nil, err
+      total_sent = 0
+      while total_sent < #data
+        bytes_sent, err, _ = posix_socket.send @sock.fd, data\sub(total_sent + 1)
+        if bytes_sent
+          total_sent += bytes_sent
+        else
+          return nil, err
+      #data, nil
 
     receive: (bytes) =>
       posix_socket = require "posix.sys.socket"
-      result, err, _ = posix_socket.recv @sock.fd, bytes
-      if result
-        result
-      else
-        nil, err
+      chunks = {}
+      remaining = bytes
+      while remaining > 0
+        chunk, err, _ = posix_socket.recv @sock.fd, remaining
+        if chunk
+          if #chunk == 0
+            -- EOF: connection closed
+            return nil, "closed"
+          table.insert chunks, chunk
+          remaining -= #chunk
+        else
+          return nil, err
+      table.concat chunks
 
     settimeout: (t) =>
       -- Unix sockets don't have built-in timeout, but we store it for compatibility
