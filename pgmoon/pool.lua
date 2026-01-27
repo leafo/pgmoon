@@ -14,7 +14,7 @@ do
       local _list_0 = self.pool
       for _index_0 = 1, #_list_0 do
         local pg = _list_0[_index_0]
-        if not (pg.busy) then
+        if not (pg.busy or pg.reserved) then
           return pg
         end
       end
@@ -125,6 +125,55 @@ do
     encode_bytea = Postgres.encode_bytea,
     decode_bytea = Postgres.decode_bytea,
     setup_hstore = Postgres.setup_hstore,
+    reserve = function(self)
+      if #self.pool == 0 then
+        return nil, "not connected"
+      end
+      local _list_0 = self.pool
+      for _index_0 = 1, #_list_0 do
+        local pg = _list_0[_index_0]
+        if not (pg.busy or pg.reserved) then
+          pg.reserved = true
+          return pg
+        end
+      end
+      if self.config.max_pool_size and #self.pool >= self.config.max_pool_size then
+        return nil, "pool exhausted, max_pool_size reached"
+      end
+      local pg = self:_create_instance()
+      local ok, err = pg:connect()
+      if not (ok) then
+        return nil, err
+      end
+      table.insert(self.pool, pg)
+      pg.reserved = true
+      return pg
+    end,
+    release = function(self, pg)
+      if not (pg.parent_pool == self) then
+        return nil, "connection not from this pool"
+      end
+      if not (pg.reserved) then
+        return nil, "connection not reserved"
+      end
+      if pg.transaction_status == "T" or pg.transaction_status == "E" then
+        local ok, err = pcall(function()
+          return pg:query("ROLLBACK")
+        end)
+        if not (ok and pg.transaction_status == "I") then
+          pg:disconnect()
+          for i, conn in ipairs(self.pool) do
+            if conn == pg then
+              table.remove(self.pool, i)
+              break
+            end
+          end
+          return nil, "rollback failed, connection removed from pool"
+        end
+      end
+      pg.reserved = false
+      return true
+    end,
     pool_size = function(self)
       return #self.pool
     end,

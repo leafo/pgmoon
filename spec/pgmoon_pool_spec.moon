@@ -194,3 +194,106 @@ describe "pgmoon.pool", ->
     it "has NULL constant", ->
       pool = PostgresPool {}
       assert.truthy pool.NULL
+
+  describe "reserve and release", ->
+    before_each ->
+      pool = PostgresPool { database: DB, user: USER, password: PASSWORD, host: HOST, port: PORT }
+      assert pool\connect!
+
+    after_each ->
+      pool\disconnect!
+
+    it "reserves and releases a connection for transaction", ->
+      pg = assert pool\reserve!
+      assert.truthy pg.reserved
+      assert.same 1, pool\pool_size!
+
+      assert pg\query "BEGIN"
+      assert.same "T", pg.transaction_status
+
+      assert pg\query "SELECT 1"
+      assert pg\query "COMMIT"
+      assert.same "I", pg.transaction_status
+
+      assert pool\release pg
+      assert.falsy pg.reserved
+
+    it "reserved connection is not reused by pool:query", ->
+      pg = assert pool\reserve!
+
+      -- pool:query should create a new connection since first is reserved
+      assert pool\query "SELECT 1"
+      assert.same 2, pool\pool_size!
+
+      assert pool\release pg
+
+    it "auto-rollback on release when in transaction (T state)", ->
+      pg = assert pool\reserve!
+
+      assert pg\query "BEGIN"
+      assert.same "T", pg.transaction_status
+
+      -- Release without committing
+      assert pool\release pg
+      assert.falsy pg.reserved
+      assert.same "I", pg.transaction_status
+
+    it "auto-rollback on release when in error state (E state)", ->
+      pg = assert pool\reserve!
+
+      assert pg\query "BEGIN"
+      -- Cause an error
+      res, err = pg\query "SELECT * FROM nonexistent_table_xyz"
+      assert.is_nil res
+      assert.same "E", pg.transaction_status
+
+      -- Release should auto-rollback and recover
+      assert pool\release pg
+      assert.falsy pg.reserved
+      assert.same "I", pg.transaction_status
+
+    it "respects max_pool_size when reserving", ->
+      pool\disconnect!
+      pool = PostgresPool {
+        database: DB, user: USER, password: PASSWORD, host: HOST, port: PORT
+        max_pool_size: 2
+      }
+      assert pool\connect!
+
+      pg1 = assert pool\reserve!
+      pg2 = assert pool\reserve!
+      assert.same 2, pool\pool_size!
+
+      res, err = pool\reserve!
+      assert.is_nil res
+      assert.same "pool exhausted, max_pool_size reached", err
+
+      pool\release pg1
+      pool\release pg2
+
+    it "errors when releasing connection not from this pool", ->
+      other_pool = PostgresPool { database: DB, user: USER, password: PASSWORD, host: HOST, port: PORT }
+      assert other_pool\connect!
+
+      pg = assert other_pool\reserve!
+
+      res, err = pool\release pg
+      assert.is_nil res
+      assert.same "connection not from this pool", err
+
+      other_pool\release pg
+      other_pool\disconnect!
+
+    it "errors when releasing connection that is not reserved", ->
+      pg = pool.pool[1]
+      assert.falsy pg.reserved
+
+      res, err = pool\release pg
+      assert.is_nil res
+      assert.same "connection not reserved", err
+
+    it "reserve returns error when not connected", ->
+      pool\disconnect!
+      res, err = pool\reserve!
+      assert.is_nil res
+      assert.same "not connected", err

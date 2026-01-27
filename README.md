@@ -470,10 +470,46 @@ Additional pool-specific methods:
 
 * `pool:pool_size()` — Returns the current number of connections in the pool
 * `pool:active_connections()` — Returns the number of connections currently executing queries
+* `pool:reserve()` — Returns a raw `Postgres` connection for exclusive use (see below)
+* `pool:release(pg)` — Returns a reserved connection back to the pool (see below)
 
 > **Note:** `wait_for_notification` is not supported with `PostgresPool` because
 > notifications are tied to the specific socket connection that issued the
 > `LISTEN` command.
+
+### Transaction Support with reserve/release
+
+When you need to run a transaction across multiple queries, use `reserve()` to
+get exclusive access to a connection. This prevents other coroutines from using
+the same connection between your transaction queries.
+
+```lua
+local pg = pool:reserve()  -- Returns raw Postgres connection, marked as reserved
+pg:query("BEGIN")
+pg:query("INSERT INTO users (name) VALUES ('test')")
+pg:query("COMMIT")
+pool:release(pg)  -- Returns connection to pool
+```
+
+#### `pool:reserve()`
+
+Returns a raw `Postgres` connection object from the pool, marked as reserved.
+While reserved, the connection will not be used by `pool:query()` or other pool
+methods.
+
+* Returns: `Postgres` connection object on success
+* Returns: `nil, "not connected"` if pool has no connections
+* Returns: `nil, "pool exhausted, max_pool_size reached"` if at capacity
+
+#### `pool:release(pg)`
+
+Returns a reserved connection back to the pool for reuse.
+
+* Validates the connection belongs to this pool
+* If the connection is still in a transaction (`transaction_status` is `"T"` or `"E"`), automatically issues `ROLLBACK` to reset it to idle state
+* Returns: `true` on success
+* Returns: `nil, "connection not from this pool"` if connection belongs to a different pool
+* Returns: `nil, "connection not reserved"` if the connection was not reserved
 
 ## Extended and simple query protocols
 

@@ -14,9 +14,9 @@ class PostgresPool
     -- Must call connect() first
     return nil, "not connected" if #@pool == 0
 
-    -- Find first non-busy instance
+    -- Find first non-busy and non-reserved instance
     for pg in *@pool
-      unless pg.busy
+      unless pg.busy or pg.reserved
         return pg
 
     -- All busy, check max_pool_size
@@ -107,6 +107,48 @@ class PostgresPool
   encode_bytea: Postgres.encode_bytea
   decode_bytea: Postgres.decode_bytea
   setup_hstore: Postgres.setup_hstore
+
+  -- Reserve/release for transaction support
+  reserve: =>
+    return nil, "not connected" if #@pool == 0
+
+    -- Find first available (non-busy and non-reserved) instance
+    for pg in *@pool
+      unless pg.busy or pg.reserved
+        pg.reserved = true
+        return pg
+
+    -- All busy/reserved, check max_pool_size
+    if @config.max_pool_size and #@pool >= @config.max_pool_size
+      return nil, "pool exhausted, max_pool_size reached"
+
+    -- Create and connect new instance
+    pg = @_create_instance!
+    ok, err = pg\connect!
+    return nil, err unless ok
+
+    table.insert @pool, pg
+    pg.reserved = true
+    pg
+
+  release: (pg) =>
+    return nil, "connection not from this pool" unless pg.parent_pool == @
+    return nil, "connection not reserved" unless pg.reserved
+
+    -- Ensure connection is idle before returning to pool
+    if pg.transaction_status == "T" or pg.transaction_status == "E"
+      ok, err = pcall -> pg\query "ROLLBACK"
+      -- If rollback failed, connection is likely broken - remove from pool
+      unless ok and pg.transaction_status == "I"
+        pg\disconnect!
+        for i, conn in ipairs @pool
+          if conn == pg
+            table.remove @pool, i
+            break
+        return nil, "rollback failed, connection removed from pool"
+
+    pg.reserved = false
+    true
 
   -- Pool info helpers
   pool_size: => #@pool
