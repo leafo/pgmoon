@@ -370,6 +370,36 @@ print(tostring(postgres)) --> "<Postgres socket: 0xffffff>"
 
 Returns string representation of current state of `Postgres` object.
 
+### `postgres.transaction_status`
+
+```lua
+print(postgres.transaction_status) --> "I"
+```
+
+A string field containing the current transaction status of the connection as
+reported by the PostgreSQL server. This value is updated after every query and
+during connection. Possible values:
+
+* `"I"` — Idle, not in a transaction block
+* `"T"` — In a transaction block (after `BEGIN`, before `COMMIT`/`ROLLBACK`)
+* `"E"` — In a failed transaction block (queries will be rejected until `ROLLBACK`)
+
+This can be useful for detecting uncommitted transactions or handling error
+recovery:
+
+```lua
+pg:query("BEGIN")
+print(pg.transaction_status) --> "T"
+
+local res, err = pg:query("SELECT * FROM nonexistent_table")
+if not res then
+  print(pg.transaction_status) --> "E"
+  pg:query("ROLLBACK") -- required to recover from error state
+end
+
+print(pg.transaction_status) --> "I"
+```
+
 ## PostgresPool
 
 Although Lua is single-threaded, in asynchronous environments that share state,
