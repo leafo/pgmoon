@@ -256,6 +256,25 @@ describe "pgmoon with server", ->
           assert pg\query "COMMIT"
           assert.same "I", pg.transaction_status
 
+        it "reflects final state after multi-query", ->
+          -- transaction opened and closed in single call
+          res, num_queries = assert pg\query "BEGIN; SELECT 1 as n; COMMIT"
+          assert.same 3, num_queries
+          assert.same "I", pg.transaction_status
+
+          -- transaction left open
+          res, num_queries = assert pg\query "BEGIN; SELECT 1 as n"
+          assert.same 2, num_queries
+          assert.same "T", pg.transaction_status
+          assert pg\query "ROLLBACK"
+
+          -- transaction with error
+          res, err, partial, num_queries = pg\query "BEGIN; SELECT * FROM nonexistent_xyz; SELECT 2"
+          assert.nil res
+          assert.same 1, num_queries
+          assert.same "E", pg.transaction_status
+          assert pg\query "ROLLBACK"
+
       describe "extended_query", ->
         it "query with no params", ->
           res = assert pg\extended_query "select 1 as one"
