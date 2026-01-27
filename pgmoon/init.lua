@@ -318,6 +318,17 @@ do
         error("pgmoon: connection is busy")
       end
       self.busy = true
+      if self.transaction_status == "T" or self.transaction_status == "E" then
+        self:send_message(MSG_TYPE_F.query, {
+          "ROLLBACK",
+          NULL
+        })
+        local ok, err = self:receive_query_result()
+        if not (ok) then
+          self.busy = false
+          return nil, "failed to rollback before keepalive: " .. tostring(err)
+        end
+      end
       return self:unbusy(self.sock:setkeepalive(...))
     end,
     create_cqueues_openssl_context = function(self)

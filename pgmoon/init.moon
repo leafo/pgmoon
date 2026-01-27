@@ -324,6 +324,16 @@ class Postgres
   keepalive: (...) =>
     error "pgmoon: connection is busy" if @busy
     @busy = true
+
+    -- Ensure connection is idle before returning to pool
+    -- "T" = in transaction, "E" = in failed transaction
+    if @transaction_status == "T" or @transaction_status == "E"
+      @send_message MSG_TYPE_F.query, {"ROLLBACK", NULL}
+      ok, err = @receive_query_result!
+      unless ok
+        @busy = false
+        return nil, "failed to rollback before keepalive: #{err}"
+
     @unbusy @sock\setkeepalive ...
 
   -- see: http://25thandclement.com/~william/projects/luaossl.pdf
