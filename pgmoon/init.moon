@@ -745,6 +745,7 @@ class Postgres
 
           row_desc, data_rows, command_complete = nil
         when MSG_TYPE_B.ready_for_query
+          @transaction_status = msg
           break
         when MSG_TYPE_B.notification
           notifications = {} unless notifications
@@ -924,7 +925,9 @@ class Postgres
       if MSG_TYPE_B.error == t
         return nil, @parse_error(msg)
 
-      break if MSG_TYPE_B.ready_for_query == t
+      if MSG_TYPE_B.ready_for_query == t
+        @transaction_status = msg
+        break
 
     true
 

@@ -220,6 +220,42 @@ describe "pgmoon with server", ->
         assert.falsy status, "connection should fail if it could not establish ssl"
         assert.same [[the server does not support SSL connections]], err
 
+      describe "transaction_status", ->
+        it "is idle after connect", ->
+          assert.same "I", pg.transaction_status
+
+        it "is in transaction after BEGIN", ->
+          assert pg\query "BEGIN"
+          assert.same "T", pg.transaction_status
+          assert pg\query "ROLLBACK"
+          assert.same "I", pg.transaction_status
+
+        it "is in error state after failed query in transaction", ->
+          assert pg\query "BEGIN"
+          assert.same "T", pg.transaction_status
+
+          -- query a non-existent table to trigger an error
+          res, err = pg\query "SELECT * FROM nonexistent_table_12345"
+          assert.falsy res
+          assert.same "E", pg.transaction_status
+
+          -- further queries should fail until rollback
+          res, err = pg\query "SELECT 1"
+          assert.falsy res
+          assert.same "E", pg.transaction_status
+
+          -- rollback should restore to idle
+          assert pg\query "ROLLBACK"
+          assert.same "I", pg.transaction_status
+
+        it "returns to idle after COMMIT", ->
+          assert pg\query "BEGIN"
+          assert.same "T", pg.transaction_status
+          assert pg\query "SELECT 1"
+          assert.same "T", pg.transaction_status
+          assert pg\query "COMMIT"
+          assert.same "I", pg.transaction_status
+
       describe "extended_query", ->
         it "query with no params", ->
           res = assert pg\extended_query "select 1 as one"

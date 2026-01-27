@@ -735,6 +735,7 @@ do
           end
           row_desc, data_rows, command_complete = nil
         elseif MSG_TYPE_B.ready_for_query == _exp_0 then
+          self.transaction_status = msg
           break
         elseif MSG_TYPE_B.notification == _exp_0 then
           if not (notifications) then
@@ -936,6 +937,7 @@ do
           return nil, self:parse_error(msg)
         end
         if MSG_TYPE_B.ready_for_query == t then
+          self.transaction_status = msg
           break
         end
       end
