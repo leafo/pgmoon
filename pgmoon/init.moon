@@ -372,6 +372,10 @@ class Postgres
 
   -- https://www.postgresql.org/docs/current/sasl-authentication.html#SASL-SCRAM-SHA-256
   scram_sha_256_auth: (msg) =>
+    -- Check if OAUTHBEARER is requested
+    if msg\match "OAUTHBEARER"
+      return @oauthbearer_auth msg
+    
     assert @config.password, "missing password, required for connect"
 
     import random_bytes, x509_digest from require "pgmoon.crypto"
@@ -557,6 +561,58 @@ class Postgres
       NULL
     }
 
+    @check_auth!
+
+  -- https://datatracker.ietf.org/doc/html/rfc7628
+  -- OAUTHBEARER SASL mechanism for OAuth 2.0 bearer tokens
+  oauthbearer_auth: (msg) =>
+    assert @config.oauth_token, "missing oauth_token, required for OAUTHBEARER auth"
+
+    import OAuth from require "pgmoon.oauth"
+
+    -- Validate the token
+    valid, err = OAuth\validate_token @config.oauth_token
+    unless valid
+      return nil, err
+
+    -- Create OAUTHBEARER client-first message
+    -- The message format is: gs2-header authzid kvpairs
+    -- gs2-header = "n,," (no channel binding, no authzid)
+    -- kvpairs = "auth=Bearer <token>\x01\x01"
+    client_first_message = OAuth\create_client_first @config.oauth_token
+
+    mechanism_name = "OAUTHBEARER" .. NULL
+
+    -- Send the SASL initial response
+    @send_message MSG_TYPE_F.password, {
+      mechanism_name
+      @encode_int #client_first_message
+      client_first_message
+    }
+
+    -- Receive server response
+    t, msg = @receive_message()
+    unless t
+      return nil, msg
+
+    -- Check if authentication succeeded or if we need to handle a challenge
+    -- For OAUTHBEARER, the server may send a challenge with error information
+    -- In the simple case, the server accepts the token immediately
+    auth_status = @decode_int msg, 4
+
+    if auth_status == 11  -- AuthenticationSASLContinue
+      -- Server sent a challenge (usually error details)
+      -- Send empty response to complete the exchange
+      @send_message MSG_TYPE_F.password, {
+        ""
+      }
+
+      -- Receive final auth result
+      t, msg = @receive_message()
+      unless t
+        return nil, msg
+
+    -- Final check
     @check_auth!
 
   check_auth: =>
