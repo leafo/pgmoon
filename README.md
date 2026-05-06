@@ -115,6 +115,15 @@ pg:query("select 1 as dog, 'hello' as dog") --> { { dog = "hello" } }
 There is currently no way around this limitation. If this is something you need
 then open an [issue](https://github.com/leafo/pgmoon/issues).
 
+A `Postgres` connection is not safe to share between coroutines that may run
+concurrently. pgmoon tracks an internal `busy` flag for the duration of
+`connect`, `query`, `disconnect`, `keepalive`, and `wait_for_notification`; if
+any of these is invoked while the connection is already mid-operation (for
+example, from another coroutine that yielded mid-query) it will raise a
+`"pgmoon: connection is busy"` error rather than silently corrupting the
+protocol stream. If you need to issue queries from multiple coroutines, use
+[`PostgresPool`](#postgrespool) instead of sharing a single connection.
+
 
 ## Reference
 
