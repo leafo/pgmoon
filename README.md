@@ -333,6 +333,28 @@ Similarly for queries that return affected rows or just `true`, they will be
 wrapped up in an addition array table when there are multiple of them. You can
 also mix the different query types as you see fit.
 
+### `postgres:query_array(query_string, ...)`
+
+```lua
+local res = assert(pg:query_array("select 1 as a, 'two' as b"))
+
+res.fields --> { "a", "b" }
+res[1] --> { 1, "two" }
+```
+
+Identical to `query`, but each row in the result is an array of values
+ordered by column position instead of a table keyed by field name. The
+ordered list of field names is stored in the `fields` key of each result.
+
+Unlike `query`, NULL values are always included in rows using the
+`postgres.NULL` sentinel value, regardless of the `convert_null` setting, so
+that values always align with their position in `fields`.
+
+Because rows are not keyed by field name, this interface supports queries
+that return multiple columns with the same name. Rows are also cheaper to
+construct than the tables returned by `query`, making this interface
+suitable for queries that return a large number of rows.
+
 ### `postgres:escape_literal(val)`
 
 ```lua

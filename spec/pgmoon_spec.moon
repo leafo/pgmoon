@@ -275,6 +275,73 @@ describe "pgmoon with server", ->
           assert.same "E", pg.transaction_status
           assert pg\query "ROLLBACK"
 
+      describe "query_array", ->
+        it "runs basic query", ->
+          res = assert pg\query_array "select 1 as a, 'two' as b, true as c"
+          assert.same {
+            fields: {"a", "b", "c"}
+            {1, "two", true}
+          }, res
+
+          sanity_check!
+
+        it "preserves position of NULL values", ->
+          res = assert pg\query_array "select 1 as a, NULL as b, 3 as c"
+          assert.same 3, #res[1]
+          assert.same 1, res[1][1]
+          assert.true pg.NULL == res[1][2]
+          assert.same 3, res[1][3]
+
+        it "supports duplicate field names", ->
+          res = assert pg\query_array "select 1 as dog, 2 as dog"
+          assert.same {
+            fields: {"dog", "dog"}
+            {1, 2}
+          }, res
+
+        it "runs query with params", ->
+          res = assert pg\query_array "select $1::integer as a, $2 as b", 13, "hello"
+          assert.same {
+            fields: {"a", "b"}
+            {13, "hello"}
+          }, res
+
+        it "runs multiple queries", ->
+          res, num_queries = assert pg\query_array "select 1 as a; select 'x' as b, 'y' as c"
+          assert.same 2, num_queries
+          assert.same {
+            {
+              fields: {"a"}
+              {1}
+            }
+            {
+              fields: {"b", "c"}
+              {"x", "y"}
+            }
+          }, res
+
+        it "includes fields on empty result", ->
+          res = assert pg\query_array "select 1 as a where false"
+          assert.same {
+            fields: {"a"}
+          }, res
+
+        it "deserializes types", ->
+          res = assert pg\query_array "select '{1,2,3}'::integer[] as arr, 'f'::boolean as b"
+          assert.same {
+            fields: {"arr", "b"}
+            {{1, 2, 3}, false}
+          }, res
+
+        it "does not affect subsequent queries", ->
+          assert pg\query_array "select 1 as a"
+          sanity_check!
+
+        it "clears array mode after query error", ->
+          res = pg\query_array "select * from table_that_does_not_exist_xyz"
+          assert.nil res
+          sanity_check!
+
       describe "extended_query", ->
         it "query with no params", ->
           res = assert pg\extended_query "select 1 as one"

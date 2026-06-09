@@ -630,6 +630,18 @@ do
         return self:simple_query(q)
       end
     end,
+    query_array = function(self, q, ...)
+      if self.busy then
+        error("pgmoon: connection is busy")
+      end
+      self._array_mode = true
+      local finish
+      finish = function(...)
+        self._array_mode = nil
+        return ...
+      end
+      return finish(self:query(q, ...))
+    end,
     unbusy = function(self, ...)
       self.busy = false
       return ...
@@ -821,6 +833,28 @@ do
         affected_rows = tonumber(command_complete:match("(%d+)%z$"))
       end
       if row_desc then
+        if self._array_mode then
+          local fields = self:parse_row_desc(row_desc)
+          data_rows = data_rows or { }
+          local num_rows = #data_rows
+          for i = 1, num_rows do
+            data_rows[i] = self:parse_data_row_array(data_rows[i], fields)
+          end
+          do
+            local _accum_0 = { }
+            local _len_0 = 1
+            for _index_0 = 1, #fields do
+              local field = fields[_index_0]
+              _accum_0[_len_0] = field[1]
+              _len_0 = _len_0 + 1
+            end
+            data_rows.fields = _accum_0
+          end
+          if affected_rows and command ~= "SELECT" then
+            data_rows.affected_rows = affected_rows
+          end
+          return data_rows
+        end
         if not (data_rows) then
           return { }
         end
@@ -952,6 +986,37 @@ do
             out[field_name] = converter(value)
           else
             out[field_name] = value
+          end
+          _continue_0 = true
+        until true
+        if not _continue_0 then
+          break
+        end
+      end
+      return out
+    end,
+    parse_data_row_array = function(self, data_row, fields)
+      local num_fields = decode_int2(data_row, 1)
+      local out = table_new(num_fields, 0)
+      local offset = 3
+      for i = 1, num_fields do
+        local _continue_0 = false
+        repeat
+          local len = decode_int4(data_row, offset)
+          offset = offset + 4
+          if len < 0 then
+            out[i] = self.NULL
+            _continue_0 = true
+            break
+          end
+          local value = data_row:sub(offset, offset + len - 1)
+          offset = offset + len
+          local field = fields[i]
+          local converter = field and field[2]
+          if converter then
+            out[i] = converter(value)
+          else
+            out[i] = value
           end
           _continue_0 = true
         until true

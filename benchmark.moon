@@ -195,6 +195,20 @@ WORKLOADS = {
     exec: (pg) -> assert pg\simple_query "select * from pgmoon_bench_numeric"
   }
   {
+    name: "rows_5000_array"
+    n: 50
+    rows: 5000
+    optimized_only: true
+    exec: (pg) -> assert pg\query_array "select * from pgmoon_bench"
+  }
+  {
+    name: "numeric_8col_arr"
+    n: 200
+    rows: 1000
+    optimized_only: true
+    exec: (pg) -> assert pg\query_array "select * from pgmoon_bench_numeric"
+  }
+  {
     name: "wide_text_50"
     n: 200
     rows: 50
@@ -222,18 +236,25 @@ median = (times) ->
   table.sort times
   times[math.ceil #times / 2]
 
--- run one workload in all modes with reps interleaved across modes
+-- run one workload in all applicable modes with reps interleaved across modes
 run_workload = (w, connections) ->
+  -- workloads that use interfaces the legacy patch doesn't support only run
+  -- against the unpatched implementation
+  modes = if w.optimized_only
+    [m for m in *MODES when not m.patch]
+  else
+    MODES
+
   -- warmup
-  for mode in *MODES
+  for mode in *modes
     pg = connections[mode.name].pg
     for i=1, math.max 3, math.floor w.n / 10
       w.exec pg
 
-  times = {mode.name, {} for mode in *MODES}
+  times = {mode.name, {} for mode in *modes}
 
   for r=1, REPS
-    for mode in *MODES
+    for mode in *modes
       pg = connections[mode.name].pg
       start = gettime!
       for i=1, w.n
@@ -242,7 +263,7 @@ run_workload = (w, connections) ->
 
   results = {}
 
-  for mode in *MODES
+  for mode in *modes
     {:pg, :counters} = connections[mode.name]
 
     -- allocation pressure: bytes allocated per query with the collector paused
@@ -301,7 +322,8 @@ for w in *WORKLOADS
   results = run_workload w, connections
 
   for mode in *MODES
-    print row_fmt results[mode.name], mode.name
+    if r = results[mode.name]
+      print row_fmt r, mode.name
 
   optimized = results.optimized
   legacy = results.legacy

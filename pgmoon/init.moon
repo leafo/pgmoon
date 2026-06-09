@@ -638,6 +638,21 @@ class Postgres
     else
       @simple_query q
 
+  -- same as query, but each row is an array of values ordered by column
+  -- position instead of a table keyed by field name. The ordered list of
+  -- field names is stored in the fields key of each result. NULL values are
+  -- always included as the NULL sentinel so values stay aligned with fields
+  query_array: (q, ...) =>
+    error "pgmoon: connection is busy" if @busy
+
+    @_array_mode = true
+
+    finish = (...) ->
+      @_array_mode = nil
+      ...
+
+    finish @query q, ...
+
 
   unbusy: (...) =>
     @busy = false
@@ -819,6 +834,20 @@ class Postgres
       affected_rows = tonumber command_complete\match "(%d+)%z$"
 
     if row_desc
+      if @_array_mode
+        fields = @parse_row_desc row_desc
+        data_rows or= {}
+        num_rows = #data_rows
+        for i=1,num_rows
+          data_rows[i] = @parse_data_row_array data_rows[i], fields
+
+        data_rows.fields = [field[1] for field in *fields]
+
+        if affected_rows and command != "SELECT"
+          data_rows.affected_rows = affected_rows
+
+        return data_rows
+
       return {} unless data_rows
 
       fields = @parse_row_desc row_desc
@@ -932,6 +961,34 @@ class Postgres
       offset += len
 
       out[field_name] = if converter
+        converter value
+      else
+        value
+
+    out
+
+  parse_data_row_array: (data_row, fields) =>
+    -- 2: number of values
+    num_fields = decode_int2 data_row, 1
+    out = table_new num_fields, 0
+
+    offset = 3
+    for i=1,num_fields
+      -- 4: length of value
+      len = decode_int4 data_row, offset
+      offset += 4
+
+      if len < 0
+        out[i] = @NULL
+        continue
+
+      value = data_row\sub offset, offset + len - 1
+      offset += len
+
+      field = fields[i]
+      converter = field and field[2]
+
+      out[i] = if converter
         converter value
       else
         value
