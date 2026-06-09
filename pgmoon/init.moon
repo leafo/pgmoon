@@ -128,6 +128,31 @@ NULL = "\0"
 tobool = (str) ->
   str == "t"
 
+table_new = do
+  ok, fn = pcall require, "table.new"
+  if ok
+    fn
+  else
+    -> {}
+
+-- decode big endian unsigned int32 at offset
+decode_uint4 = (str, offset) ->
+  a, b, c, d = str\byte offset, offset + 3
+  a*0x1000000 + b*0x10000 + c*0x100 + d
+
+-- decode big endian signed int32 at offset
+decode_int4 = (str, offset) ->
+  n = decode_uint4 str, offset
+  if n >= 0x80000000
+    n - 0x100000000
+  else
+    n
+
+-- decode big endian unsigned int16 at offset
+decode_int2 = (str, offset) ->
+  a, b = str\byte offset, offset + 1
+  a*0x100 + b
+
 class Postgres
   convert_null: false
   NULL: {"NULL"}
@@ -848,7 +873,7 @@ class Postgres
     msg, error_data
 
   parse_row_desc: (row_desc) =>
-    num_fields = @decode_int row_desc\sub(1,2)
+    num_fields = decode_int2 row_desc, 1
     offset = 3
     fields = for i=1,num_fields
       name = row_desc\match "[^%z]+", offset
@@ -857,36 +882,46 @@ class Postgres
       -- 2: attribute number of column (4)
 
       -- 4: object id of data type (6)
-      data_type = @decode_int row_desc\sub offset + 6, offset + 6 + 3
-
-      data_type = @PG_TYPES[data_type] or "string"
+      data_type = @PG_TYPES[decode_uint4 row_desc, offset + 6] or "string"
 
       -- 2: data type size (10)
       -- 4: type modifier (12)
 
       -- 2: format code (16)
       -- we only know how to handle text
-      format = @decode_int row_desc\sub offset + 16, offset + 16 + 1
+      format = decode_int2 row_desc, offset + 16
       assert 0 == format, "don't know how to handle format"
 
       offset += 18
-      {name, data_type}
+
+      converter = switch data_type
+        when "string"
+          nil
+        when "number"
+          tonumber
+        when "boolean"
+          tobool
+        else
+          if fn = @type_deserializers[data_type]
+            (v) -> fn @, v, data_type
+
+      {name, converter, data_type}
 
     fields
 
   parse_data_row: (data_row, fields) =>
     -- 2: number of values
-    num_fields = @decode_int data_row\sub(1,2)
-    out = {}
+    num_fields = decode_int2 data_row, 1
+    out = table_new 0, num_fields
 
     offset = 3
     for i=1,num_fields
       field = fields[i]
       continue unless field
-      {field_name, field_type} = field
+      {field_name, converter} = field
 
       -- 4: length of value
-      len = @decode_int data_row\sub offset, offset + 3
+      len = decode_int4 data_row, offset
       offset += 4
 
       if len < 0
@@ -896,18 +931,10 @@ class Postgres
       value = data_row\sub offset, offset + len - 1
       offset += len
 
-      switch field_type
-        when "number"
-          value = tonumber value
-        when "boolean"
-          value = value == "t"
-        when "string"
-          nil
-        else
-          if fn = @type_deserializers[field_type]
-            value = fn @, value, field_type
-
-      out[field_name] = value
+      out[field_name] = if converter
+        converter value
+      else
+        value
 
     out
 
@@ -949,11 +976,13 @@ class Postgres
       return nil, "receive_message: failed to get type: #{err}"
 
     t = prefix\sub 1,1
-    len = prefix\sub 2
+    len = decode_int4(prefix, 2) - 4
 
-    len = @decode_int len
-    len -= 4
-    msg = @sock\receive len
+    msg, err = @sock\receive len
+
+    unless msg
+      return nil, "receive_message: failed to get body: #{err}"
+
     t, msg
 
   send_startup_message: =>

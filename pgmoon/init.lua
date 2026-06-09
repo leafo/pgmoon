@@ -131,6 +131,36 @@ local tobool
 tobool = function(str)
   return str == "t"
 end
+local table_new
+do
+  local ok, fn = pcall(require, "table.new")
+  if ok then
+    table_new = fn
+  else
+    table_new = function()
+      return { }
+    end
+  end
+end
+local decode_uint4
+decode_uint4 = function(str, offset)
+  local a, b, c, d = str:byte(offset, offset + 3)
+  return a * 0x1000000 + b * 0x10000 + c * 0x100 + d
+end
+local decode_int4
+decode_int4 = function(str, offset)
+  local n = decode_uint4(str, offset)
+  if n >= 0x80000000 then
+    return n - 0x100000000
+  else
+    return n
+  end
+end
+local decode_int2
+decode_int2 = function(str, offset)
+  local a, b = str:byte(offset, offset + 1)
+  return a * 0x100 + b
+end
 local Postgres
 do
   local _class_0
@@ -850,7 +880,7 @@ do
       return msg, error_data
     end,
     parse_row_desc = function(self, row_desc)
-      local num_fields = self:decode_int(row_desc:sub(1, 2))
+      local num_fields = decode_int2(row_desc, 1)
       local offset = 3
       local fields
       do
@@ -859,13 +889,31 @@ do
         for i = 1, num_fields do
           local name = row_desc:match("[^%z]+", offset)
           offset = offset + #name + 1
-          local data_type = self:decode_int(row_desc:sub(offset + 6, offset + 6 + 3))
-          data_type = self.PG_TYPES[data_type] or "string"
-          local format = self:decode_int(row_desc:sub(offset + 16, offset + 16 + 1))
+          local data_type = self.PG_TYPES[decode_uint4(row_desc, offset + 6)] or "string"
+          local format = decode_int2(row_desc, offset + 16)
           assert(0 == format, "don't know how to handle format")
           offset = offset + 18
+          local converter
+          local _exp_0 = data_type
+          if "string" == _exp_0 then
+            converter = nil
+          elseif "number" == _exp_0 then
+            converter = tonumber
+          elseif "boolean" == _exp_0 then
+            converter = tobool
+          else
+            do
+              local fn = self.type_deserializers[data_type]
+              if fn then
+                converter = function(v)
+                  return fn(self, v, data_type)
+                end
+              end
+            end
+          end
           local _value_0 = {
             name,
+            converter,
             data_type
           }
           _accum_0[_len_0] = _value_0
@@ -876,8 +924,8 @@ do
       return fields
     end,
     parse_data_row = function(self, data_row, fields)
-      local num_fields = self:decode_int(data_row:sub(1, 2))
-      local out = { }
+      local num_fields = decode_int2(data_row, 1)
+      local out = table_new(0, num_fields)
       local offset = 3
       for i = 1, num_fields do
         local _continue_0 = false
@@ -887,9 +935,9 @@ do
             _continue_0 = true
             break
           end
-          local field_name, field_type
-          field_name, field_type = field[1], field[2]
-          local len = self:decode_int(data_row:sub(offset, offset + 3))
+          local field_name, converter
+          field_name, converter = field[1], field[2]
+          local len = decode_int4(data_row, offset)
           offset = offset + 4
           if len < 0 then
             if self.convert_null then
@@ -900,22 +948,11 @@ do
           end
           local value = data_row:sub(offset, offset + len - 1)
           offset = offset + len
-          local _exp_0 = field_type
-          if "number" == _exp_0 then
-            value = tonumber(value)
-          elseif "boolean" == _exp_0 then
-            value = value == "t"
-          elseif "string" == _exp_0 then
-            local _ = nil
+          if converter then
+            out[field_name] = converter(value)
           else
-            do
-              local fn = self.type_deserializers[field_type]
-              if fn then
-                value = fn(self, value, field_type)
-              end
-            end
+            out[field_name] = value
           end
-          out[field_name] = value
           _continue_0 = true
         until true
         if not _continue_0 then
@@ -960,10 +997,12 @@ do
         return nil, "receive_message: failed to get type: " .. tostring(err)
       end
       local t = prefix:sub(1, 1)
-      local len = prefix:sub(2)
-      len = self:decode_int(len)
-      len = len - 4
-      local msg = self.sock:receive(len)
+      local len = decode_int4(prefix, 2) - 4
+      local msg
+      msg, err = self.sock:receive(len)
+      if not (msg) then
+        return nil, "receive_message: failed to get body: " .. tostring(err)
+      end
       return t, msg
     end,
     send_startup_message = function(self)
