@@ -1075,7 +1075,7 @@ class Postgres
     if t == MSG_TYPE_B.parameter_status
       switch @sock_type
         when "nginx"
-          @sock\sslhandshake false, nil, @config.ssl_verify
+          @sock\sslhandshake false, @config.host, @config.ssl_verify
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"

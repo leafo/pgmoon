@@ -1110,7 +1110,7 @@ do
       if t == MSG_TYPE_B.parameter_status then
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
-          return self.sock:sslhandshake(false, nil, self.config.ssl_verify)
+          return self.sock:sslhandshake(false, self.config.host, self.config.ssl_verify)
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
         elseif "cqueues" == _exp_0 then
