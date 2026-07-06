@@ -152,3 +152,26 @@ describe "pgmoon with server", ->
 
       pg\disconnect!
 
+
+describe "ssl handshake", ->
+  it "passes the hostname for TLS SNI in the nginx ssl handshake", ->
+    import Postgres from require "pgmoon"
+
+    pg = Postgres {
+      host: "db.example.com"
+      ssl: true
+    }
+
+    handshake_server_name = nil
+
+    pg.sock_type = "nginx"
+    pg.sock = {
+      send: => true
+      receive: => "S" -- server agrees to SSL
+      sslhandshake: (reused_session, server_name, ssl_verify) =>
+        handshake_server_name = server_name
+        true
+    }
+
+    assert pg\send_ssl_message!
+    assert.same "db.example.com", handshake_server_name
