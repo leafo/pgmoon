@@ -8,7 +8,7 @@ do
 end
 local unpack = table.unpack or unpack
 local DEBUG = false
-local VERSION = "1.17.0"
+local VERSION = "1.18.0"
 local _len
 _len = function(thing, t)
   if t == nil then
@@ -796,7 +796,7 @@ do
           end
           insert(notifications, self:parse_notification(msg))
         elseif MSG_TYPE_B.parse_complete == _exp_0 or MSG_TYPE_B.bind_complete == _exp_0 or MSG_TYPE_B.close_complete == _exp_0 then
-          local _ = nil
+          local _scrap_0 = nil
         else
           if DEBUG then
             print("Unhandled message in query result: " .. tostring(t))
@@ -922,7 +922,7 @@ do
         local _len_0 = 1
         for i = 1, num_fields do
           local name = row_desc:match("[^%z]+", offset)
-          offset = offset + #name + 1
+          offset = offset + (#name + 1)
           local data_type = self.PG_TYPES[decode_uint4(row_desc, offset + 6)] or "string"
           local format = decode_int2(row_desc, offset + 16)
           assert(0 == format, "don't know how to handle format")
