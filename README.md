@@ -907,6 +907,8 @@ Homepage: <http://leafo.net>
 
 Note: Future changenotes will be published on GitHub releases page: https://github.com/leafo/pgmoon/releases
 
+* 1.18.0 — 2026-08-10 - Add `query_array` to return rows as arrays of values ordered by column position, optimize row parsing (about 10% faster), fix error handling for failed reads in `receive_message`
+* 1.17.0 — 2026-05-06 - Add `PostgresPool` connection pool with `reserve`/`release` for transactions, Unix socket support via `socket_path` (luaposix or ngx cosocket), track `transaction_status` and clean up dirty connections on keepalive, busy state tracking to prevent concurrent use of a connection
 * 1.16.0 — 2022-11-22 - Add support for X509 signature algorithms (RSA-SHA1, ECDSA-with-SHA384), git+ssh protocol in rockspec
 * 1.15.0 — 2022-6-3 - Extended query protocol
 * 1.14.0 — 2022-2-17 - OpenResty crypto functions used, better empty array support, 
