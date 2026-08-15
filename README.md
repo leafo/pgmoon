@@ -785,7 +785,7 @@ local pg = pgmoon.new(config)
 
 -- in this example we create a new deserializer called bignumber and provide
 -- the function to deserialize (type OID 20 is an 8 byte integer)
-pg:set_type_deserializer(20, "bignumber", function(val)
+pg:set_type_deserializer(20, "bignumber", function(self, val, typename)
     return "HUGENUMBER:" .. val
 end)
 
@@ -798,7 +798,10 @@ The arguments are as follows:
 
 * `oid` The OID from `pg_type` that will be handled
 * `name` The local name of the type. This is a name that points to an existing deserializer or will be used to register a new one if the `deserializer` argument is provided
-* `deserializer` A function that takes the raw string value from Postgres and converts it into something more useful (optional). Any existing deserializer function with the same name will be overwritten
+* `deserializer` (optional) A function that converts the value into something more useful. Any existing deserializer function with the same name will be overwritten. The function will be called with three arguments:
+  * The current `Postgres` object.
+  * The raw string value from Postgres.
+  * The registered name of the type.
 
 ## Custom type serializer
 
