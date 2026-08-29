@@ -973,7 +973,7 @@ do
           field_name, converter = field[1], field[2]
           local len = decode_int4(data_row, offset)
           offset = offset + 4
-          if len < 0 then
+          if len < 0 or len == 4294967295 then
             if self.convert_null then
               out[field_name] = self.NULL
             end
