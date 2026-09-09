@@ -11,6 +11,15 @@ unpack = table.unpack or unpack
 DEBUG = false
 VERSION = "1.18.0"
 
+-- SNI must not contain an IP literal (RFC 6066), so skip the server name
+-- for IPv4 and IPv6 hosts, matching libpq's behavior
+is_ip_address = (host) ->
+  return false unless type(host) == "string"
+  return true if host\match "^%d+%.%d+%.%d+%.%d+$"
+  -- IPv6: contains a colon and only hex digits, colons, dots, or a zone id
+  return true if host\find(":", 1, true) and host\match "^[%x:%.]+%%?[%w%-]*$"
+  false
+
 _len = (thing, t=type(thing)) ->
   switch t
     when "string"
@@ -1075,7 +1084,8 @@ class Postgres
     if t == MSG_TYPE_B.parameter_status
       switch @sock_type
         when "nginx"
-          @sock\sslhandshake false, @config.host, @config.ssl_verify
+          server_name = @config.host unless is_ip_address @config.host
+          @sock\sslhandshake false, server_name, @config.ssl_verify
         when "luasocket"
           @sock\sslhandshake @config.luasec_opts or @create_luasec_opts!
         when "cqueues"

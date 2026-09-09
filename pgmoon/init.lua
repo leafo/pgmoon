@@ -9,6 +9,19 @@ end
 local unpack = table.unpack or unpack
 local DEBUG = false
 local VERSION = "1.18.0"
+local is_ip_address
+is_ip_address = function(host)
+  if not (type(host) == "string") then
+    return false
+  end
+  if host:match("^%d+%.%d+%.%d+%.%d+$") then
+    return true
+  end
+  if host:find(":", 1, true) and host:match("^[%x:%.]+%%?[%w%-]*$") then
+    return true
+  end
+  return false
+end
 local _len
 _len = function(thing, t)
   if t == nil then
@@ -1110,7 +1123,11 @@ do
       if t == MSG_TYPE_B.parameter_status then
         local _exp_0 = self.sock_type
         if "nginx" == _exp_0 then
-          return self.sock:sslhandshake(false, self.config.host, self.config.ssl_verify)
+          local server_name
+          if not (is_ip_address(self.config.host)) then
+            server_name = self.config.host
+          end
+          return self.sock:sslhandshake(false, server_name, self.config.ssl_verify)
         elseif "luasocket" == _exp_0 then
           return self.sock:sslhandshake(self.config.luasec_opts or self:create_luasec_opts())
         elseif "cqueues" == _exp_0 then

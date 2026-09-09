@@ -175,3 +175,26 @@ describe "ssl handshake", ->
 
     assert pg\send_ssl_message!
     assert.same "db.example.com", handshake_server_name
+
+  for host in *{"127.0.0.1", "10.0.0.1", "::1", "2001:db8::1", "fe80::1%eth0"}
+    it "does not send an IP address as TLS SNI (#{host})", ->
+      import Postgres from require "pgmoon"
+
+      pg = Postgres {
+        host: host
+        ssl: true
+      }
+
+      handshake_server_name = "unset"
+
+      pg.sock_type = "nginx"
+      pg.sock = {
+        send: => true
+        receive: => "S"
+        sslhandshake: (reused_session, server_name, ssl_verify) =>
+          handshake_server_name = server_name
+          true
+      }
+
+      assert pg\send_ssl_message!
+      assert.same nil, handshake_server_name
