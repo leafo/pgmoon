@@ -164,6 +164,9 @@ class Postgres
     host: "127.0.0.1"
     port: "5432"
     ssl: false
+    -- when enabled, socket reads are buffered to reduce scheduler round-trips
+    buffered_read: false
+    buffered_read_size: 1024 * 16 -- 16kb read buffer
     socket_path: nil
   }
 
@@ -275,6 +278,10 @@ class Postgres
 
     @convert_null = @config.convert_null
     @busy = false
+
+    -- buffered read state
+    @read_buffer = ""
+    @read_buffer_pos = 1
 
     -- Auto-select socket type based on configuration
     -- If socket_path is provided, use nginx cosocket when available, otherwise luaposix
@@ -1025,8 +1032,76 @@ class Postgres
 
     true
 
+  -- clear the read buffer, should be called when connection state changes
+  clear_read_buffer: =>
+    @read_buffer = ""
+    @read_buffer_pos = 1
+
+  -- buffered receive: read n bytes, using internal buffer to minimize socket calls
+  -- returns data, err
+  buffered_receive: (n) =>
+    buf = @read_buffer
+    pos = @read_buffer_pos
+    available = #buf - pos + 1
+
+    -- fast path: we have enough data in buffer
+    if available >= n
+      data = buf\sub pos, pos + n - 1
+      @read_buffer_pos = pos + n
+      return data
+
+    -- collect fragments: first grab what's left in buffer
+    fragments = {}
+    needed = n
+
+    if available > 0
+      insert fragments, buf\sub pos
+      needed -= available
+
+    -- read more data from socket until we have enough
+    while needed > 0
+      chunk, err = if @sock_type == "nginx" and @sock.receiveany
+        -- nginx: use receiveany to grab whatever is available (up to buffer size)
+        @sock\receiveany math.max @config.buffered_read_size, needed
+      else
+        -- luasocket/cqueues: receive blocks for exact count, so only request what we need
+        @sock\receive needed
+
+      unless chunk
+        return nil, err
+
+      insert fragments, chunk
+      needed -= #chunk
+
+    -- reassemble: the data we need plus leftover for buffer
+    result = table.concat fragments
+    @read_buffer = result\sub n + 1
+    @read_buffer_pos = 1
+    return result\sub 1, n
+
+  receive_message_buffered: =>
+    prefix, err = @buffered_receive 5
+
+    unless prefix
+      return nil, "receive_message: failed to get type: #{err}"
+
+    t = prefix\sub 1,1
+    len = prefix\sub 2
+
+    len = @decode_int len
+    len -= 4
+
+    msg, err = @buffered_receive len
+    unless msg
+      return nil, "receive_message: failed to get msg body: #{err}"
+
+    t, msg
+
   -- NOTE: timeout of 0 would cause this clinet to disconnect if it's not ready
   receive_message: =>
+    if @config.buffered_read
+      return @receive_message_buffered!
+
     prefix, err = @sock\receive 5
 
     unless prefix

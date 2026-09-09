@@ -176,6 +176,8 @@ do
       host = "127.0.0.1",
       port = "5432",
       ssl = false,
+      buffered_read = false,
+      buffered_read_size = 1024 * 16,
       socket_path = nil
     },
     type_serializers = {
@@ -1056,7 +1058,63 @@ do
       end
       return true
     end,
+    clear_read_buffer = function(self)
+      self.read_buffer = ""
+      self.read_buffer_pos = 1
+    end,
+    buffered_receive = function(self, n)
+      local buf = self.read_buffer
+      local pos = self.read_buffer_pos
+      local available = #buf - pos + 1
+      if available >= n then
+        local data = buf:sub(pos, pos + n - 1)
+        self.read_buffer_pos = pos + n
+        return data
+      end
+      local fragments = { }
+      local needed = n
+      if available > 0 then
+        insert(fragments, buf:sub(pos))
+        needed = needed - available
+      end
+      while needed > 0 do
+        local chunk, err
+        if self.sock_type == "nginx" and self.sock.receiveany then
+          chunk, err = self.sock:receiveany(math.max(self.config.buffered_read_size, needed))
+        else
+          chunk, err = self.sock:receive(needed)
+        end
+        if not (chunk) then
+          return nil, err
+        end
+        insert(fragments, chunk)
+        needed = needed - #chunk
+      end
+      local result = table.concat(fragments)
+      self.read_buffer = result:sub(n + 1)
+      self.read_buffer_pos = 1
+      return result:sub(1, n)
+    end,
+    receive_message_buffered = function(self)
+      local prefix, err = self:buffered_receive(5)
+      if not (prefix) then
+        return nil, "receive_message: failed to get type: " .. tostring(err)
+      end
+      local t = prefix:sub(1, 1)
+      local len = prefix:sub(2)
+      len = self:decode_int(len)
+      len = len - 4
+      local msg
+      msg, err = self:buffered_receive(len)
+      if not (msg) then
+        return nil, "receive_message: failed to get msg body: " .. tostring(err)
+      end
+      return t, msg
+    end,
     receive_message = function(self)
+      if self.config.buffered_read then
+        return self:receive_message_buffered()
+      end
       local prefix, err = self.sock:receive(5)
       if not (prefix) then
         return nil, "receive_message: failed to get type: " .. tostring(err)
@@ -1260,6 +1318,8 @@ do
       })
       self.convert_null = self.config.convert_null
       self.busy = false
+      self.read_buffer = ""
+      self.read_buffer_pos = 1
       local socket_type
       if self.config.socket_path then
         if ngx and ngx.get_phase() ~= "init" then
